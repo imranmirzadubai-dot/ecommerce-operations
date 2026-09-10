@@ -48,3 +48,7 @@ This repository is the source of truth for application code, database migrations
 - Supabase service-role/secret keys must never be exposed to the browser.
 - Database access rules and RLS are defined explicitly through version-controlled migrations.
 - Production business data is blocked until the required foundation/security gates have passed.
+
+## CI Baseline
+
+Every feature-branch push and pull request runs lint, TypeScript typecheck, unit tests, build, and isolated local Supabase database tests before the foundation CI gate can be considered verified.
