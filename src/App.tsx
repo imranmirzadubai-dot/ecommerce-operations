@@ -1,5 +1,5 @@
 import './App.css'
-import { canAdministerUsers, hasOperationalAccess, type Profile } from './lib/auth'
+import { hasOperationalAccess, type Profile } from './lib/auth'
 
 const navigation = [
   'Dashboard',
@@ -46,7 +46,6 @@ function App() {
           <div className="sidebar-footer">
             <span className="eyebrow">Access</span>
             <strong>{profile?.role ?? 'Not signed in'}</strong>
-            {canAdministerUsers(profile) && <span>Administrator</span>}
           </div>
         </aside>
 
