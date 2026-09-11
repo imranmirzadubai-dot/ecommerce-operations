@@ -15,6 +15,16 @@ export type CreateOrderResult = {
   customer_id: string
 }
 
+export type OrderListRow = {
+  id: string
+  order_number: string
+  lifecycle_state: string
+  original_amount: number
+  created_at: string
+  updated_at: string
+  customers: { name: string; phone: string } | null
+}
+
 type CommandError = { message?: string; error?: string; details?: string }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
@@ -39,4 +49,16 @@ export async function resolveCustomerByPhone(accessToken: string, phone: string)
 
 export async function createOrder(accessToken: string, input: CreateOrderInput): Promise<CreateOrderResult[]> {
   return runCommand<CreateOrderResult[]>('create_order', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
+  const response = await fetch('/api/orders', {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+  })
+  const payload = (await response.json().catch(() => null)) as OrderListRow[] | CommandError | null
+  if (!response.ok) {
+    const error = payload as CommandError | null
+    throw new Error(error?.message ?? error?.details ?? error?.error ?? `Orders request failed (${response.status})`)
+  }
+  return (payload ?? []) as OrderListRow[]
 }
