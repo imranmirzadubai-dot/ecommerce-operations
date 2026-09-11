@@ -17,6 +17,8 @@ declare
   v_item uuid;
   v_parcel_a uuid;
   v_parcel_b uuid;
+  v_parcel_a_number text;
+  v_parcel_b_number text;
 begin
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
   values(v_actor,'authenticated','authenticated','t039@example.invalid','x',now(),now(),'{}','{}');
@@ -32,11 +34,14 @@ begin
   values(v_order,1,'T039 allocation test item',3)
   returning id into v_item;
 
-  insert into public.parcels(order_id,barcode)
-  values(v_order,'T039-BARCODE-A')
+  v_parcel_a_number := 'PCL-' || lpad(nextval('public.parcel_number_seq')::text,6,'0');
+  insert into public.parcels(order_id,parcel_number,barcode)
+  values(v_order,v_parcel_a_number,v_parcel_a_number)
   returning id into v_parcel_a;
-  insert into public.parcels(order_id,barcode)
-  values(v_order,'T039-BARCODE-B')
+
+  v_parcel_b_number := 'PCL-' || lpad(nextval('public.parcel_number_seq')::text,6,'0');
+  insert into public.parcels(order_id,parcel_number,barcode)
+  values(v_order,v_parcel_b_number,v_parcel_b_number)
   returning id into v_parcel_b;
 
   insert into public.parcel_items(parcel_id,order_item_id,quantity)
