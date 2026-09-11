@@ -1,5 +1,3 @@
-import type { Session, User } from '@supabase/supabase-js'
-
 export type AppRole = 'sales' | 'operations' | 'admin'
 
 export type Profile = {
@@ -11,8 +9,8 @@ export type Profile = {
 }
 
 export type AuthState = {
-  session: Session | null
-  user: User | null
+  authenticated: boolean
+  userId: string | null
   profile: Profile | null
 }
 
