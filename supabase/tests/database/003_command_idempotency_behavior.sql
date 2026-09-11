@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(11);
 select has_function('public', 'create_order', ARRAY['text','text','text','text','numeric','jsonb','text','text'], 'create_order requires idempotency key');
 select has_function('public', 'confirm_order', ARRAY['uuid','text'], 'confirm_order requires idempotency key');
 select has_function('public', 'cancel_order', ARRAY['uuid','text'], 'cancel_order requires idempotency key');
@@ -9,7 +9,7 @@ select has_function('public', 'complete_command_idempotency', ARRAY['text','text
 select ok((select relrowsecurity from pg_class where oid='public.command_idempotency'::regclass), 'idempotency ledger has RLS');
 select has_table('public','command_idempotency','idempotency ledger exists');
 select hasnt_function('public','create_order',ARRAY['text','text','text','text','numeric','jsonb','text'],'legacy create_order signature removed');
-select ok(has_function('public','cancel_parcel',ARRAY['uuid','text']), 'cancel_parcel canonical signature is present');
-select ok(has_function('public','cancel_order',ARRAY['uuid','text']), 'cancel_order canonical signature is present');
+select has_function('public','cancel_parcel',ARRAY['uuid','text'], 'cancel_parcel canonical signature is present');
+select has_function('public','cancel_order',ARRAY['uuid','text'], 'cancel_order canonical signature is present');
 select * from finish();
 rollback;
