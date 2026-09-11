@@ -20,7 +20,28 @@ export function OrdersWorkspace({ accessToken }: Props) {
     }
   }
 
-  useEffect(() => { void refresh() }, [accessToken])
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const nextOrders = await listOrders(accessToken)
+        if (!cancelled) {
+          setOrders(nextOrders)
+          setError('')
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(requestError instanceof Error ? requestError.message : 'Unable to load orders')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => { cancelled = true }
+  }, [accessToken])
 
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
