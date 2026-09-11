@@ -19,6 +19,7 @@ declare
   v_parcel_b uuid;
   v_parcel_a_number text;
   v_parcel_b_number text;
+  v_ok boolean := false;
 begin
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
   values(v_actor,'authenticated','authenticated','t039@example.invalid','x',now(),now(),'{}','{}');
@@ -50,10 +51,10 @@ begin
   begin
     insert into public.parcel_items(parcel_id,order_item_id,quantity)
     values(v_parcel_b,v_item,2);
-    perform ok(false,'active allocation above ordered quantity is rejected');
   exception when others then
-    perform ok(true,'active allocation above ordered quantity is rejected');
+    v_ok := true;
   end;
+  perform ok(v_ok,'active allocation above ordered quantity is rejected');
 
   update public.parcel_items
      set allocation_state='Reversed'
