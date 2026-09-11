@@ -9,9 +9,6 @@ select has_function('public','validate_parcel_state_allocation',ARRAY[]::text[],
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_item_allocation'),'parcel item allocation trigger exists');
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_state_allocation'),'parcel state allocation trigger exists');
 
--- Behavioral proof uses only rolled-back test rows. The trigger must reject
--- active allocation above the order-item quantity and must allow historical
--- Reversed rows to release quantity for a later allocation.
 do $$
 declare
   v_actor uuid := '00000000-0000-0000-0000-000000000039';
@@ -20,6 +17,8 @@ declare
   v_item uuid;
   v_parcel_a uuid;
   v_parcel_b uuid;
+  v_parcel_a_number text;
+  v_parcel_b_number text;
   v_ok boolean := false;
 begin
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
@@ -40,13 +39,13 @@ begin
   values(v_order,1,'T039 allocation test item',3)
   returning id into v_item;
 
-  insert into public.parcels(order_id,barcode)
-  values(v_order,'T039-PARCEL-A')
-  returning id into v_parcel_a;
+  insert into public.parcels(order_id)
+  values(v_order)
+  returning id,parcel_number into v_parcel_a,v_parcel_a_number;
 
-  insert into public.parcels(order_id,barcode)
-  values(v_order,'T039-PARCEL-B')
-  returning id into v_parcel_b;
+  insert into public.parcels(order_id)
+  values(v_order)
+  returning id,parcel_number into v_parcel_b,v_parcel_b_number;
 
   insert into public.parcel_items(parcel_id,order_item_id,quantity)
   values(v_parcel_a,v_item,2);
