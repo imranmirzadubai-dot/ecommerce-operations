@@ -42,6 +42,14 @@ function getBearerToken(request: Request): string | null {
   return match?.[1] ?? null;
 }
 
+function getSupabaseConfig(env: WorkerEnv) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) return null;
+  return {
+    url: env.SUPABASE_URL.replace(/\/$/, ""),
+    key: env.SUPABASE_PUBLISHABLE_KEY,
+  };
+}
+
 async function handleRpc(
   request: Request,
   env: WorkerEnv,
@@ -53,7 +61,8 @@ async function handleRpc(
   const accessToken = getBearerToken(request);
   if (!accessToken) return json({ error: "authentication_required" }, 401);
 
-  if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) {
+  const config = getSupabaseConfig(env);
+  if (!config) {
     console.error("Supabase Worker configuration is missing");
     return json({ error: "server_not_configured" }, 503);
   }
@@ -69,11 +78,11 @@ async function handleRpc(
   }
 
   const rpcResponse = await fetch(
-    `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${encodeURIComponent(commandName)}`,
+    `${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`,
     {
       method: "POST",
       headers: {
-        apikey: env.SUPABASE_PUBLISHABLE_KEY,
+        apikey: config.key,
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -91,12 +100,43 @@ async function handleRpc(
   });
 }
 
+async function handleOrders(request: Request, env: WorkerEnv): Promise<Response> {
+  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return json({ error: "authentication_required" }, 401);
+  const config = getSupabaseConfig(env);
+  if (!config) return json({ error: "server_not_configured" }, 503);
+
+  const response = await fetch(
+    `${config.url}/rest/v1/orders?select=id,order_number,lifecycle_state,original_amount,created_at,updated_at,customers(name,phone)&order=created_at.desc&limit=50`,
+    {
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    },
+  );
+
+  return new Response(await response.text(), {
+    status: response.status,
+    headers: {
+      "Content-Type": response.headers.get("content-type") ?? "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/health") {
       return json({ status: "ok", service: "ecommerce-operations" });
+    }
+
+    if (url.pathname === "/api/orders") {
+      return handleOrders(request, env as WorkerEnv);
     }
 
     if (url.pathname.startsWith("/api/commands/")) {
