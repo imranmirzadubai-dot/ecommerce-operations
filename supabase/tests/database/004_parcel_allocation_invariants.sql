@@ -2,9 +2,9 @@ begin;
 select plan(12);
 
 select has_function('public','assert_order_item_allocation_invariant',ARRAY['uuid'],'allocation invariant helper exists');
-select has_function('public','validate_parcel_item_allocation',ARRAY[],'allocation trigger function exists');
+select has_function('public','validate_parcel_item_allocation',ARRAY[]::text[],'allocation trigger function exists');
 select has_function('public','assert_order_item_physical_outcome_invariant',ARRAY['uuid'],'physical outcome invariant helper exists');
-select has_function('public','validate_parcel_state_allocation',ARRAY[],'parcel state allocation trigger function exists');
+select has_function('public','validate_parcel_state_allocation',ARRAY[]::text[],'parcel state allocation trigger function exists');
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_item_allocation'),'parcel item allocation trigger exists');
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_state_allocation'),'parcel state allocation trigger exists');
 
