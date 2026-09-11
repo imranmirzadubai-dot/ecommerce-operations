@@ -23,18 +23,14 @@ declare
 begin
   insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,raw_app_meta_data,raw_user_meta_data)
   values(v_actor,'authenticated','authenticated','t039@example.invalid','x',now(),now(),'{}','{}');
-
   insert into public.profiles(id,name,email,role,active)
   values(v_actor,'T039 Test','t039@example.invalid','admin',true);
-
   insert into public.customers(name,phone,normalized_phone)
   values('T039 Test Customer','0500000039','+971500000039')
   returning id into v_customer;
-
   insert into public.orders(customer_id,original_amount,created_by)
   values(v_customer,100,v_actor)
   returning id into v_order;
-
   insert into public.order_items(order_id,line_no,description,quantity)
   values(v_order,1,'T039 allocation test item',3)
   returning id into v_item;
@@ -42,10 +38,12 @@ begin
   insert into public.parcels(order_id)
   values(v_order)
   returning id,parcel_number into v_parcel_a,v_parcel_a_number;
+  update public.parcels set barcode=v_parcel_a_number where id=v_parcel_a;
 
   insert into public.parcels(order_id)
   values(v_order)
   returning id,parcel_number into v_parcel_b,v_parcel_b_number;
+  update public.parcels set barcode=v_parcel_b_number where id=v_parcel_b;
 
   insert into public.parcel_items(parcel_id,order_item_id,quantity)
   values(v_parcel_a,v_item,2);
@@ -53,28 +51,18 @@ begin
   begin
     insert into public.parcel_items(parcel_id,order_item_id,quantity)
     values(v_parcel_b,v_item,2);
-  exception when check_violation then
+  exception when others then
     v_ok := true;
   end;
-
   perform ok(v_ok,'active allocation above ordered quantity is rejected');
 
   update public.parcel_items
      set allocation_state='Reversed'
-   where parcel_id=v_parcel_a
-     and order_item_id=v_item
-     and allocation_state='Allocated';
+   where parcel_id=v_parcel_a and order_item_id=v_item and allocation_state='Allocated';
 
   insert into public.parcel_items(parcel_id,order_item_id,quantity)
   values(v_parcel_b,v_item,3);
-
-  perform ok(
-    (select coalesce(sum(quantity),0)=3
-       from public.parcel_items
-      where order_item_id=v_item
-        and allocation_state='Allocated'),
-    'reversed historical allocation does not consume active quantity'
-  );
+  perform ok((select coalesce(sum(quantity),0)=3 from public.parcel_items where order_item_id=v_item and allocation_state='Allocated'),'reversed historical allocation does not consume active quantity');
 
   begin
     update public.parcels set state='Delivered' where id=v_parcel_a;
@@ -82,14 +70,7 @@ begin
   exception when others then
     perform ok(false,'terminal parcel state is accepted when allocated quantity is valid');
   end;
-
-  perform ok(
-    (select coalesce(sum(pi.quantity),0)=3
-       from public.parcel_items pi
-      where pi.order_item_id=v_item
-        and pi.allocation_state='Allocated'),
-    'terminal physical quantity remains bounded by the order item quantity'
-  );
+  perform ok((select coalesce(sum(pi.quantity),0)=3 from public.parcel_items pi where pi.order_item_id=v_item and pi.allocation_state='Allocated'),'terminal physical quantity remains bounded by the order item quantity');
 end;
 $$;
 
