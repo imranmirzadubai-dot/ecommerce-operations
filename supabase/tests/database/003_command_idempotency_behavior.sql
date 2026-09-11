@@ -1,5 +1,5 @@
 begin;
-select plan(11);
+select plan(12);
 select has_function('public', 'create_order', ARRAY['text','text','text','text','numeric','jsonb','text','text'], 'create_order requires idempotency key');
 select has_function('public', 'confirm_order', ARRAY['uuid','text'], 'confirm_order requires idempotency key');
 select has_function('public', 'cancel_order', ARRAY['uuid','text'], 'cancel_order requires idempotency key');
