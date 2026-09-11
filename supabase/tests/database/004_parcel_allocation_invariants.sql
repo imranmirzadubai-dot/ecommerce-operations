@@ -1,4 +1,5 @@
 begin;
+set constraints all immediate;
 select plan(12);
 
 select has_function('public','assert_order_item_allocation_invariant',ARRAY['uuid'],'allocation invariant helper exists');
