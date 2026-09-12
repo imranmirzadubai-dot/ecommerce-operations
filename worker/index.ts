@@ -152,7 +152,7 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   let response: Response;
   try {
     response = await fetch(
-      `${config.url}/rest/v1/orders?select=id,order_number,lifecycle_state,original_amount,created_at,updated_at,customers(name,phone)&order=created_at.desc&limit=50`,
+      `${config.url}/rest/v1/orders?select=id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity)&order=created_at.desc&limit=50`,
       {
         headers: {
           apikey: config.key,
