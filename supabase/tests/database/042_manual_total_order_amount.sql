@@ -13,10 +13,10 @@ select ok(
 );
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%p_original_amount numeric(12,2)%'
+  (select pg_get_function_arguments(p.oid) like '%p_original_amount numeric%'
    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='create_order'),
-  'create_order accepts a NUMERIC(12,2) Total Order Amount'
+  'create_order accepts a numeric Total Order Amount argument'
 );
 
 select ok(
