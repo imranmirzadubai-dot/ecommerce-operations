@@ -78,4 +78,5 @@ jobs:
             supabase/tests/database/044_order_confirmation.sql \
             supabase/tests/database/045_original_amount_immutability.sql \
             supabase/tests/database/046_order_item_immutability.sql \
-            supabase/tests/database/047_order_timeline_events.sql
+            supabase/tests/database/047_order_timeline_events.sql \
+            supabase/tests/database/048_concurrent_customer_creation.sql
