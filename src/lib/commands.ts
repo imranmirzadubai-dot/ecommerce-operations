@@ -82,7 +82,7 @@ export type CustomerHistoryRow = {
 }
 
 type CommandError = { message?: string; error?: string; details?: string }
-type ListOrdersOptions = { page?: number; pageSize?: number; search?: string }
+type ListOrdersOptions = { page?: number; pageSize?: number; search?: string; lifecycleState?: string; parcelState?: string; codState?: string }
 export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean; search: string }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
@@ -123,6 +123,9 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
   const search = (options.search ?? '').trim()
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) query.set('search', search)
+  if (options.lifecycleState) query.set('lifecycle_state', options.lifecycleState)
+  if (options.parcelState) query.set('parcel_state', options.parcelState)
+  if (options.codState) query.set('cod_state', options.codState)
   const response = await fetch(`/api/orders?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
   })
