@@ -18,7 +18,7 @@ test('Orders workspace displays the current order baseline and Draft actions', (
   assert.match(workspace, /<th>Customer<\/th>/)
   assert.match(workspace, /<th>State<\/th>/)
   assert.match(workspace, /<th>Amount<\/th>/)
-  assert.match(workspace, /<th>Created<\/th>/)
+  assert.match(workspace, /<th>Date<\/th>/)
   assert.match(workspace, /order\.lifecycle_state === 'Draft'/)
   assert.match(workspace, /Timeline/)
   assert.match(workspace, /Edit/)
