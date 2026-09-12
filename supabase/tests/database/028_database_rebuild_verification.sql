@@ -1,6 +1,6 @@
 -- P3-T077 / P4-T083 rebuild verification: repository migration chain now includes T083.
 begin;
-select plan(10);
+select plan(9);
 
 select ok((select count(*) = 33 from supabase_migrations.schema_migrations), 'rebuild applied the complete repository migration chain');
 select ok((select count(*) = 18 from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and table_name in ('profiles','customers','shippers','orders','order_items','parcels','parcel_items','delivery_outcomes','cod_obligations','cod_obligation_allocations','cod_receipts','financial_adjustments','invoice_records','order_events','audit_logs','import_batches','import_rows','command_idempotency')), 'all 18 application/foundation tables exist');
