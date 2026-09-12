@@ -19,7 +19,7 @@ Draft Orders can be edited before confirmation through the authoritative `update
 - Hardened execute privileges so `anon` cannot execute `update_order`.
 
 ## Verification
-Final GitHub Actions run: `34716830485` / run `448` on branch `feature/t096-pre-confirmation-order-editing`.
+Final verified GitHub Actions run: `34716830485` / run `448` on branch `feature/t096-pre-confirmation-order-editing`.
 
 Quality job: PASS
 - Lint
@@ -44,8 +44,11 @@ The final database run passed all 100 tests across 9 test files.
 `supabase/tests/database/043_pre_confirmation_order_editing.sql`
 `tests/unit/pre_confirmation_order_editing.test.mjs`
 
-## Final commit
+## Implementation commit
 `9da598b43bf46a16a39fe2222734dbcc9f95eb66`
+
+## Completion-evidence commit
+`bba64b686d6fe85ad8e932195206f3efbd384ac3`
 
 ## Next task
 P5-T097 — Confirm Draft Order lifecycle transition.
