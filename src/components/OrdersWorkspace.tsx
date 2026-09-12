@@ -8,7 +8,20 @@ const PAGE_SIZE = 25
 const LIFECYCLE_OPTIONS = ['', 'Draft', 'Confirmed', 'Active', 'Completed', 'Cancelled']
 const PARCEL_OPTIONS = ['', 'Prepared', 'Dispatched', 'In Transit', 'NDR', 'Delivered', 'RTO', 'Lost', 'Damaged', 'Cancelled']
 const COD_OPTIONS = ['', 'Outstanding', 'Partially Received', 'Received', 'Exception', 'Voided', 'Closed']
+const DATE_VIEWS = ['All dates', 'Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Custom'] as const
+type DateView = typeof DATE_VIEWS[number]
 
+function isoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+function getDateRange(view: Exclude<DateView, 'All dates' | 'Custom'>, now = new Date()) {
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const start = new Date(end)
+  if (view === 'Yesterday') start.setDate(start.getDate() - 1)
+  if (view === 'Last 7 Days') start.setDate(start.getDate() - 6)
+  if (view === 'Last 30 Days') start.setDate(start.getDate() - 29)
+  return { dateFrom: isoDate(start), dateTo: isoDate(view === 'Yesterday' ? start : end) }
+}
 function toEditorState(order: OrderListRow) {
   return { customerName: order.customers?.name ?? '', phone: order.customers?.phone ?? '', address: order.customers?.address ?? '', city: order.customers?.city ?? '', amount: Number(order.original_amount).toFixed(2), notes: order.notes ?? '', items: order.order_items.map((item) => ({ description: item.description, quantity: item.quantity })) }
 }
@@ -25,6 +38,9 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [lifecycleState, setLifecycleState] = useState('')
   const [parcelState, setParcelState] = useState('')
   const [codState, setCodState] = useState('')
+  const [dateView, setDateView] = useState<DateView>('All dates')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<OrderListRow | null>(null)
@@ -38,18 +54,32 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
 
-  async function refresh(targetPage = page, targetSearch = search, targetLifecycle = lifecycleState, targetParcel = parcelState, targetCod = codState) {
+  async function refresh(targetPage = page, targetSearch = search, targetLifecycle = lifecycleState, targetParcel = parcelState, targetCod = codState, targetDateFrom = dateFrom, targetDateTo = dateTo) {
     setLoading(true); setError('')
     try {
-      const result = await listOrders(accessToken, { page: targetPage, pageSize: PAGE_SIZE, search: targetSearch, lifecycleState: targetLifecycle, parcelState: targetParcel, codState: targetCod })
-      setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setLifecycleState(targetLifecycle); setParcelState(targetParcel); setCodState(targetCod)
+      const result = await listOrders(accessToken, { page: targetPage, pageSize: PAGE_SIZE, search: targetSearch, lifecycleState: targetLifecycle, parcelState: targetParcel, codState: targetCod, dateFrom: targetDateFrom, dateTo: targetDateTo })
+      setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setLifecycleState(targetLifecycle); setParcelState(targetParcel); setCodState(targetCod); setDateFrom(targetDateFrom); setDateTo(targetDateTo)
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
     finally { setLoading(false) }
   }
   function submitSearch(event: React.FormEvent) { event.preventDefault(); void refresh(1, searchInput.trim()) }
-  function applyFilters() { void refresh(1, search, lifecycleState, parcelState, codState) }
-  function clearFilters() { setLifecycleState(''); setParcelState(''); setCodState(''); void refresh(1, search, '', '', '') }
-  function clearSearch() { setSearchInput(''); void refresh(1, '', lifecycleState, parcelState, codState) }
+  function applyFilters() { void refresh(1, search, lifecycleState, parcelState, codState, dateFrom, dateTo) }
+  function clearFilters() { setLifecycleState(''); setParcelState(''); setCodState(''); void refresh(1, search, '', '', '', dateFrom, dateTo) }
+  function clearSearch() { setSearchInput(''); void refresh(1, '', lifecycleState, parcelState, codState, dateFrom, dateTo) }
+  function applyDateView(view: DateView) {
+    setDateView(view)
+    if (view === 'All dates') { setDateFrom(''); setDateTo(''); void refresh(1, search, lifecycleState, parcelState, codState, '', ''); return }
+    if (view === 'Custom') return
+    const range = getDateRange(view)
+    setDateFrom(range.dateFrom); setDateTo(range.dateTo)
+    void refresh(1, search, lifecycleState, parcelState, codState, range.dateFrom, range.dateTo)
+  }
+  function applyCustomDateRange() {
+    if (!dateFrom || !dateTo) { setError('Select both a start date and an end date'); return }
+    if (dateFrom > dateTo) { setError('Start date must be on or before end date'); return }
+    void refresh(1, search, lifecycleState, parcelState, codState, dateFrom, dateTo)
+  }
+  function clearDateView() { setDateView('All dates'); setDateFrom(''); setDateTo(''); void refresh(1, search, lifecycleState, parcelState, codState, '', '') }
   function startEditing(order: OrderListRow) { setEditing(order); setDraft(toEditorState(order)); setSaveMessage('') }
   function closeEditor() { if (saveLoading) return; setEditing(null); setDraft(null); setSaveMessage('') }
   function updateItem(index: number, field: keyof EditableItem, value: string) { setDraft((current) => current ? { ...current, items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: field === 'quantity' ? Number(value) : value } : item) } : current) }
@@ -88,8 +118,8 @@ export function OrdersWorkspace({ accessToken }: Props) {
     let cancelled = false
     const load = async () => {
       try {
-        const result = await listOrders(accessToken, { page: 1, pageSize: PAGE_SIZE, search: '', lifecycleState: '', parcelState: '', codState: '' })
-        if (!cancelled) { setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setSearchInput(''); setLifecycleState(''); setParcelState(''); setCodState(''); setError('') }
+        const result = await listOrders(accessToken, { page: 1, pageSize: PAGE_SIZE, search: '', lifecycleState: '', parcelState: '', codState: '', dateFrom: '', dateTo: '' })
+        if (!cancelled) { setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setSearchInput(''); setLifecycleState(''); setParcelState(''); setCodState(''); setDateView('All dates'); setDateFrom(''); setDateTo(''); setError('') }
       } catch (requestError) { if (!cancelled) setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
       finally { if (!cancelled) setLoading(false) }
     }
@@ -101,15 +131,16 @@ export function OrdersWorkspace({ accessToken }: Props) {
       <div className="section-heading"><div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited or confirmed. Confirmed and later states are locked by the command boundary.</p></div><button className="secondary-button" type="button" onClick={() => void refresh(page)} disabled={loading || confirmingOrderId !== null}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
       <form className="order-search" role="search" onSubmit={submitSearch}><label htmlFor="order-search-input">Search orders</label><div className="button-group"><input id="order-search-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Order ID, customer, phone, address or item" autoComplete="off" /><button className="login-button" type="submit" disabled={loading}>Search</button>{search && <button className="secondary-button" type="button" onClick={clearSearch} disabled={loading}>Clear</button>}</div><small className="form-note">Search runs server-side across Order ID, customer name, phone, address and item description.</small></form>
       <div className="order-filters" aria-label="Order filters"><label>Order state<select value={lifecycleState} onChange={(event) => setLifecycleState(event.target.value)}><option value="">All states</option>{LIFECYCLE_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>Parcel / dispatch<select value={parcelState} onChange={(event) => setParcelState(event.target.value)}><option value="">All parcel states</option>{PARCEL_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>COD<select value={codState} onChange={(event) => setCodState(event.target.value)}><option value="">All COD states</option>{COD_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><div className="button-group"><button className="login-button" type="button" onClick={applyFilters} disabled={loading}>Apply filters</button><button className="secondary-button" type="button" onClick={clearFilters} disabled={loading || (!lifecycleState && !parcelState && !codState)}>Clear filters</button></div></div>
+      <div className="order-date-views" aria-label="Order date views"><label>Date view<select value={dateView} onChange={(event) => applyDateView(event.target.value as DateView)}>{DATE_VIEWS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>{dateView === 'Custom' && <><label>From<input aria-label="Date from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>To<input aria-label="Date to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><button className="login-button" type="button" onClick={applyCustomDateRange} disabled={loading}>Apply dates</button></>}{dateView !== 'All dates' && <button className="secondary-button" type="button" onClick={clearDateView} disabled={loading}>Clear dates</button>}</div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {confirmMessage && <p className={confirmMessage.startsWith('Order ') ? 'form-success' : 'form-error'} role="status">{confirmMessage}</p>}
       {!error && loading && <p className="form-note">Loading orders…</p>}
       {!error && !loading && orders.length === 0 && <p className="empty-state">{search ? `No orders matched “${search}”.` : 'No orders on this page.'}</p>}
       {!error && !loading && orders.length > 0 && <>
-        <div className="orders-table-wrap"><table className="orders-table"><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Amount</th><th>Created</th><th>Action</th></tr></thead><tbody>
-          {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td><div className="button-group"><button className="secondary-button" type="button" onClick={() => void openTimeline(order)} disabled={confirmingOrderId !== null}>Timeline</button>{order.lifecycle_state === 'Draft' ? <><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></> : <span className="form-note">Locked</span>}</div></td></tr>)}
+        <div className="orders-table-wrap"><table className="orders-table"><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Amount</th><th>Date</th><th>Action</th></tr></thead><tbody>
+          {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{order.order_date}</td><td><div className="button-group"><button className="secondary-button" type="button" onClick={() => void openTimeline(order)} disabled={confirmingOrderId !== null}>Timeline</button>{order.lifecycle_state === 'Draft' ? <><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></> : <span className="form-note">Locked</span>}</div></td></tr>)}
         </tbody></table></div>
-        <div className="section-heading" aria-label="Orders pagination"><span className="form-note">Page {page} · {orders.length} orders shown{search ? ` · Search: ${search}` : ''}{(lifecycleState || parcelState || codState) ? ` · Filters: ${[lifecycleState, parcelState, codState].filter(Boolean).join(', ')}` : ''}</span><div className="button-group"><button className="secondary-button" type="button" onClick={() => void refresh(page - 1)} disabled={loading || page === 1 || confirmingOrderId !== null}>Previous</button><button className="secondary-button" type="button" onClick={() => void refresh(page + 1)} disabled={loading || !hasMore || confirmingOrderId !== null}>Next</button></div></div>
+        <div className="section-heading" aria-label="Orders pagination"><span className="form-note">Page {page} · {orders.length} orders shown{search ? ` · Search: ${search}` : ''}{(lifecycleState || parcelState || codState) ? ` · Filters: ${[lifecycleState, parcelState, codState].filter(Boolean).join(', ')}` : ''}{dateFrom || dateTo ? ` · Dates: ${dateFrom || '…'} to ${dateTo || '…'}` : ''}</span><div className="button-group"><button className="secondary-button" type="button" onClick={() => void refresh(page - 1)} disabled={loading || page === 1 || confirmingOrderId !== null}>Previous</button><button className="secondary-button" type="button" onClick={() => void refresh(page + 1)} disabled={loading || !hasMore || confirmingOrderId !== null}>Next</button></div></div>
       </>}
 
       {timelineOrder && <div className="order-editor" role="dialog" aria-modal="true" aria-labelledby="timeline-title"><div className="section-heading"><div><span className="eyebrow">Order Timeline</span><h3 id="timeline-title">{timelineOrder.order_number}</h3><p>Immutable operational events are shown newest first.</p></div><button className="secondary-button" type="button" onClick={() => setTimelineOrder(null)} disabled={timelineLoading}>Close</button></div>{timelineError && <p className="form-error" role="alert">{timelineError}</p>}{timelineLoading && <p className="form-note">Loading timeline…</p>}{!timelineLoading && !timelineError && timeline.length === 0 && <p className="empty-state">No timeline events recorded.</p>}{!timelineLoading && !timelineError && timeline.length > 0 && <div className="timeline-list">{timeline.map((event) => <article className="timeline-item" key={event.id}><strong>{timelineLabel(event)}</strong><time dateTime={event.event_time}>{new Date(event.event_time).toLocaleString()}</time>{event.parcel_id && <small>Parcel: {event.parcel_id}</small>}{event.notes && <p>{event.notes}</p>}</article>)}</div>}</div>}
