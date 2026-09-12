@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import App from './App.tsx'
 import { restoreSession } from './lib/auth'
-import { getLoginRedirect, isProtectedPath } from './lib/routes.mjs'
+import { getLoginRedirect, isProtectedPath } from './lib/routes'
 
 export function RouteGuard() {
   const [checking, setChecking] = useState(true)
