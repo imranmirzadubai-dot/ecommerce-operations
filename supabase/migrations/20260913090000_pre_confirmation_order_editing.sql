@@ -102,8 +102,6 @@ begin
     end if;
   end loop;
 
-  -- Keep the existing customer identity linked to the order, updating its editable contact fields
-  -- consistently with the Draft Order creation workflow.
   select id into v_customer_id from public.customers where normalized_phone=v_normalized_phone for update;
   if v_customer_id is null then
     begin
@@ -132,7 +130,6 @@ begin
          updated_at=now()
    where id=p_order_id;
 
-  -- Draft items are replaced atomically from the submitted canonical line set.
   delete from public.order_items where order_id=p_order_id;
   v_line_no := 0;
   for v_item in select value from jsonb_array_elements(p_items) loop
@@ -142,26 +139,13 @@ begin
   end loop;
 
   insert into public.order_events(order_id,event_type,performed_by,metadata)
-  values(
-    p_order_id,
-    'OrderUpdated',
-    auth.uid(),
-    jsonb_build_object('lifecycle_state','Draft','item_count',jsonb_array_length(p_items))
-  );
+  values(p_order_id,'OrderUpdated',auth.uid(),jsonb_build_object('lifecycle_state','Draft','item_count',jsonb_array_length(p_items)));
 
   insert into public.audit_logs(actor,action,entity_type,entity_id,before_data,after_data)
   values(
-    auth.uid(),
-    'update_order',
-    'order',
-    p_order_id,
+    auth.uid(),'update_order','order',p_order_id,
     jsonb_build_object('lifecycle_state','Draft'),
-    jsonb_build_object(
-      'order_number',v_order_number,
-      'customer_id',v_customer_id,
-      'original_amount',p_original_amount,
-      'item_count',jsonb_array_length(p_items)
-    )
+    jsonb_build_object('order_number',v_order_number,'customer_id',v_customer_id,'original_amount',p_original_amount,'item_count',jsonb_array_length(p_items))
   );
 
   v_result := jsonb_build_object('order_id',p_order_id,'order_number',v_order_number,'lifecycle_state','Draft');
@@ -171,4 +155,5 @@ begin
 end; $$;
 
 revoke all on function public.update_order(uuid,text,text,text,text,numeric,jsonb,text,text) from public;
+revoke execute on function public.update_order(uuid,text,text,text,text,numeric,jsonb,text,text) from anon;
 grant execute on function public.update_order(uuid,text,text,text,text,numeric,jsonb,text,text) to authenticated;
