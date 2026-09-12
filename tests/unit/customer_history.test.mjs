@@ -8,7 +8,7 @@ const component = await readFile(new URL('../../src/components/CustomerHistoryWo
 
 test('customer history API requires authentication and validates customer id', () => {
   assert.match(worker, /historyMatch/)
-  assert.match(worker, /\/api\/customers\/\/api\/customers\/|history\$\/\)/)
+  assert.match(worker, /handleCustomerHistory/)
   assert.match(worker, /if \(!accessToken\) return json\(\{ error: "authentication_required" \}, 401/)
   assert.match(worker, /invalid_customer_id/)
 })
