@@ -18,7 +18,7 @@ function normalizeAedAmount(value) {
 }
 
 test('draft order UI exposes one manual AED Total Order Amount field', () => {
-  assert.match(app, /import \{ normalizeAedAmount \} from ['"]\.\/lib\/money['"]?/)
+  assert.match(app, /import \{ normalizeAedAmount \} from ['"]\.\/lib\/money['"]/)
   assert.match(app, /aria-label="Total Order Amount \(AED\)"/)
   assert.match(app, /type="number" min="0" step="0\.01" inputMode="decimal"/)
   assert.match(app, /value=\{amount\}/)
@@ -43,8 +43,8 @@ test('AED amount normalization accepts zero and at most two decimal places', () 
   assert.equal(normalizeAedAmount('9999999999.99'), '9999999999.99')
 })
 
-test('money helper keeps the commercial amount as decimal text and command contract matches it', () => {
+test('money helper keeps the commercial amount as bounded decimal text and command contract matches it', () => {
   assert.match(money, /export function normalizeAedAmount\(value: string\): string/)
-  assert.match(money, /NUMERIC\(12,2\)/)
+  assert.match(money, /MAX_AED_AMOUNT = '9999999999\.99'/)
   assert.match(commands, /p_original_amount: string/)
 })
