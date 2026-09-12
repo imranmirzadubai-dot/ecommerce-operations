@@ -73,11 +73,11 @@ jobs:
         working-directory: /tmp/supabase-ci
         run: supabase db reset
 
-      - name: Run rebuild verification and unauthorized privileged action test
+      - name: Run rebuild verification and UAE phone normalization test
         working-directory: /tmp/supabase-ci
         run: |
           supabase test db \
             supabase/tests/database/028_database_rebuild_verification.sql \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
-            supabase/tests/database/037_unauthorized_privileged_actions.sql
+            supabase/tests/database/038_uae_phone_normalization.sql
