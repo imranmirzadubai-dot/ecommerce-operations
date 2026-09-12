@@ -70,10 +70,10 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
     logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
     return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
   }
-  let rows: unknown[];
-  try { rows = JSON.parse(body) as unknown[]; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }
-  const hasMore = rows.length > rawPageSize;
-  const pageRows = hasMore ? rows.slice(0, rawPageSize) : rows;
+  const parsed: unknown = (() => { try { return JSON.parse(body); } catch { return null; } })();
+  if (!Array.isArray(parsed)) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
+  const hasMore = parsed.length > rawPageSize;
+  const pageRows = hasMore ? parsed.slice(0, rawPageSize) : parsed;
   logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, result: "success", status: 200, returned: pageRows.length, has_more: hasMore, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
   return new Response(JSON.stringify(pageRows), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId, "X-Page": String(rawPage), "X-Page-Size": String(rawPageSize), "X-Has-More": String(hasMore) } });
 }
