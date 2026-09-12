@@ -71,7 +71,7 @@ test('P6-T106 provides server-side Orders filters that preserve pagination/searc
   assert.match(worker, /searchParams\.get\("parcel_state"\)/)
   assert.match(worker, /searchParams\.get\("cod_state"\)/)
   assert.match(worker, /invalid_filter/)
-  assert.match(worker, /lifecycle_state, `eq\.\$\{lifecycleState\}`/)
+  assert.match(worker, /["']lifecycle_state["'], `eq\.\$\{lifecycleState\}`/)
   assert.match(worker, /parcels\.state/)
   assert.match(worker, /cod_obligations\.state/)
 })
