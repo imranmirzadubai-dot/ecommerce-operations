@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import { getAuthConfig, hasOperationalAccess, restoreSession, signIn, signOut, type AuthState } from './lib/auth'
+import { getPostLoginPath } from './lib/routes.mjs'
 import { createOrder, resolveCustomerByPhone } from './lib/commands'
 import { OrdersWorkspace } from './components/OrdersWorkspace'
 
@@ -35,13 +36,16 @@ function App() {
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(''); setLoading(true)
-    try { setAuth(await signIn(email.trim(), password)); setPassword('') }
-    catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') }
+    try {
+      setAuth(await signIn(email.trim(), password)); setPassword('')
+      window.location.replace(getPostLoginPath(window.location.search))
+    } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') }
     finally { setLoading(false) }
   }
 
   async function handleSignOut() {
     await signOut(); setAuth(signedOutState); setOrderMessage(''); setCustomerMessage('')
+    window.location.replace('/login')
   }
 
   async function lookupCustomer() {
