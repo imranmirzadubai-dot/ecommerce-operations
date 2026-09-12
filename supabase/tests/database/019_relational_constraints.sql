@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_table('public','customers','customers table exists');
+select has_table('public','orders','orders table exists');
+select has_table('public','parcels','parcels table exists');
+select has_constraint('public','customers','customers_customer_code_not_blank','customer identifier check exists');
+select has_constraint('public','orders','orders_order_number_not_blank','order identifier check exists');
+select has_constraint('public','parcels','parcels_parcel_number_not_blank','parcel identifier check exists');
+select has_constraint('public','import_rows','import_rows_raw_data_object','raw import data shape check exists');
+select * from finish();
+rollback;
