@@ -192,6 +192,36 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   });
 }
 
+async function handleOrderTimeline(request: Request, env: WorkerEnv, requestId: string, orderId: string): Promise<Response> {
+  const startedAt = performance.now();
+  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  if (!/^[0-9a-fA-F-]{36}$/.test(orderId)) return json({ error: "invalid_order_id" }, 400, { "X-Request-ID": requestId });
+  const config = getSupabaseConfig(env);
+  if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+
+  let response: Response;
+  try {
+    const query = new URLSearchParams({
+      select: "id,event_type,event_time,performed_by,notes,metadata,parcel_id",
+      order_id: `eq.${orderId}`,
+      order: "event_time.desc",
+      limit: "100",
+    });
+    response = await fetch(`${config.url}/rest/v1/order_events?${query.toString()}`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch {
+    logEvent("order_timeline_request", { request_id: requestId, order_id: orderId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" });
+    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+  }
+
+  const body = await response.text();
+  logEvent("order_timeline_request", { request_id: requestId, order_id: orderId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
+  return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
+}
+
 async function handleCustomerHistory(request: Request, env: WorkerEnv, requestId: string, customerId: string): Promise<Response> {
   const startedAt = performance.now();
   if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
@@ -234,6 +264,11 @@ export default {
 
     if (url.pathname === "/api/orders") {
       return handleOrders(request, env as WorkerEnv, requestId);
+    }
+
+    const timelineMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/timeline$/);
+    if (timelineMatch) {
+      return handleOrderTimeline(request, env as WorkerEnv, requestId, decodeURIComponent(timelineMatch[1]));
     }
 
     const historyMatch = url.pathname.match(/^\/api\/customers\/([^/]+)\/history$/);
