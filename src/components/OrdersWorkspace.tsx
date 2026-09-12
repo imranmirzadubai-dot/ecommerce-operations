@@ -81,7 +81,7 @@ export function OrdersWorkspace({ accessToken }: Props) {
       } catch (requestError) { if (!cancelled) setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
       finally { if (!cancelled) setLoading(false) }
     }
-    setPage(1); void load(); return () => { cancelled = true }
+    void load(); return () => { cancelled = true }
   }, [accessToken])
 
   return (
