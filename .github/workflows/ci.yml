@@ -73,10 +73,14 @@ jobs:
         working-directory: /tmp/supabase-ci
         run: supabase db reset
 
-      - name: Run rebuild verification tests
+      - name: Run rebuild verification and Phase 4 permission tests
         working-directory: /tmp/supabase-ci
         run: |
           supabase test db \
             supabase/tests/database/028_database_rebuild_verification.sql \
             supabase/tests/database/028_rebuild_smoke.sql \
-            supabase/tests/database/030_profile_active_lifecycle.sql
+            supabase/tests/database/030_profile_active_lifecycle.sql \
+            supabase/tests/database/031_admin_user_controls.sql \
+            supabase/tests/database/032_protected_command_authorization.sql \
+            supabase/tests/database/033_sales_permissions.sql \
+            supabase/tests/database/034_operations_permissions.sql
