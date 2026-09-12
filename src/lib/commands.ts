@@ -51,6 +51,16 @@ export type OrderItemRow = {
   quantity: number
 }
 
+export type OrderTimelineEvent = {
+  id: string
+  event_type: string
+  event_time: string
+  performed_by: string
+  notes: string | null
+  metadata: Record<string, unknown>
+  parcel_id: string | null
+}
+
 export type OrderListRow = {
   id: string
   order_number: string
@@ -115,6 +125,18 @@ export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
     throw new Error(error?.message ?? error?.details ?? error?.error ?? `Orders request failed (${response.status})`)
   }
   return (payload ?? []) as OrderListRow[]
+}
+
+export async function getOrderTimeline(accessToken: string, orderId: string): Promise<OrderTimelineEvent[]> {
+  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/timeline`, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+  })
+  const payload = (await response.json().catch(() => null)) as OrderTimelineEvent[] | CommandError | null
+  if (!response.ok) {
+    const error = payload as CommandError | null
+    throw new Error(error?.message ?? error?.details ?? error?.error ?? `Order timeline request failed (${response.status})`)
+  }
+  return (payload ?? []) as OrderTimelineEvent[]
 }
 
 export async function getCustomerHistory(accessToken: string, customerId: string): Promise<CustomerHistoryRow[]> {
