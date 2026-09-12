@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const workspace = await readFile(new URL('../../src/components/OrdersWorkspace.tsx', import.meta.url), 'utf8')
 const commands = await readFile(new URL('../../src/lib/commands.ts', import.meta.url), 'utf8')
+const worker = await readFile(new URL('../../worker/index.ts', import.meta.url), 'utf8')
 const app = await readFile(new URL('../../src/App.tsx', import.meta.url), 'utf8')
 
 test('P6-T103 exposes the Orders workspace as the central authenticated workspace', () => {
@@ -24,8 +25,16 @@ test('Orders workspace displays the current order baseline and Draft actions', (
   assert.match(workspace, /Confirm/)
 })
 
-test('Orders workspace reads through the authenticated server-side orders endpoint', () => {
-  assert.match(commands, /export async function listOrders\(accessToken: string\)/)
-  assert.match(commands, /fetch\('\/api\/orders'/)
-  assert.match(workspace, /listOrders\(accessToken\)/)
+test('P6-T104 reads orders through the authenticated paginated server-side endpoint', () => {
+  assert.match(commands, /export async function listOrders\(accessToken: string, options: ListOrdersOptions = \{\}\)/)
+  assert.match(commands, /page_size/)
+  assert.match(commands, /X-Has-More/)
+  assert.match(workspace, /PAGE_SIZE = 25/)
+  assert.match(workspace, /Previous/)
+  assert.match(workspace, /Next/)
+  assert.match(worker, /searchParams\.get\("page"\)/)
+  assert.match(worker, /searchParams\.get\("page_size"\)/)
+  assert.match(worker, /offset = \(rawPage - 1\) \* rawPageSize/)
+  assert.match(worker, /limit: String\(limit\)/)
+  assert.match(worker, /X-Has-More/)
 })
