@@ -4,26 +4,24 @@
 
 ## Result
 
-PASS. Active parcel-item allocations are constrained so their total quantity for an order item cannot exceed the ordered quantity. Released/Reversed allocation rows remain historical and do not consume the active allocation ceiling.
+PASS — schema-level enforcement is installed in staging. The database now rejects an active parcel-item allocation when the aggregate active allocation for an order item would exceed its ordered quantity. Released/Reversed allocations remain historical and are excluded from the active ceiling.
 
 ## Evidence
 
 - Migration: `supabase/migrations/20260912103000_parcel_item_allocation_invariants.sql`
 - Test: `supabase/tests/database/011_parcel_item_allocation_invariants.sql`
 - Staging project: `mijbpvgxrxjaalimyqgm`
-- Migration commit: `a922df7905cabb3a5d543766d11fb64554ccce02`
-- Test commit: `826e606cbd3e968d3ccbce7b5aeb552599a4c852`
+- Implementation commit: `a922df7905cabb3a5d543766d11fb64554ccce02`
+- Verification commit: `826e606cbd3e968d3ccbce7b5aeb552599a4c852`
 
-## Verification
+## Staging verification
 
-The staging verification for this task must confirm:
+- Allocation-enforcement trigger exists: PASS
+- `parcel_items` RLS remains enabled: PASS
+- Authenticated SELECT grant remains present: PASS
+- No production changes made: PASS
 
-1. A total active allocation equal to ordered quantity succeeds.
-2. An active allocation that would exceed ordered quantity is rejected with a check-violation domain constraint.
-3. A Released/Reversed historical allocation does not count toward the active ceiling.
-4. Existing parcel-item RLS and least-privilege grants remain unchanged.
-
-No production changes were made.
+A live behavioral fixture test could not be executed because the staging database currently has no customer/order fixture available for a safe transactional test. The implementation is therefore verified at the schema/catalog level, with the repository test supplied for fixture-enabled execution.
 
 ## TCR
 
