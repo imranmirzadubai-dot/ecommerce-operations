@@ -1,7 +1,7 @@
-import { APP_ROLES, type AppRole } from './roles'
+import { APP_ROLES, type AppRole } from './roles.ts'
 
 export { APP_ROLES }
-export type { AppRole } from './roles'
+export type { AppRole } from './roles.ts'
 
 export type Profile = {
   id: string
