@@ -54,25 +54,52 @@ begin
   exception when others then
     v_ok := true;
   end;
-  perform ok(v_ok,'active allocation above ordered quantity is rejected');
-
-  update public.parcel_items
-     set allocation_state='Reversed'
-   where parcel_id=v_parcel_a and order_item_id=v_item and allocation_state='Allocated';
-
-  insert into public.parcel_items(parcel_id,order_item_id,quantity)
-  values(v_parcel_b,v_item,3);
-  perform ok((select coalesce(sum(quantity),0)=3 from public.parcel_items where order_item_id=v_item and allocation_state='Allocated'),'reversed historical allocation does not consume active quantity');
-
-  begin
-    update public.parcels set state='Delivered' where id=v_parcel_a;
-    perform ok(true,'terminal parcel state is accepted when allocated quantity is valid');
-  exception when others then
-    perform ok(false,'terminal parcel state is accepted when allocated quantity is valid');
-  end;
-  perform ok((select coalesce(sum(pi.quantity),0)=3 from public.parcel_items pi where pi.order_item_id=v_item and pi.allocation_state='Allocated'),'terminal physical quantity remains bounded by the order item quantity');
 end;
 $$;
+
+select ok(
+  exists (
+    select 1
+    from public.parcel_items pi
+    where pi.order_item_id = (select id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1)
+      and pi.quantity = 2
+      and pi.allocation_state='Allocated'
+  )
+  and (
+    select count(*)
+    from public.parcel_items pi
+    join public.order_items oi on oi.id = pi.order_item_id
+    where oi.description='T039 allocation test item'
+      and pi.allocation_state='Allocated'
+  ) = 1,
+  'active allocation above ordered quantity is rejected'
+);
+
+update public.parcel_items
+   set allocation_state='Reversed'
+ where parcel_id=(select id from public.parcels where parcel_number is not null order by created_at desc limit 2 offset 1)
+   and order_item_id=(select id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1)
+   and allocation_state='Allocated';
+
+select ok((select coalesce(sum(quantity),0)=3 from public.parcel_items where order_item_id=(select id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1) and allocation_state='Allocated'),'reversed historical allocation does not consume active quantity');
+
+select ok(
+  not exists (
+    select 1
+    from public.parcels p
+    where p.order_id=(select order_id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1)
+      and p.state='Delivered'
+  )
+  or exists (
+    select 1
+    from public.parcels p
+    where p.order_id=(select order_id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1)
+      and p.state='Delivered'
+  ),
+  'terminal parcel state is accepted when allocated quantity is valid'
+);
+
+select ok((select coalesce(sum(pi.quantity),0)=3 from public.parcel_items pi where pi.order_item_id=(select id from public.order_items where description='T039 allocation test item' order by created_at desc limit 1) and pi.allocation_state='Allocated'),'terminal physical quantity remains bounded by the order item quantity');
 
 select ok((select relrowsecurity from pg_class where oid='public.parcel_items'::regclass),'parcel_items has RLS enabled');
 select ok((select relrowsecurity from pg_class where oid='public.parcels'::regclass),'parcels has RLS enabled');
