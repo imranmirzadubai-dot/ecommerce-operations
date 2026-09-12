@@ -39,14 +39,8 @@ async function handleRpc(request: Request, env: WorkerEnv, commandName: string, 
   try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
   let rpcResponse: Response;
-  try {
-    rpcResponse = await fetch(`${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`, {
-      method: "POST", headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body),
-    });
-  } catch {
-    logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" });
-    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
-  }
+  try { rpcResponse = await fetch(`${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`, { method: "POST", headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }); }
+  catch { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const responseBody = await rpcResponse.text();
   const result = rpcResponse.status >= 500 ? "server_error" : rpcResponse.status >= 400 ? "client_error" : "success";
   logEvent("command_request", { request_id: requestId, command: commandName, result, status: rpcResponse.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
@@ -60,36 +54,23 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
   const config = getSupabaseConfig(env);
   if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
-
   const url = new URL(request.url);
   const rawPage = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
   const rawPageSize = Number.parseInt(url.searchParams.get("page_size") ?? "25", 10);
-  if (!Number.isInteger(rawPage) || rawPage < 1 || !Number.isInteger(rawPageSize) || rawPageSize < 1 || rawPageSize > 100) {
-    return json({ error: "invalid_pagination", message: "page must be >= 1 and page_size must be between 1 and 100" }, 400, { "X-Request-ID": requestId });
-  }
+  if (!Number.isInteger(rawPage) || rawPage < 1 || !Number.isInteger(rawPageSize) || rawPageSize < 1 || rawPageSize > 100) return json({ error: "invalid_pagination", message: "page must be >= 1 and page_size must be between 1 and 100" }, 400, { "X-Request-ID": requestId });
   const offset = (rawPage - 1) * rawPageSize;
   const limit = rawPageSize + 1;
   let response: Response;
   try {
-    const query = new URLSearchParams({
-      select: "id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity)",
-      order: "created_at.desc,id.desc",
-      limit: String(limit),
-      offset: String(offset),
-    });
-    response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, {
-      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-    });
-  } catch {
-    logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" });
-    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
-  }
+    const query = new URLSearchParams({ select: "id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity)", order: "created_at.desc,id.desc", limit: String(limit), offset: String(offset) });
+    response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
+  } catch { logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
   if (!response.ok) {
     logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
     return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
   }
-  let rows: unknown[] = [];
+  let rows: unknown[];
   try { rows = JSON.parse(body) as unknown[]; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }
   const hasMore = rows.length > rawPageSize;
   const pageRows = hasMore ? rows.slice(0, rawPageSize) : rows;
@@ -106,10 +87,8 @@ async function handleOrderTimeline(request: Request, env: WorkerEnv, requestId: 
   const config = getSupabaseConfig(env);
   if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
   let response: Response;
-  try {
-    const query = new URLSearchParams({ select: "id,event_type,event_time,performed_by,notes,metadata,parcel_id", order_id: `eq.${orderId}`, order: "event_time.desc", limit: "100" });
-    response = await fetch(`${config.url}/rest/v1/order_events?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
-  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  try { const query = new URLSearchParams({ select: "id,event_type,event_time,performed_by,notes,metadata,parcel_id", order_id: `eq.${orderId}`, order: "event_time.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/order_events?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); }
+  catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
   logEvent("order_timeline_request", { request_id: requestId, order_id: orderId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
   return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
@@ -124,10 +103,8 @@ async function handleCustomerHistory(request: Request, env: WorkerEnv, requestId
   const config = getSupabaseConfig(env);
   if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
   let response: Response;
-  try {
-    const query = new URLSearchParams({ select: "id,order_number,order_date,lifecycle_state,original_amount", customer_id: `eq.${customerId}`, order: "order_date.desc,created_at.desc", limit: "100" });
-    response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
-  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  try { const query = new URLSearchParams({ select: "id,order_number,order_date,lifecycle_state,original_amount", customer_id: `eq.${customerId}`, order: "order_date.desc,created_at.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); }
+  catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
   logEvent("customer_history_request", { request_id: requestId, customer_id: customerId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
   return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
