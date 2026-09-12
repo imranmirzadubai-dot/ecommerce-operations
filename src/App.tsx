@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import { getAuthConfig, hasOperationalAccess, restoreSession, signIn, signOut, type AuthState } from './lib/auth'
-import { getPostLoginPath } from './lib/routes.mjs'
+import { getPostLoginPath } from './lib/routes'
 import { createOrder, resolveCustomerByPhone } from './lib/commands'
 import { OrdersWorkspace } from './components/OrdersWorkspace'
 
