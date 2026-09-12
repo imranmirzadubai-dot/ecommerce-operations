@@ -4,16 +4,12 @@ import { restoreSession } from './lib/auth'
 import { getLoginRedirect, isProtectedPath } from './lib/routes'
 
 export function RouteGuard() {
-  const [checking, setChecking] = useState(true)
-  const [allowed, setAllowed] = useState(false)
+  const [checking, setChecking] = useState(() => isProtectedPath(window.location.pathname))
+  const [allowed, setAllowed] = useState(() => !isProtectedPath(window.location.pathname))
 
   useEffect(() => {
     const pathname = window.location.pathname
-    if (!isProtectedPath(pathname)) {
-      setAllowed(true)
-      setChecking(false)
-      return
-    }
+    if (!isProtectedPath(pathname)) return
 
     let cancelled = false
     restoreSession().then((session) => {
