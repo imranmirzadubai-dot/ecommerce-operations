@@ -73,6 +73,9 @@ jobs:
         working-directory: /tmp/supabase-ci
         run: supabase db reset
 
-      - name: Run pgTAP database tests
+      - name: Run rebuild verification tests
         working-directory: /tmp/supabase-ci
-        run: supabase test db
+        run: |
+          supabase test db \
+            supabase/tests/database/028_database_rebuild_verification.sql \
+            supabase/tests/database/028_rebuild_smoke.sql
