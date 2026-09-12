@@ -20,25 +20,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Lint
         run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Unit tests
         run: npm test
-
       - name: Build
         run: npm run build
 
@@ -48,12 +42,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: 2.117.0
-
       - name: Create isolated local Supabase project
         run: |
           mkdir -p /tmp/supabase-ci
@@ -64,15 +56,12 @@ jobs:
           cp -R "$GITHUB_WORKSPACE/supabase/migrations/." supabase/migrations/
           cp -R "$GITHUB_WORKSPACE/supabase/tests/." supabase/tests/
           cp "$GITHUB_WORKSPACE/supabase/seed.sql" supabase/seed.sql
-
       - name: Start local Supabase
         working-directory: /tmp/supabase-ci
         run: supabase start
-
       - name: Reset database from migrations and seed
         working-directory: /tmp/supabase-ci
         run: supabase db reset
-
       - name: Run rebuild verification and customer/order core tests
         working-directory: /tmp/supabase-ci
         run: |
@@ -87,4 +76,5 @@ jobs:
             supabase/tests/database/042_manual_total_order_amount.sql \
             supabase/tests/database/043_pre_confirmation_order_editing.sql \
             supabase/tests/database/044_order_confirmation.sql \
-            supabase/tests/database/045_original_amount_immutability.sql
+            supabase/tests/database/045_original_amount_immutability.sql \
+            supabase/tests/database/046_order_item_immutability.sql
