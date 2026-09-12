@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  database:
+    name: Local Supabase database tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Create isolated local Supabase project
+        run: |
+          mkdir -p /tmp/supabase-ci
+          cd /tmp/supabase-ci
+          supabase init
+          rm -rf supabase/migrations supabase/tests
+          mkdir -p supabase/migrations supabase/tests/database
+          cp -R "$GITHUB_WORKSPACE/supabase/migrations/." supabase/migrations/
+          cp -R "$GITHUB_WORKSPACE/supabase/tests/." supabase/tests/
+          cp "$GITHUB_WORKSPACE/supabase/seed.sql" supabase/seed.sql
+
+      - name: Start local Supabase
+        working-directory: /tmp/supabase-ci
+        run: supabase start
+
+      - name: Reset database from migrations and seed
+        working-directory: /tmp/supabase-ci
+        run: supabase db reset
+
+      - name: Run pgTAP database tests
+        working-directory: /tmp/supabase-ci
+        run: supabase test db
