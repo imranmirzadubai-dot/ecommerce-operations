@@ -82,6 +82,8 @@ export type CustomerHistoryRow = {
 }
 
 type CommandError = { message?: string; error?: string; details?: string }
+type ListOrdersOptions = { page?: number; pageSize?: number }
+export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
@@ -115,8 +117,11 @@ export async function confirmOrder(accessToken: string, input: ConfirmOrderInput
   return runCommand<ConfirmOrderResult[]>('confirm_order', accessToken, input as unknown as Record<string, unknown>)
 }
 
-export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
-  const response = await fetch('/api/orders', {
+export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
+  const page = Math.max(1, Math.floor(options.page ?? 1))
+  const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize ?? 25)))
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  const response = await fetch(`/api/orders?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
   })
   const payload = (await response.json().catch(() => null)) as OrderListRow[] | CommandError | null
@@ -124,7 +129,12 @@ export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
     const error = payload as CommandError | null
     throw new Error(error?.message ?? error?.details ?? error?.error ?? `Orders request failed (${response.status})`)
   }
-  return (payload ?? []) as OrderListRow[]
+  return {
+    orders: Array.isArray(payload) ? payload : [],
+    page,
+    pageSize,
+    hasMore: response.headers.get('X-Has-More') === 'true',
+  }
 }
 
 export async function getOrderTimeline(accessToken: string, orderId: string): Promise<OrderTimelineEvent[]> {
