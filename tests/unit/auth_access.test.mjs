@@ -27,8 +27,9 @@ test('inactive admins cannot administer users', () => {
   assert.equal(canAdministerUsers(profile('admin', true)), true)
 })
 
-test('missing or malformed profiles have no access', () => {
+test('missing or unsupported profiles have no access', () => {
   assert.equal(hasOperationalAccess(null), false)
   assert.equal(canAdministerUsers(null), false)
-  assert.equal(hasOperationalAccess({ role: 'admin', active: true }), false)
+  assert.equal(hasOperationalAccess(profile('unknown', true)), false)
+  assert.equal(canAdministerUsers(profile('operations', true)), false)
 })
