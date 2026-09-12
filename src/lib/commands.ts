@@ -82,8 +82,8 @@ export type CustomerHistoryRow = {
 }
 
 type CommandError = { message?: string; error?: string; details?: string }
-type ListOrdersOptions = { page?: number; pageSize?: number }
-export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean }
+type ListOrdersOptions = { page?: number; pageSize?: number; search?: string }
+export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean; search: string }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
@@ -120,7 +120,9 @@ export async function confirmOrder(accessToken: string, input: ConfirmOrderInput
 export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
   const page = Math.max(1, Math.floor(options.page ?? 1))
   const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize ?? 25)))
+  const search = (options.search ?? '').trim()
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (search) query.set('search', search)
   const response = await fetch(`/api/orders?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
   })
@@ -134,6 +136,7 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
     page,
     pageSize,
     hasMore: response.headers.get('X-Has-More') === 'true',
+    search,
   }
 }
 
