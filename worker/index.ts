@@ -192,6 +192,36 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   });
 }
 
+async function handleCustomerHistory(request: Request, env: WorkerEnv, requestId: string, customerId: string): Promise<Response> {
+  const startedAt = performance.now();
+  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  if (!/^[0-9a-fA-F-]{36}$/.test(customerId)) return json({ error: "invalid_customer_id" }, 400, { "X-Request-ID": requestId });
+  const config = getSupabaseConfig(env);
+  if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+
+  let response: Response;
+  try {
+    const query = new URLSearchParams({
+      select: "id,order_number,order_date,lifecycle_state,original_amount",
+      customer_id: `eq.${customerId}`,
+      order: "order_date.desc,created_at.desc",
+      limit: "100",
+    });
+    response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch {
+    logEvent("customer_history_request", { request_id: requestId, customer_id: customerId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" });
+    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+  }
+
+  const body = await response.text();
+  logEvent("customer_history_request", { request_id: requestId, customer_id: customerId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
+  return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -204,6 +234,11 @@ export default {
 
     if (url.pathname === "/api/orders") {
       return handleOrders(request, env as WorkerEnv, requestId);
+    }
+
+    const historyMatch = url.pathname.match(/^\/api\/customers\/([^/]+)\/history$/);
+    if (historyMatch) {
+      return handleCustomerHistory(request, env as WorkerEnv, requestId, decodeURIComponent(historyMatch[1]));
     }
 
     if (url.pathname.startsWith("/api/commands/")) {
