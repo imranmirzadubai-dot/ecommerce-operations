@@ -67,6 +67,7 @@ export type OrderListRow = {
   lifecycle_state: string
   original_amount: number
   notes: string | null
+  order_date: string
   created_at: string
   updated_at: string
   customers: { id: string; name: string; phone: string; address: string | null; city: string | null } | null
@@ -82,8 +83,8 @@ export type CustomerHistoryRow = {
 }
 
 type CommandError = { message?: string; error?: string; details?: string }
-type ListOrdersOptions = { page?: number; pageSize?: number; search?: string; lifecycleState?: string; parcelState?: string; codState?: string }
-export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean; search: string }
+type ListOrdersOptions = { page?: number; pageSize?: number; search?: string; lifecycleState?: string; parcelState?: string; codState?: string; dateFrom?: string; dateTo?: string }
+export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean; search: string; dateFrom: string; dateTo: string }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
@@ -121,11 +122,15 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
   const page = Math.max(1, Math.floor(options.page ?? 1))
   const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize ?? 25)))
   const search = (options.search ?? '').trim()
+  const dateFrom = (options.dateFrom ?? '').trim()
+  const dateTo = (options.dateTo ?? '').trim()
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) query.set('search', search)
   if (options.lifecycleState) query.set('lifecycle_state', options.lifecycleState)
   if (options.parcelState) query.set('parcel_state', options.parcelState)
   if (options.codState) query.set('cod_state', options.codState)
+  if (dateFrom) query.set('date_from', dateFrom)
+  if (dateTo) query.set('date_to', dateTo)
   const response = await fetch(`/api/orders?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
   })
@@ -140,6 +145,8 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
     pageSize,
     hasMore: response.headers.get('X-Has-More') === 'true',
     search,
+    dateFrom,
+    dateTo,
   }
 }
 
