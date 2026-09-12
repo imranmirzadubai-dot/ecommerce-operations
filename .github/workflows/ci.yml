@@ -73,11 +73,11 @@ jobs:
         working-directory: /tmp/supabase-ci
         run: supabase db reset
 
-      - name: Run rebuild verification and inactive account access test
+      - name: Run rebuild verification and unauthorized privileged action test
         working-directory: /tmp/supabase-ci
         run: |
           supabase test db \
             supabase/tests/database/028_database_rebuild_verification.sql \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
-            supabase/tests/database/036_inactive_account_access.sql
+            supabase/tests/database/037_unauthorized_privileged_actions.sql
