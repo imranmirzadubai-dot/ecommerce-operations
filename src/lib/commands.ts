@@ -3,7 +3,7 @@ export type CreateOrderInput = {
   p_phone: string
   p_address: string | null
   p_city: string | null
-  p_original_amount: number
+  p_original_amount: string
   p_items: Array<{ description: string; quantity: number }>
   p_notes?: string | null
   p_idempotency_key: string
