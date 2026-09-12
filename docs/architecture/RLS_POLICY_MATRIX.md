@@ -143,11 +143,11 @@ Corrections must create the appropriate new command/event/adjustment rather than
 
 ## 12. Current implementation comparison
 
-The existing foundation migration already establishes the principal security posture: RLS is enabled on all listed application tables, `anon` has no table access, `authenticated` has explicit SELECT grants, and no direct table write grants are provided. fileciteturn110file0L2-L2
+The existing foundation migration establishes the principal security posture: RLS is enabled on all listed application tables, `anon` has no table access, `authenticated` has explicit SELECT grants, and no direct table write grants are provided.
 
-The existing T041 authorization contract also requires RLS on every exposed domain table, command-owned sensitive writes, explicit function execution boundaries, append-only audit/history behavior, and positive/negative authorization tests. fileciteturn108file0L2-L2
+The existing T041 authorization contract requires RLS on every exposed domain table, command-owned sensitive writes, explicit function execution boundaries, append-only audit/history behavior, and positive/negative authorization tests.
 
-One concrete T042 refinement is required: the target matrix makes `financial_adjustments` Admin-read-only. The current foundation migration grants SELECT on `financial_adjustments` to all `authenticated` users, even though financial adjustment capability is Admin-only. fileciteturn110file0L2-L2
+One concrete T042 refinement is required: the target matrix makes `financial_adjustments` Admin-read-only. The current foundation migration grants SELECT on `financial_adjustments` to all `authenticated` users, even though financial adjustment capability is Admin-only.
 
 This is recorded as a Phase 3 implementation/security-test requirement rather than being silently changed during Phase 2 formalization.
 
