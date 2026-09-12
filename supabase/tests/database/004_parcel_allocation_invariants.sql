@@ -1,3 +1,4 @@
+-- T039 pgTAP harness fix: keep behavioral assertions at top level.
 begin;
 set constraints all immediate;
 select plan(12);
