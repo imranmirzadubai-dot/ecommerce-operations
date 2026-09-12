@@ -19,7 +19,7 @@ select ok(has_function_privilege('authenticated','public.set_profile_active(uuid
 select ok(has_function_privilege('anon','public.set_profile_active(uuid,boolean)','execute') = false, 'anonymous callers cannot execute set_profile_active');
 
 select ok((select count(*) = 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_admin_select' and cmd='SELECT'), 'Admin profile visibility is protected by the dedicated Admin SELECT policy');
-select ok((select pg_get_expr(polqual, polrelid) like '%public.app_role() = ''admin''%'
+select ok((select pg_get_expr(polqual, polrelid) ~ $$app_role\(\).*admin$$
   from pg_policy p join pg_class c on c.oid=p.polrelid join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='public' and c.relname='profiles' and p.polname='profiles_admin_select'), 'Admin profile SELECT policy requires Admin role');
 
