@@ -9,10 +9,35 @@ export type CreateOrderInput = {
   p_idempotency_key: string
 }
 
+export type UpdateOrderInput = {
+  p_order_id: string
+  p_customer_name: string
+  p_phone: string
+  p_address: string | null
+  p_city: string | null
+  p_original_amount: string
+  p_items: Array<{ description: string; quantity: number }>
+  p_notes?: string | null
+  p_idempotency_key: string
+}
+
 export type CreateOrderResult = {
   order_id: string
   order_number: string
   customer_id: string
+}
+
+export type UpdateOrderResult = {
+  order_id: string
+  order_number: string
+  lifecycle_state: string
+}
+
+export type OrderItemRow = {
+  id: string
+  line_no: number
+  description: string
+  quantity: number
 }
 
 export type OrderListRow = {
@@ -20,9 +45,11 @@ export type OrderListRow = {
   order_number: string
   lifecycle_state: string
   original_amount: number
+  notes: string | null
   created_at: string
   updated_at: string
-  customers: { name: string; phone: string } | null
+  customers: { id: string; name: string; phone: string; address: string | null; city: string | null } | null
+  order_items: OrderItemRow[]
 }
 
 export type CustomerHistoryRow = {
@@ -57,6 +84,10 @@ export async function resolveCustomerByPhone(accessToken: string, phone: string)
 
 export async function createOrder(accessToken: string, input: CreateOrderInput): Promise<CreateOrderResult[]> {
   return runCommand<CreateOrderResult[]>('create_order', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export async function updateOrder(accessToken: string, input: UpdateOrderInput): Promise<UpdateOrderResult[]> {
+  return runCommand<UpdateOrderResult[]>('update_order', accessToken, input as unknown as Record<string, unknown>)
 }
 
 export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
