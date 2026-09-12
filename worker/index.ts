@@ -28,6 +28,7 @@ function getSupabaseConfig(env: WorkerEnv) {
 function logEvent(event: string, fields: Record<string, unknown>) { console.log(JSON.stringify({ event, ...fields })); }
 function escapeSearchTerm(value: string) { return value.replace(/[(),.*]/g, " ").replace(/%/g, " ").replace(/\s+/g, " ").trim().slice(0, 100); }
 function validFilter(value: string | null, allowed: readonly string[]) { return value === null || allowed.includes(value); }
+function validDate(value: string | null) { return value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
 
 async function handleRpc(request: Request, env: WorkerEnv, commandName: string, requestId: string): Promise<Response> {
   const startedAt = performance.now();
@@ -64,12 +65,15 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   const lifecycleState = url.searchParams.get("lifecycle_state");
   const parcelState = url.searchParams.get("parcel_state");
   const codState = url.searchParams.get("cod_state");
+  const dateFrom = url.searchParams.get("date_from");
+  const dateTo = url.searchParams.get("date_to");
   const lifecycleStates = ["Draft", "Confirmed", "Active", "Completed", "Cancelled"] as const;
   const parcelStates = ["Prepared", "Dispatched", "In Transit", "NDR", "Delivered", "RTO", "Lost", "Damaged", "Cancelled"] as const;
   const codStates = ["Outstanding", "Partially Received", "Received", "Exception", "Voided", "Closed"] as const;
   if (!Number.isInteger(rawPage) || rawPage < 1 || !Number.isInteger(rawPageSize) || rawPageSize < 1 || rawPageSize > 100) return json({ error: "invalid_pagination", message: "page must be >= 1 and page_size must be between 1 and 100" }, 400, { "X-Request-ID": requestId });
   if (rawSearch.trim() && !search) return json({ error: "invalid_search", message: "search must contain at least one searchable character" }, 400, { "X-Request-ID": requestId });
   if (!validFilter(lifecycleState, lifecycleStates) || !validFilter(parcelState, parcelStates) || !validFilter(codState, codStates)) return json({ error: "invalid_filter" }, 400, { "X-Request-ID": requestId });
+  if (!validDate(dateFrom) || !validDate(dateTo) || dateFrom && dateTo && dateFrom > dateTo) return json({ error: "invalid_date_range", message: "date_from and date_to must be valid dates with date_from <= date_to" }, 400, { "X-Request-ID": requestId });
   const offset = (rawPage - 1) * rawPageSize;
   const limit = rawPageSize + 1;
   let response: Response;
@@ -78,8 +82,8 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
     const itemEmbed = "order_items(id,line_no,description,quantity)";
     const parcelEmbed = parcelState ? "parcels!inner(id,state,shipper_id,tracking_id)" : "parcels(id,state,shipper_id,tracking_id)";
     const codEmbed = codState ? "cod_obligations!inner(state)" : "cod_obligations(state)";
-    const select = `id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,${customerEmbed},${itemEmbed},${parcelEmbed},${codEmbed}`;
-    const query = new URLSearchParams({ select, order: "created_at.desc,id.desc", limit: String(limit), offset: String(offset) });
+    const select = `id,order_number,lifecycle_state,original_amount,notes,order_date,created_at,updated_at,${customerEmbed},${itemEmbed},${parcelEmbed},${codEmbed}`;
+    const query = new URLSearchParams({ select, order: "order_date.desc,created_at.desc,id.desc", limit: String(limit), offset: String(offset) });
     if (search) {
       const pattern = `*${search}*`;
       query.set("or", `(order_number.ilike.${pattern},customers.name.ilike.${pattern},customers.phone.ilike.${pattern},customers.address.ilike.${pattern},order_items.description.ilike.${pattern})`);
@@ -87,18 +91,20 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
     if (lifecycleState) query.set("lifecycle_state", `eq.${lifecycleState}`);
     if (parcelState) query.set("parcels.state", `eq.${parcelState}`);
     if (codState) query.set("cod_obligations.state", `eq.${codState}`);
+    if (dateFrom) query.set("order_date", `gte.${dateFrom}`);
+    if (dateTo) query.set("order_date", `lte.${dateTo}`);
     response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
   } catch { logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
   if (!response.ok) {
-    logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
+    logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
     return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
   }
   const parsed: unknown = (() => { try { return JSON.parse(body); } catch { return null; } })();
   if (!Array.isArray(parsed)) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
   const hasMore = parsed.length > rawPageSize;
   const pageRows = hasMore ? parsed.slice(0, rawPageSize) : parsed;
-  logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, result: "success", status: 200, returned: pageRows.length, has_more: hasMore, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
+  logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: "success", status: 200, returned: pageRows.length, has_more: hasMore, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
   return new Response(JSON.stringify(pageRows), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId, "X-Page": String(rawPage), "X-Page-Size": String(rawPageSize), "X-Has-More": String(hasMore) } });
 }
 
