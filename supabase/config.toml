@@ -1,0 +1,26 @@
+# E-Commerce Operations — local Supabase Auth configuration
+# Hosted/staging Auth settings remain project-level configuration and are not
+# represented by this file. No secrets belong here.
+
+project_id = "ecommerce-operations"
+
+[api]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.rate_limit]
+email_sent = 30
+sms_sent = 30
+verify = 30
+
+[db]
+major_version = 17
