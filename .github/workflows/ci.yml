@@ -81,4 +81,5 @@ jobs:
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
             supabase/tests/database/038_uae_phone_normalization.sql \
-            supabase/tests/database/039_resolve_or_create_customer.sql
+            supabase/tests/database/039_resolve_or_create_customer.sql \
+            supabase/tests/database/040_order_creation.sql
