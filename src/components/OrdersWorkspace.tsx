@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listOrders, updateOrder, type OrderItemRow, type OrderListRow } from '../lib/commands'
+import { confirmOrder, listOrders, updateOrder, type OrderItemRow, type OrderListRow } from '../lib/commands'
 import { normalizeAedAmount } from '../lib/money'
 
 type Props = { accessToken: string }
@@ -25,6 +25,8 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [draft, setDraft] = useState<ReturnType<typeof toEditorState> | null>(null)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null)
+  const [confirmMessage, setConfirmMessage] = useState('')
 
   async function refresh() {
     setLoading(true)
@@ -97,6 +99,23 @@ export function OrdersWorkspace({ accessToken }: Props) {
     }
   }
 
+  async function handleConfirm(order: OrderListRow) {
+    if (order.lifecycle_state !== 'Draft' || confirmingOrderId) return
+    setConfirmingOrderId(order.id)
+    setConfirmMessage('')
+    try {
+      const result = await confirmOrder(accessToken, { p_order_id: order.id, p_idempotency_key: crypto.randomUUID() })
+      const confirmed = result[0]
+      if (!confirmed) throw new Error('The confirmation completed without returning the order')
+      setConfirmMessage(`Order ${confirmed.order_number} confirmed.`)
+      await refresh()
+    } catch (confirmError) {
+      setConfirmMessage(confirmError instanceof Error ? confirmError.message : 'Order confirmation failed')
+    } finally {
+      setConfirmingOrderId(null)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -116,16 +135,17 @@ export function OrdersWorkspace({ accessToken }: Props) {
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
       <div className="section-heading">
-        <div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited before confirmation. Confirmed and later states are locked by the command boundary.</p></div>
-        <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+        <div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited or confirmed. Confirmed and later states are locked by the command boundary.</p></div>
+        <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading || confirmingOrderId !== null}>{loading ? 'Refreshing…' : 'Refresh'}</button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
+      {confirmMessage && <p className={confirmMessage.startsWith('Order ') ? 'form-success' : 'form-error'} role="status">{confirmMessage}</p>}
       {!error && loading && <p className="form-note">Loading orders…</p>}
       {!error && !loading && orders.length === 0 && <p className="empty-state">No orders yet. Create the first Draft Order above.</p>}
       {!error && !loading && orders.length > 0 && (
         <div className="orders-table-wrap">
           <table className="orders-table"><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Amount</th><th>Created</th><th>Action</th></tr></thead><tbody>
-            {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td>{order.lifecycle_state === 'Draft' ? <button className="secondary-button" type="button" onClick={() => startEditing(order)}>Edit</button> : <span className="form-note">Locked</span>}</td></tr>)}
+            {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td>{order.lifecycle_state === 'Draft' ? <div className="button-group"><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></div> : <span className="form-note">Locked</span>}</td></tr>)}
           </tbody></table>
         </div>
       )}
