@@ -27,12 +27,15 @@ begin
     v_digits := substring(v_digits from 2);
   end if;
 
-  -- UAE national significant numbers are nine digits after +971.
-  if length(v_digits) <> 9 then
-    return null;
+  -- UAE mobile NSNs are nine digits; UAE fixed-line NSNs are eight digits
+  -- and begin with a geographic area code (2-9).
+  if length(v_digits) = 9 then
+    return '+971' || v_digits;
+  elsif length(v_digits) = 8 and left(v_digits, 1) in ('2','3','4','6','7','9') then
+    return '+971' || v_digits;
   end if;
 
-  return '+971' || v_digits;
+  return null;
 end;
 $$;
 
