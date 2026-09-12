@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { getLoginRedirect, getPostLoginPath, isProtectedPath, isPublicPath, safeReturnPath } from '../../src/lib/routes.mjs'
+import { getLoginRedirect, getPostLoginPath, isProtectedPath, isPublicPath, safeReturnPath } from '../../src/lib/routes.ts'
 
 test('application paths are protected and login is public', () => {
   assert.equal(isProtectedPath('/'), true)
