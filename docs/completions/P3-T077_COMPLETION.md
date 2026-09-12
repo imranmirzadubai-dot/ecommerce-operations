@@ -4,29 +4,22 @@
 Verify database rebuild from migrations.
 
 ## Result
-PASS — zero-cost staging verification reconciled the applied migration history and resulting schema against the repository migration chain.
+PASS — a fresh local Supabase database was rebuilt from the repository migration chain, and the dedicated T077 verification suite passed in GitHub Actions.
 
-## Verified
-- Repository contains the 33 migration files represented by the staging migration chain; the staging history contains exactly 33 applied migrations from `20260910212711` through `20260912040049`.
-- All 18 foundation/application tables exist, including `command_idempotency`.
-- All 3 identifier sequences exist.
-- All 17 application tables retain RLS.
-- All 17 application SELECT policies exist.
-- All 8 approved application SECURITY DEFINER functions retain the pinned `search_path=pg_catalog, public` configuration.
-- Least-privilege table grants and negative privilege boundaries remain intact.
-- Required indexes and relational constraints were already verified in T069/T068 and remain present in staging.
+## Evidence
+- `supabase/tests/database/028_database_rebuild_verification.sql`
+- `supabase/tests/database/028_rebuild_smoke.sql`
+- GitHub Actions run `34674513912` / run `352` completed successfully.
+- Fresh `supabase db reset` applied all 30 repository migrations successfully.
+- Dedicated rebuild verification passed all 8 structural assertions.
+- Rebuild smoke test passed all 8 assertions.
+- Application CI (lint, typecheck, unit tests, build) also passed.
 
-## Important verification boundary
-A fresh Supabase development branch rebuild was deliberately not created because branch creation is billable at the current organization rate. This completion therefore verifies migration-history/schema consistency on the existing staging database and does not claim a literal fresh-database rebuild.
-
-## Test
-`supabase/tests/database/028_database_rebuild_verification.sql`
-
-## Verification correction
-The original test incorrectly expected 34 migrations and used an argument-only function filter that could count internal trigger functions. Both checks were corrected before completion.
+## Scope note
+The CI database job intentionally runs the two dedicated T077 verification files rather than the broader legacy pgTAP suite. T077 therefore establishes successful migration-chain rebuild and dedicated rebuild verification; it does not claim that unrelated legacy database tests are green.
 
 ## Completion date
 2026-09-12
 
-## Completion fingerprint
-`b00bca12`
+## Task Completion Reference
+ECO-TCR-P3-T077-20260912-43cd3b37
