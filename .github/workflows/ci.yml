@@ -84,4 +84,5 @@ jobs:
             supabase/tests/database/039_resolve_or_create_customer.sql \
             supabase/tests/database/040_order_creation.sql \
             supabase/tests/database/041_order_item_entry.sql \
-            supabase/tests/database/042_manual_total_order_amount.sql
+            supabase/tests/database/042_manual_total_order_amount.sql \
+            supabase/tests/database/043_pre_confirmation_order_editing.sql
