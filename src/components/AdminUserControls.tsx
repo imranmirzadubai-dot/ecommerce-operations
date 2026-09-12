@@ -23,7 +23,12 @@ export function AdminUserControls({ accessToken, profile }: { accessToken: strin
     finally { setLoading(false) }
   }
 
-  useEffect(() => { void loadProfiles() }, [accessToken, profile])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadProfiles() }, 0)
+    return () => window.clearTimeout(timer)
+    // loadProfiles is intentionally scoped to the current authenticated profile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, profile])
 
   async function rpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
     if (!config) throw new Error('Supabase authentication is not configured for this environment')
