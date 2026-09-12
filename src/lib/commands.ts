@@ -25,6 +25,14 @@ export type OrderListRow = {
   customers: { name: string; phone: string } | null
 }
 
+export type CustomerHistoryRow = {
+  id: string
+  order_number: string
+  order_date: string
+  lifecycle_state: string
+  original_amount: number
+}
+
 type CommandError = { message?: string; error?: string; details?: string }
 
 export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
@@ -61,4 +69,16 @@ export async function listOrders(accessToken: string): Promise<OrderListRow[]> {
     throw new Error(error?.message ?? error?.details ?? error?.error ?? `Orders request failed (${response.status})`)
   }
   return (payload ?? []) as OrderListRow[]
+}
+
+export async function getCustomerHistory(accessToken: string, customerId: string): Promise<CustomerHistoryRow[]> {
+  const response = await fetch(`/api/customers/${encodeURIComponent(customerId)}/history`, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+  })
+  const payload = (await response.json().catch(() => null)) as CustomerHistoryRow[] | CommandError | null
+  if (!response.ok) {
+    const error = payload as CommandError | null
+    throw new Error(error?.message ?? error?.details ?? error?.error ?? `Customer history request failed (${response.status})`)
+  }
+  return (payload ?? []) as CustomerHistoryRow[]
 }
