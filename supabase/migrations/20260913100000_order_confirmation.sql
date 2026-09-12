@@ -1,6 +1,9 @@
 -- P5-T097: Confirm Draft Order lifecycle transition.
 -- Confirmation is a single transactional, idempotent Draft -> Confirmed command.
+-- The legacy UUID-only overload is removed so it cannot bypass idempotency.
 -- It validates the authoritative commercial fields before changing lifecycle state.
+
+drop function if exists public.confirm_order(uuid);
 
 create or replace function public.confirm_order(
   p_order_id uuid,
