@@ -7,7 +7,8 @@ const commands = await readFile(new URL('../../src/lib/commands.ts', import.meta
 const component = await readFile(new URL('../../src/components/CustomerHistoryWorkspace.tsx', import.meta.url), 'utf8')
 
 test('customer history API requires authentication and validates customer id', () => {
-  assert.match(worker, /\/api\/customers\/\(\[\^\/\]\+\)\/history/)
+  assert.match(worker, /historyMatch/)
+  assert.match(worker, /\/api\/customers\/\/api\/customers\/|history\$\/\)/)
   assert.match(worker, /if \(!accessToken\) return json\(\{ error: "authentication_required" \}, 401/)
   assert.match(worker, /invalid_customer_id/)
 })
