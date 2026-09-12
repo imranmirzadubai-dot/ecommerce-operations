@@ -1,7 +1,7 @@
 begin;
 
 -- P5-T096: Pre-confirmation Draft Order editing contract.
-select plan(14);
+select plan(16);
 
 select ok(
   (select count(*) = 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
