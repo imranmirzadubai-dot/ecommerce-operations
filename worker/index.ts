@@ -74,21 +74,19 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   const limit = rawPageSize + 1;
   let response: Response;
   try {
-    const select = "id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity),parcels(id,state,shipper_id,tracking_id),cod_obligations(state)";
+    const customerEmbed = "customers(id,name,phone,address,city)";
+    const itemEmbed = "order_items(id,line_no,description,quantity)";
+    const parcelEmbed = parcelState ? "parcels!inner(id,state,shipper_id,tracking_id)" : "parcels(id,state,shipper_id,tracking_id)";
+    const codEmbed = codState ? "cod_obligations!inner(state)" : "cod_obligations(state)";
+    const select = `id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,${customerEmbed},${itemEmbed},${parcelEmbed},${codEmbed}`;
     const query = new URLSearchParams({ select, order: "created_at.desc,id.desc", limit: String(limit), offset: String(offset) });
     if (search) {
       const pattern = `*${search}*`;
       query.set("or", `(order_number.ilike.${pattern},customers.name.ilike.${pattern},customers.phone.ilike.${pattern},customers.address.ilike.${pattern},order_items.description.ilike.${pattern})`);
     }
     if (lifecycleState) query.set("lifecycle_state", `eq.${lifecycleState}`);
-    if (parcelState) {
-      query.set("parcels.state", `eq.${parcelState}`);
-      query.set("select", "id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity),parcels!inner(id,state,shipper_id,tracking_id),cod_obligations(state)");
-    }
-    if (codState) {
-      query.set("cod_obligations.state", `eq.${codState}`);
-      query.set("select", "id,order_number,lifecycle_state,original_amount,notes,created_at,updated_at,customers(id,name,phone,address,city),order_items(id,line_no,description,quantity),parcels(id,state,shipper_id,tracking_id),cod_obligations!inner(state)");
-    }
+    if (parcelState) query.set("parcels.state", `eq.${parcelState}`);
+    if (codState) query.set("cod_obligations.state", `eq.${codState}`);
     response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
   } catch { logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
