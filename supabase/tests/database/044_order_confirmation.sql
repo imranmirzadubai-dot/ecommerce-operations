@@ -2,7 +2,7 @@ begin;
 
 -- P5-T097: Order confirmation contract.
 -- Confirm Draft -> Confirmed through one authenticated, idempotent command.
-select plan(14);
+select plan(15);
 
 select ok(
   (select count(*) = 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
