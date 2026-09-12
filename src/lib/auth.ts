@@ -1,4 +1,7 @@
-export type AppRole = 'sales' | 'operations' | 'admin'
+import { APP_ROLES, type AppRole } from './roles'
+
+export { APP_ROLES }
+export type { AppRole } from './roles'
 
 export type Profile = {
   id: string
@@ -34,7 +37,7 @@ type TokenResponse = {
 const SESSION_KEY = 'ecommerce-operations.auth.session'
 
 export function hasOperationalAccess(profile: Profile | null): boolean {
-  return profile?.active === true && ['sales', 'operations', 'admin'].includes(profile.role)
+  return profile?.active === true && APP_ROLES.includes(profile.role)
 }
 
 export function canAdministerUsers(profile: Profile | null): boolean {
