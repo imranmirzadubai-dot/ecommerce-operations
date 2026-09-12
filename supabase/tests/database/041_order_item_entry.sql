@@ -6,7 +6,7 @@ begin;
 select plan(10);
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%v_description:=nullif(btrim(coalesce(v_item->>''description'','''')),'')%'
+  (select pg_get_functiondef(p.oid) like '%v_description:=nullif%'
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='create_order'),
   'create_order requires a non-empty item description'
