@@ -73,7 +73,7 @@ jobs:
         working-directory: /tmp/supabase-ci
         run: supabase db reset
 
-      - name: Run rebuild verification and customer resolution tests
+      - name: Run rebuild verification and customer/order core tests
         working-directory: /tmp/supabase-ci
         run: |
           supabase test db \
@@ -82,4 +82,5 @@ jobs:
             supabase/tests/database/030_profile_active_lifecycle.sql \
             supabase/tests/database/038_uae_phone_normalization.sql \
             supabase/tests/database/039_resolve_or_create_customer.sql \
-            supabase/tests/database/040_order_creation.sql
+            supabase/tests/database/040_order_creation.sql \
+            supabase/tests/database/041_order_item_entry.sql
