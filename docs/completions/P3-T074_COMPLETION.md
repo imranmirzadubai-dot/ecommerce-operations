@@ -1,28 +1,32 @@
-# P3-T074 Completion
+# P3-T074 Completion — Positive/Negative RLS Tests
 
-## Task
-Write positive/negative RLS tests.
+**Status:** Complete
+**Date:** 2026-09-12
+**Environment:** Staging Supabase (`mijbpvgxrxjaalimyqgm`)
 
 ## Result
-PASS — positive and negative structural RLS tests cover the 17 application tables, SELECT policy coverage, and denial of direct browser writes.
+PASS. Added executable pgTAP coverage for the Phase 3 RLS matrix with positive role-policy cases and negative unauthorized-access/write cases.
 
-## Positive checks
-- All 17 application tables have RLS enabled.
-- All application tables have SELECT policy coverage.
-- Authenticated users retain approved SELECT access to orders.
-- Admin-only financial-adjustment policy exists.
-- Profile self-read policy exists.
+## Coverage
+- RLS enabled on all 17 application tables.
+- Exactly one SELECT policy per application table.
+- Sales/Operations/Admin operational-read predicate coverage.
+- Profiles restricted to `auth.uid()`.
+- Financial adjustments, audit logs, import batches and import rows restricted to Admin.
+- No direct INSERT/UPDATE/DELETE RLS policies.
+- Anonymous table access denied.
+- Authenticated direct writes denied.
+- Authenticated SELECT retained where approved.
+- Authenticated SELECT grants cover all 17 application tables.
+- No anonymous application-table grants.
+- No PUBLIC-role policies.
+- Sensitive tables have exactly one SELECT policy each.
 
-## Negative checks
-- No INSERT/UPDATE/DELETE RLS policies exist on application tables.
-- Anonymous SELECT on orders is denied at the grant layer.
-- Authenticated INSERT/UPDATE/DELETE on orders are denied at the grant layer.
+## Evidence
+- Test: `supabase/tests/database/025_rls_positive_negative.sql`
+- Test commit: `da824680f62d6e09908f701791d5327741ca913a`
+- Direct staging verification: 18/18 equivalent assertions evaluated true.
+- Staging does not expose the required pgTAP runner through the available execution interface, so pgTAP execution is not claimed for staging.
 
-## Test
-`supabase/tests/database/025_rls_positive_negative.sql`
-
-## Verification
-Direct staging catalog and privilege checks passed. The SQL test is written for the repository's pgTAP-capable test environment; no pgTAP execution is claimed for staging where the runner is unavailable.
-
-## Completion date
-2026-09-12
+## TCR
+`ECO-TCR-P3-T074-20260912-da824680`
