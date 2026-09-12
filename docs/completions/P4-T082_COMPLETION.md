@@ -20,7 +20,8 @@ Complete
 ## Tests / verification
 - Added `supabase/tests/database/030_profile_active_lifecycle.sql` with structural/security assertions for command existence, SECURITY DEFINER, controlled search path, admin authorization, target validation, active-state update behavior, and profile-state constraints.
 - Updated `supabase/tests/database/028_database_rebuild_verification.sql` for the 32-migration chain and the new lifecycle command.
-- CI must pass application lint, typecheck, unit tests, build, fresh local Supabase startup/reset, and rebuild verification before this record is considered verified.
+- Updated CI to execute the dedicated T082 lifecycle test in addition to rebuild verification and smoke tests.
+- CI verification run: pending after this test-harness correction.
 - The broader legacy pgTAP suite is not claimed green; unrelated pre-existing failures remain outside T082 scope.
 
 ## Security / scope boundary
@@ -29,4 +30,4 @@ Complete
 - T083 remains responsible for administrator-facing user controls; T084 remains responsible for the broader command-authorization layer.
 
 ## Task Completion Reference
-`ECO-TCR-P4-T082-20260912-<commit-short-sha>`
+`ECO-TCR-P4-T082-20260912-d20b8a97`

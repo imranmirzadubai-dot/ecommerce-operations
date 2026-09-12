@@ -78,4 +78,5 @@ jobs:
         run: |
           supabase test db \
             supabase/tests/database/028_database_rebuild_verification.sql \
-            supabase/tests/database/028_rebuild_smoke.sql
+            supabase/tests/database/028_rebuild_smoke.sql \
+            supabase/tests/database/030_profile_active_lifecycle.sql
