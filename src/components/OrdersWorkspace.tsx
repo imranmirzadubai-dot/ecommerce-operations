@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { confirmOrder, listOrders, updateOrder, type OrderItemRow, type OrderListRow } from '../lib/commands'
+import { confirmOrder, getOrderTimeline, listOrders, updateOrder, type OrderItemRow, type OrderListRow, type OrderTimelineEvent } from '../lib/commands'
 import { normalizeAedAmount } from '../lib/money'
 
 type Props = { accessToken: string }
@@ -17,6 +17,16 @@ function toEditorState(order: OrderListRow) {
   }
 }
 
+function timelineLabel(event: OrderTimelineEvent) {
+  switch (event.event_type) {
+    case 'OrderCreated': return 'Order created'
+    case 'OrderUpdated': return 'Order updated'
+    case 'OrderConfirmed': return 'Order confirmed'
+    case 'OrderCancelled': return 'Order cancelled'
+    default: return event.event_type
+  }
+}
+
 export function OrdersWorkspace({ accessToken }: Props) {
   const [orders, setOrders] = useState<OrderListRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,6 +37,10 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [saveMessage, setSaveMessage] = useState('')
   const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null)
   const [confirmMessage, setConfirmMessage] = useState('')
+  const [timelineOrder, setTimelineOrder] = useState<OrderListRow | null>(null)
+  const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([])
+  const [timelineLoading, setTimelineLoading] = useState(false)
+  const [timelineError, setTimelineError] = useState('')
 
   async function refresh() {
     setLoading(true)
@@ -116,6 +130,20 @@ export function OrdersWorkspace({ accessToken }: Props) {
     }
   }
 
+  async function openTimeline(order: OrderListRow) {
+    setTimelineOrder(order)
+    setTimeline([])
+    setTimelineError('')
+    setTimelineLoading(true)
+    try {
+      setTimeline(await getOrderTimeline(accessToken, order.id))
+    } catch (requestError) {
+      setTimelineError(requestError instanceof Error ? requestError.message : 'Unable to load order timeline')
+    } finally {
+      setTimelineLoading(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -145,8 +173,18 @@ export function OrdersWorkspace({ accessToken }: Props) {
       {!error && !loading && orders.length > 0 && (
         <div className="orders-table-wrap">
           <table className="orders-table"><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Amount</th><th>Created</th><th>Action</th></tr></thead><tbody>
-            {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td>{order.lifecycle_state === 'Draft' ? <div className="button-group"><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></div> : <span className="form-note">Locked</span>}</td></tr>)}
+            {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td><div className="button-group"><button className="secondary-button" type="button" onClick={() => void openTimeline(order)} disabled={confirmingOrderId !== null}>Timeline</button>{order.lifecycle_state === 'Draft' ? <><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></> : <span className="form-note">Locked</span>}</div></td></tr>)}
           </tbody></table>
+        </div>
+      )}
+
+      {timelineOrder && (
+        <div className="order-editor" role="dialog" aria-modal="true" aria-labelledby="timeline-title">
+          <div className="section-heading"><div><span className="eyebrow">Order Timeline</span><h3 id="timeline-title">{timelineOrder.order_number}</h3><p>Immutable operational events are shown newest first.</p></div><button className="secondary-button" type="button" onClick={() => setTimelineOrder(null)} disabled={timelineLoading}>Close</button></div>
+          {timelineError && <p className="form-error" role="alert">{timelineError}</p>}
+          {timelineLoading && <p className="form-note">Loading timeline…</p>}
+          {!timelineLoading && !timelineError && timeline.length === 0 && <p className="empty-state">No timeline events recorded.</p>}
+          {!timelineLoading && !timelineError && timeline.length > 0 && <div className="timeline-list">{timeline.map((event) => <article className="timeline-item" key={event.id}><strong>{timelineLabel(event)}</strong><time dateTime={event.event_time}>{new Date(event.event_time).toLocaleString()}</time>{event.parcel_id && <small>Parcel: {event.parcel_id}</small>}{event.notes && <p>{event.notes}</p>}</article>)}</div>}
         </div>
       )}
 
