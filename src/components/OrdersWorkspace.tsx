@@ -17,6 +17,8 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [orders, setOrders] = useState<OrderListRow[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
+  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<OrderListRow | null>(null)
@@ -30,14 +32,16 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
 
-  async function refresh(targetPage = page) {
+  async function refresh(targetPage = page, targetSearch = search) {
     setLoading(true); setError('')
     try {
-      const result = await listOrders(accessToken, { page: targetPage, pageSize: PAGE_SIZE })
-      setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore)
+      const result = await listOrders(accessToken, { page: targetPage, pageSize: PAGE_SIZE, search: targetSearch })
+      setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search)
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
     finally { setLoading(false) }
   }
+  function submitSearch(event: React.FormEvent) { event.preventDefault(); void refresh(1, searchInput.trim()) }
+  function clearSearch() { setSearchInput(''); void refresh(1, '') }
   function startEditing(order: OrderListRow) { setEditing(order); setDraft(toEditorState(order)); setSaveMessage('') }
   function closeEditor() { if (saveLoading) return; setEditing(null); setDraft(null); setSaveMessage('') }
   function updateItem(index: number, field: keyof EditableItem, value: string) { setDraft((current) => current ? { ...current, items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: field === 'quantity' ? Number(value) : value } : item) } : current) }
@@ -76,8 +80,8 @@ export function OrdersWorkspace({ accessToken }: Props) {
     let cancelled = false
     const load = async () => {
       try {
-        const result = await listOrders(accessToken, { page: 1, pageSize: PAGE_SIZE })
-        if (!cancelled) { setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setError('') }
+        const result = await listOrders(accessToken, { page: 1, pageSize: PAGE_SIZE, search: '' })
+        if (!cancelled) { setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setSearchInput(''); setError('') }
       } catch (requestError) { if (!cancelled) setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
       finally { if (!cancelled) setLoading(false) }
     }
@@ -87,15 +91,16 @@ export function OrdersWorkspace({ accessToken }: Props) {
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
       <div className="section-heading"><div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited or confirmed. Confirmed and later states are locked by the command boundary.</p></div><button className="secondary-button" type="button" onClick={() => void refresh(page)} disabled={loading || confirmingOrderId !== null}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+      <form className="order-search" role="search" onSubmit={submitSearch}><label htmlFor="order-search-input">Search orders</label><div className="button-group"><input id="order-search-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Order ID, customer, phone, address or item" autoComplete="off" /><button className="login-button" type="submit" disabled={loading}>Search</button>{search && <button className="secondary-button" type="button" onClick={clearSearch} disabled={loading}>Clear</button>}</div><small className="form-note">Search runs server-side across Order ID, customer name, phone, address and item description.</small></form>
       {error && <p className="form-error" role="alert">{error}</p>}
       {confirmMessage && <p className={confirmMessage.startsWith('Order ') ? 'form-success' : 'form-error'} role="status">{confirmMessage}</p>}
       {!error && loading && <p className="form-note">Loading orders…</p>}
-      {!error && !loading && orders.length === 0 && <p className="empty-state">No orders on this page.</p>}
+      {!error && !loading && orders.length === 0 && <p className="empty-state">{search ? `No orders matched “${search}”.` : 'No orders on this page.'}</p>}
       {!error && !loading && orders.length > 0 && <>
         <div className="orders-table-wrap"><table className="orders-table"><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Amount</th><th>Created</th><th>Action</th></tr></thead><tbody>
           {orders.map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span>{order.customers?.name ?? '—'}</span><small>{order.customers?.phone ?? ''}</small></td><td><span className="state-pill">{order.lifecycle_state}</span></td><td>AED {Number(order.original_amount).toFixed(2)}</td><td>{new Date(order.created_at).toLocaleString()}</td><td><div className="button-group"><button className="secondary-button" type="button" onClick={() => void openTimeline(order)} disabled={confirmingOrderId !== null}>Timeline</button>{order.lifecycle_state === 'Draft' ? <><button className="secondary-button" type="button" onClick={() => startEditing(order)} disabled={confirmingOrderId !== null}>Edit</button><button className="login-button" type="button" onClick={() => void handleConfirm(order)} disabled={confirmingOrderId !== null}>{confirmingOrderId === order.id ? 'Confirming…' : 'Confirm'}</button></> : <span className="form-note">Locked</span>}</div></td></tr>)}
         </tbody></table></div>
-        <div className="section-heading" aria-label="Orders pagination"><span className="form-note">Page {page} · {orders.length} orders shown</span><div className="button-group"><button className="secondary-button" type="button" onClick={() => void refresh(page - 1)} disabled={loading || page === 1 || confirmingOrderId !== null}>Previous</button><button className="secondary-button" type="button" onClick={() => void refresh(page + 1)} disabled={loading || !hasMore || confirmingOrderId !== null}>Next</button></div></div>
+        <div className="section-heading" aria-label="Orders pagination"><span className="form-note">Page {page} · {orders.length} orders shown{search ? ` · Search: ${search}` : ''}</span><div className="button-group"><button className="secondary-button" type="button" onClick={() => void refresh(page - 1)} disabled={loading || page === 1 || confirmingOrderId !== null}>Previous</button><button className="secondary-button" type="button" onClick={() => void refresh(page + 1)} disabled={loading || !hasMore || confirmingOrderId !== null}>Next</button></div></div>
       </>}
 
       {timelineOrder && <div className="order-editor" role="dialog" aria-modal="true" aria-labelledby="timeline-title"><div className="section-heading"><div><span className="eyebrow">Order Timeline</span><h3 id="timeline-title">{timelineOrder.order_number}</h3><p>Immutable operational events are shown newest first.</p></div><button className="secondary-button" type="button" onClick={() => setTimelineOrder(null)} disabled={timelineLoading}>Close</button></div>{timelineError && <p className="form-error" role="alert">{timelineError}</p>}{timelineLoading && <p className="form-note">Loading timeline…</p>}{!timelineLoading && !timelineError && timeline.length === 0 && <p className="empty-state">No timeline events recorded.</p>}{!timelineLoading && !timelineError && timeline.length > 0 && <div className="timeline-list">{timeline.map((event) => <article className="timeline-item" key={event.id}><strong>{timelineLabel(event)}</strong><time dateTime={event.event_time}>{new Date(event.event_time).toLocaleString()}</time>{event.parcel_id && <small>Parcel: {event.parcel_id}</small>}{event.notes && <p>{event.notes}</p>}</article>)}</div>}</div>}
