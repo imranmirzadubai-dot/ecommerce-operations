@@ -62,7 +62,7 @@ jobs:
       - name: Reset database from migrations and seed
         working-directory: /tmp/supabase-ci
         run: supabase db reset
-      - name: Run rebuild verification and customer/order core tests
+      - name: Run rebuild verification and database tests
         working-directory: /tmp/supabase-ci
         run: |
           supabase test db \
@@ -80,4 +80,8 @@ jobs:
             supabase/tests/database/046_order_item_immutability.sql \
             supabase/tests/database/047_order_timeline_events.sql \
             supabase/tests/database/048_concurrent_customer_creation.sql \
-            supabase/tests/database/049_order_validation_rejection_paths.sql
+            supabase/tests/database/049_order_validation_rejection_paths.sql \
+            supabase/tests/database/050_parcel_creation.sql \
+            supabase/tests/database/051_parcel_number_generation.sql \
+            supabase/tests/database/052_parcel_barcode_contract.sql \
+            supabase/tests/database/053_parcel_allocation_command.sql
