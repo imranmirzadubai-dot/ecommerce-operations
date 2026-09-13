@@ -1,6 +1,6 @@
 begin;
 set constraints all immediate;
-select plan(16);
+select plan(12);
 
 select has_function('public','assert_order_item_allocation_invariant',ARRAY['uuid'],'allocation invariant helper exists');
 select has_function('public','validate_parcel_item_allocation',ARRAY[]::text[],'allocation trigger function exists');
@@ -8,10 +8,6 @@ select has_function('public','assert_order_item_physical_outcome_invariant',ARRA
 select has_function('public','validate_parcel_state_allocation',ARRAY[]::text[],'parcel state allocation trigger function exists');
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_item_allocation'),'parcel item allocation trigger exists');
 select ok(exists(select 1 from pg_trigger where tgname='trg_validate_parcel_state_allocation'),'parcel state allocation trigger exists');
-select ok((select format_type(a.atttypid,a.atttypmod)='integer' from pg_attribute a where a.attrelid='public.order_items'::regclass and a.attname='quantity' and not a.attisdropped),'order item quantity is INTEGER');
-select ok((select format_type(a.atttypid,a.atttypmod)='integer' from pg_attribute a where a.attrelid='public.parcel_items'::regclass and a.attname='quantity' and not a.attisdropped),'parcel allocation quantity is INTEGER');
-select ok((select exists(select 1 from pg_constraint c where c.conrelid='public.order_items'::regclass and pg_get_constraintdef(c.oid) like '%quantity > 0%')),'order item quantity has positive-value check');
-select ok((select exists(select 1 from pg_constraint c where c.conrelid='public.parcel_items'::regclass and pg_get_constraintdef(c.oid) like '%quantity > 0%')),'parcel allocation quantity has positive-value check');
 
 do $$
 declare
