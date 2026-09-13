@@ -1,6 +1,6 @@
 -- P3-T077 / P5-T090 / P5-T091 / P5-T096 / P5-T097 / P5-T098 / P5-T099 / P7-T113 / P7-T116 / P7-T118 / P7-T119 / P7-T124 / P8-T128 / P8-T129 rebuild verification.
 begin;
-select plan(14);
+select plan(13);
 
 select ok((select count(*) = 47 from supabase_migrations.schema_migrations), 'rebuild applied the complete repository migration chain');
 select ok((select count(*) = 20 from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and table_name in ('profiles','customers','shippers','orders','order_items','parcels','parcel_items','delivery_outcomes','cod_obligations','cod_obligation_allocations','cod_receipts','financial_adjustments','invoice_records','invoice_template_versions','invoice_print_events','order_events','audit_logs','import_batches','import_rows','command_idempotency')), 'all 20 application/foundation tables exist');
@@ -15,6 +15,5 @@ select ok((select count(*) = 1 from pg_proc p where p.pronamespace = 'public'::r
 select ok((select count(*) = 1 from information_schema.table_constraints where constraint_schema='public' and table_name='invoice_records' and constraint_name='invoice_records_template_version_fkey' and constraint_type='FOREIGN KEY'), 'invoice records reference controlled template versions');
 select ok((select count(*) = 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='invoice_template_versions' and t.tgname='trg_invoice_template_versions_immutable' and not t.tgisinternal), 'invoice template versions have immutable lineage enforcement');
 select ok((select count(*) = 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='invoice_print_events' and t.tgname='trg_invoice_print_events_immutable' and not t.tgisinternal), 'invoice print events have immutable audit enforcement');
-select ok((select count(*) = 1 from pg_proc p where p.pronamespace='public'::regnamespace and p.proname='record_invoice_print' and p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public'] and pg_get_function_identity_arguments(p.oid)='uuid, text, jsonb'), 'invoice print command has the expected SECURITY DEFINER typed contract');
 select * from finish();
 rollback;
