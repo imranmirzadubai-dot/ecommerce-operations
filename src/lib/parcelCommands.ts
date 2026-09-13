@@ -66,3 +66,18 @@ export async function correctParcelAllocation(
 ): Promise<AllocateParcelItemResult[]> {
   return runCommand<AllocateParcelItemResult[]>('correct_parcel_allocation', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type CancelParcelInput = {
+  p_parcel_id: string
+  p_idempotency_key: string
+}
+
+export type CancelParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  state: string
+}
+
+export async function cancelParcel(accessToken: string, input: CancelParcelInput): Promise<CancelParcelResult[]> {
+  return runCommand<CancelParcelResult[]>('cancel_parcel', accessToken, input as unknown as Record<string, unknown>)
+}
