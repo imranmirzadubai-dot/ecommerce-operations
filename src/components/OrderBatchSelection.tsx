@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { OrdersWorkspace } from './OrdersWorkspace'
 import { OperationalStatusIndicators } from './OperationalStatusIndicators'
+import { OrderExport } from './OrderExport'
 
 type Props = { accessToken: string }
 
@@ -27,9 +28,9 @@ export function OrderBatchSelection({ accessToken }: Props) {
   function toggleAll() { setSelected((current) => allSelected ? current.filter((id) => !visibleOrders.includes(id)) : Array.from(new Set([...current, ...visibleOrders]))) }
 
   return <section className="order-batch-selection" aria-label="Order batch selection">
-    <div className="section-heading"><div><span className="eyebrow">Batch Selection</span><strong>{selectedLabel}</strong></div><div className="button-group"><button className="secondary-button" type="button" onClick={toggleAll} disabled={!visibleOrders.length}>{allSelected ? 'Clear visible' : 'Select visible'}</button><button className="secondary-button" type="button" onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div></div>
+    <div className="section-heading"><div><span className="eyebrow">Batch Selection</span><strong>{selectedLabel}</strong></div><div className="button-group"><button className="secondary-button" type="button" onClick={toggleAll} disabled={!visibleOrders.length}>{allSelected ? 'Clear visible' : 'Select visible'}</button><button className="secondary-button" type="button" onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button><OrderExport selectedOrderIds={selected} /></div></div>
     <div className="order-batch-selection-list">{visibleOrders.map((id) => <label key={id}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} /> {id}</label>)}</div>
-    <p className="form-note">Selection is scoped to the currently visible Orders workspace page. Later batch-action tasks will consume this selection.</p>
+    <p className="form-note">Selection is scoped to the currently visible Orders workspace page. Export includes the visible filtered orders, or only the selected orders when a batch selection exists.</p>
     <div aria-label="Operational Status"><OperationalStatusIndicators accessToken={accessToken} /></div>
     <OrdersWorkspace accessToken={accessToken} />
   </section>
