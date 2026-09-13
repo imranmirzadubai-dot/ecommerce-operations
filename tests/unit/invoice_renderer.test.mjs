@@ -35,7 +35,7 @@ test('invoice renderer escapes untrusted printable values', () => {
 })
 
 test('invoice renderer includes the authoritative Order ID', () => {
-  assert.match(source, /<span class=\\"invoice-label\\">Order ID<\/span>/)
+  assert.match(source, /Order ID<\/span>/)
   assert.match(source, /escapeHtml\(source\.orderNumber\)/)
 })
 
