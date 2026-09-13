@@ -88,4 +88,5 @@ jobs:
             supabase/tests/database/053_parcel_allocation_command.sql \
             supabase/tests/database/055_split_parcel_allocation.sql \
             supabase/tests/database/056_pre_dispatch_allocation_correction.sql \
-            supabase/tests/database/057_cancel_prepared_parcel.sql
+            supabase/tests/database/057_cancel_prepared_parcel.sql \
+            supabase/tests/database/058_retain_allocation_history_after_cancellation.sql
