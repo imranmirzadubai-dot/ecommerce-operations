@@ -12,7 +12,7 @@ create table if not exists public.invoice_template_versions (
   renderer_revision text not null,
   supersedes_version text references public.invoice_template_versions(version) on delete restrict,
   created_at timestamptz not null default now(),
-  created_by uuid not null references auth.users(id) on delete restrict,
+  created_by uuid references auth.users(id) on delete restrict,
   check (btrim(version) <> ''),
   check (btrim(template_key) <> ''),
   check (btrim(renderer_revision) <> '')
@@ -21,9 +21,8 @@ create table if not exists public.invoice_template_versions (
 create index if not exists idx_invoice_template_versions_supersedes
   on public.invoice_template_versions(supersedes_version);
 
--- The current renderer is the first controlled version. Future template
--- revisions must be introduced as a new immutable row rather than mutating
--- an existing version.
+-- Register the locked MVP baseline independently of user creation. Later
+-- controlled versions can record the creating Admin through created_by.
 insert into public.invoice_template_versions (
   version,
   template_key,
@@ -31,16 +30,7 @@ insert into public.invoice_template_versions (
   supersedes_version,
   created_by
 )
-select
-  'v1.0',
-  'standard-a4',
-  'invoice-renderer-p8',
-  null,
-  id
-from public.profiles
-where role = 'admin'
-order by created_at, id
-limit 1
+values ('v1.0', 'standard-a4', 'invoice-renderer-p8', null, null)
 on conflict (version) do nothing;
 
 -- Existing invoice records already carry template_version. Make that field
