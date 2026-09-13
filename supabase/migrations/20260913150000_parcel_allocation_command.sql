@@ -95,5 +95,6 @@ begin
 end;
 $$;
 
-revoke all on function public.allocate_parcel_item(uuid,uuid,integer,text) from public;
+revoke execute on function public.allocate_parcel_item(uuid,uuid,integer,text) from anon;
+revoke execute on function public.allocate_parcel_item(uuid,uuid,integer,text) from public;
 grant execute on function public.allocate_parcel_item(uuid,uuid,integer,text) to authenticated;
