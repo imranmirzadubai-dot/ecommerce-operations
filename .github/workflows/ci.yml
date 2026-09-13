@@ -68,6 +68,7 @@ jobs:
           supabase test db \
             supabase/tests/database/028_database_rebuild_verification.sql \
             supabase/tests/database/028_rebuild_smoke.sql \
+            supabase/tests/database/004_parcel_allocation_invariants.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
             supabase/tests/database/038_uae_phone_normalization.sql \
             supabase/tests/database/039_resolve_or_create_customer.sql \
