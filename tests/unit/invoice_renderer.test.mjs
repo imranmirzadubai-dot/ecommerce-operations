@@ -7,6 +7,7 @@ const source = fs.readFileSync(new URL('../../src/lib/invoice.ts', import.meta.u
 test('invoice renderer accepts authoritative order and customer values', () => {
   assert.match(source, /export type InvoiceSource/)
   assert.match(source, /invoiceNumber: string/)
+  assert.match(source, /orderNumber: string/)
   assert.match(source, /templateVersion: string/)
   assert.match(source, /orderDate: string/)
   assert.match(source, /currencyCode: 'AED'/)
@@ -30,11 +31,16 @@ test('invoice renderer escapes untrusted printable values', () => {
   assert.match(source, /escapeHtml\(source\.customer\.name\)/)
   assert.match(source, /escapeHtml\(item\.description\)/)
   assert.match(source, /escapeHtml\(source\.invoiceNumber\)/)
+  assert.match(source, /escapeHtml\(source\.orderNumber\)/)
 })
 
-test('invoice renderer produces a print-oriented document without adding later milestone fields', () => {
+test('invoice renderer includes the authoritative Order ID', () => {
+  assert.match(source, /<span class=\\"invoice-label\\">Order ID<\/span>/)
+  assert.match(source, /escapeHtml\(source\.orderNumber\)/)
+})
+
+test('invoice renderer produces a print-oriented document', () => {
   assert.match(source, /@page \{ size: A4;/)
   assert.match(source, /renderInvoiceHtml/)
   assert.match(source, /data-template-version=/)
-  assert.doesNotMatch(source, /barcode|Code 128|Order ID/)
 })
