@@ -86,4 +86,5 @@ jobs:
             supabase/tests/database/051_parcel_number_generation.sql \
             supabase/tests/database/052_parcel_barcode_contract.sql \
             supabase/tests/database/053_parcel_allocation_command.sql \
-            supabase/tests/database/055_split_parcel_allocation.sql
+            supabase/tests/database/055_split_parcel_allocation.sql \
+            supabase/tests/database/056_pre_dispatch_allocation_correction.sql
