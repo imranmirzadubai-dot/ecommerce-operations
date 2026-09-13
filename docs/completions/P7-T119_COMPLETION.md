@@ -1,28 +1,22 @@
 # P7-T119 — Pre-Dispatch Allocation Correction
 
-## Status
-Implementation complete; CI verification pending/required before merge.
+## Scope
+Implement the explicit `correct_parcel_allocation` command required by the master implementation plan for correcting an allocation while the parcel remains `Prepared`.
 
-## Contract
-`public.correct_parcel_allocation(parcel_item_id, corrected_quantity, idempotency_key)` provides the explicit pre-dispatch correction path defined by the master implementation plan.
-
-- Requires an authenticated `operations` or `admin` actor.
-- Requires the target allocation to be active and its parcel to be `Prepared`.
-- Rejects negative corrected quantities.
-- Locks the allocation, parcel, and order item before mutation.
-- Revalidates the ordered-quantity invariant against all other active allocations.
+## Implementation
+- Added `public.correct_parcel_allocation(uuid, integer, text)`.
+- Requires authenticated `operations` or `admin` role.
+- Accepts non-negative corrected quantities; zero releases the allocation.
+- Locks the parcel item and parcel, then the order item before mutation.
+- Requires the parcel to be `Prepared` and the allocation to be active.
+- Rechecks the ordered-quantity invariant against all other active allocations.
 - Never deletes or rewrites the original allocation quantity.
-- Marks the original allocation `Reversed` and appends a replacement `Allocated` row when the corrected quantity is non-zero.
-- A zero correction releases the allocation while retaining the original row/history.
-- Emits a permanent `ParcelAllocationCorrected` order event and an audit record.
-- Uses the shared command idempotency contract.
-- Browser execution is restricted to the authenticated role.
-
-## Files
-- `supabase/migrations/20260913160000_correct_parcel_allocation.sql`
-- `supabase/tests/database/056_pre_dispatch_allocation_correction.sql`
-- `src/lib/parcelCommands.ts`
-- `.github/workflows/ci.yml`
+- Marks the original allocation `Reversed`; non-zero corrections append a replacement `Allocated` row.
+- Emits `ParcelAllocationCorrected` event and audit history.
+- Uses shared command idempotency.
+- Grants execution only to `authenticated` and revokes `anon`/`public`.
+- Added client wrapper and database contract test 056.
+- Added test 056 to CI.
 
 ## Verification
-CI must run the complete existing database suite plus test 056 and the quality job. No production data is touched.
+The PR must pass the existing quality checks and full Local Supabase database suite, including test 056, before merge. No production data is touched.
