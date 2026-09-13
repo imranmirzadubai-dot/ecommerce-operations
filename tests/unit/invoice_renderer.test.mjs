@@ -8,6 +8,7 @@ test('invoice renderer accepts authoritative order and customer values', () => {
   assert.match(source, /export type InvoiceSource/)
   assert.match(source, /invoiceNumber: string/)
   assert.match(source, /orderNumber: string/)
+  assert.match(source, /parcelNumber: string/)
   assert.match(source, /templateVersion: string/)
   assert.match(source, /orderDate: string/)
   assert.match(source, /currencyCode: 'AED'/)
@@ -32,11 +33,26 @@ test('invoice renderer escapes untrusted printable values', () => {
   assert.match(source, /escapeHtml\(item\.description\)/)
   assert.match(source, /escapeHtml\(source\.invoiceNumber\)/)
   assert.match(source, /escapeHtml\(source\.orderNumber\)/)
+  assert.match(source, /escapeHtml\(source\.parcelNumber\)/)
 })
 
 test('invoice renderer includes the authoritative Order ID', () => {
   assert.match(source, /Order ID<\/span>/)
   assert.match(source, /escapeHtml\(source\.orderNumber\)/)
+})
+
+test('invoice renderer includes a deterministic Code 128 parcel barcode', () => {
+  assert.match(source, /CODE128_PATTERNS/)
+  assert.match(source, /const checksum = \(104 \+ codeValues\.reduce/)
+  assert.match(source, /symbols = \[104, \.\.\.codeValues, checksum, 106\]/)
+  assert.match(source, /Parcel Barcode/)
+  assert.match(source, /renderCode128Barcode\(requiredText\(source\.parcelNumber, 'Parcel number'\)\)/)
+  assert.match(source, /invoice-barcode-svg/)
+})
+
+test('invoice renderer validates parcel barcode input', () => {
+  assert.match(source, /requiredText\(source\.parcelNumber, 'Parcel number'\)/)
+  assert.match(source, /Parcel number must contain printable ASCII characters/)
 })
 
 test('invoice renderer produces a print-oriented document', () => {
