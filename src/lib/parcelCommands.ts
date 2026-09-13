@@ -35,3 +35,21 @@ export type AllocateParcelItemResult = {
 export async function allocateParcelItem(accessToken: string, input: AllocateParcelItemInput): Promise<AllocateParcelItemResult[]> {
   return runCommand<AllocateParcelItemResult[]>('allocate_parcel_item', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type SplitParcelAllocation = {
+  parcel_id: string
+  quantity: number
+}
+
+export type AllocateParcelItemsSplitInput = {
+  p_order_item_id: string
+  p_allocations: SplitParcelAllocation[]
+  p_idempotency_key: string
+}
+
+export async function allocateParcelItemsSplit(
+  accessToken: string,
+  input: AllocateParcelItemsSplitInput,
+): Promise<AllocateParcelItemResult[]> {
+  return runCommand<AllocateParcelItemResult[]>('allocate_parcel_items', accessToken, input as unknown as Record<string, unknown>)
+}

@@ -1,0 +1,22 @@
+begin;
+
+select plan(15);
+
+select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items' and pg_get_function_identity_arguments(p.oid)='p_order_item_id uuid, p_allocations jsonb, p_idempotency_key text'),'split allocation command exists');
+select ok((select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public'] from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'split command pins search_path');
+select ok((select has_function_privilege('anon','public.allocate_parcel_items(uuid,jsonb,text)','execute')=false and has_function_privilege('authenticated','public.allocate_parcel_items(uuid,jsonb,text)','execute')=true),'split command is browser-role restricted');
+select ok((select pg_get_functiondef(p.oid) like '%app_role() not in (''operations'',''admin'')%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'split command requires operations/admin');
+select ok((select pg_get_functiondef(p.oid) like '%jsonb_array_length(p_allocations) < 2%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'split command requires at least two parcels');
+select ok((select pg_get_functiondef(p.oid) like '%for update%' and pg_get_functiondef(p.oid) like '%order by x.parcel_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'order item and parcels are locked deterministically');
+select ok((select pg_get_functiondef(p.oid) like '%count(distinct x.parcel_id)%' and pg_get_functiondef(p.oid) like '%Each parcel may appear only once%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'duplicate target parcels are rejected');
+select ok((select pg_get_functiondef(p.oid) like '%v_allocated_quantity + v_requested_quantity > v_ordered_quantity%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'existing plus requested allocation cannot exceed ordered quantity');
+select ok((select pg_get_functiondef(p.oid) like '%Parcel does not belong to the order item order%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'cross-order parcel allocation is rejected');
+select ok((select pg_get_functiondef(p.oid) like '%current state%' and pg_get_functiondef(p.oid) like '%Cancelled%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'terminal/cancelled parcels are rejected');
+select ok((select pg_get_functiondef(p.oid) like '%insert into public.parcel_items%' and pg_get_functiondef(p.oid) like '%''Allocated''%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'each split row is persisted as Allocated');
+select ok((select pg_get_functiondef(p.oid) like '%split_allocation'',true%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'split allocation is marked in event/audit metadata');
+select ok((select pg_get_functiondef(p.oid) like '%insert into public.order_events%' and pg_get_functiondef(p.oid) like '%ParcelItemAllocated%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'each split allocation emits an immutable order event');
+select ok((select pg_get_functiondef(p.oid) like '%insert into public.audit_logs%' and pg_get_functiondef(p.oid) like '%allocate_parcel_items%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'each split allocation emits an audit record');
+select ok((select pg_get_functiondef(p.oid) like '%claim_command_idempotency(''allocate_parcel_items''%' and pg_get_functiondef(p.oid) like '%complete_command_idempotency(''allocate_parcel_items''%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='allocate_parcel_items'),'split allocation is idempotent and retry safe');
+
+select * from finish();
+rollback;
