@@ -28,6 +28,32 @@ function toEditorState(order: OrderListRow) {
 function timelineLabel(event: OrderTimelineEvent) {
   switch (event.event_type) { case 'OrderCreated': return 'Order created'; case 'OrderUpdated': return 'Order updated'; case 'OrderConfirmed': return 'Order confirmed'; case 'OrderCancelled': return 'Order cancelled'; default: return event.event_type }
 }
+function csvCell(value: string | number | null | undefined) {
+  const text = value == null ? '' : String(value)
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+function downloadOrdersCsv(orders: OrderListRow[]) {
+  const header = ['Order', 'Customer', 'Phone', 'Lifecycle State', 'Amount (AED)', 'Order Date', 'Items']
+  const rows = orders.map((order) => [
+    order.order_number,
+    order.customers?.name ?? '',
+    order.customers?.phone ?? '',
+    order.lifecycle_state,
+    Number(order.original_amount).toFixed(2),
+    order.order_date,
+    order.order_items.map((item) => `${item.description} x${item.quantity}`).join('; '),
+  ])
+  const csv = '\uFEFF' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n') + '\r\n'
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `orders-page-${isoDate(new Date())}.csv`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
 
 export function OrdersWorkspace({ accessToken }: Props) {
   const [orders, setOrders] = useState<OrderListRow[]>([])
@@ -128,7 +154,7 @@ export function OrdersWorkspace({ accessToken }: Props) {
 
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
-      <div className="section-heading"><div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited or confirmed. Confirmed and later states are locked by the command boundary.</p></div><button className="secondary-button" type="button" onClick={() => void refresh(page)} disabled={loading || confirmingOrderId !== null}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+      <div className="section-heading"><div><span className="eyebrow">Orders Workspace</span><h2 id="orders-title">Recent Orders</h2><p>Draft orders can be edited or confirmed. Confirmed and later states are locked by the command boundary.</p></div><div className="button-group"><button className="secondary-button" type="button" onClick={() => void refresh(page)} disabled={loading || confirmingOrderId !== null}>{loading ? 'Refreshing…' : 'Refresh'}</button><button className="secondary-button" type="button" onClick={() => downloadOrdersCsv(orders)} disabled={loading || orders.length === 0}>Export CSV</button></div></div>
       <form className="order-search" role="search" onSubmit={submitSearch}><label htmlFor="order-search-input">Search orders</label><div className="button-group"><input id="order-search-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Order ID, customer, phone, address or item" autoComplete="off" /><button className="login-button" type="submit" disabled={loading}>Search</button>{search && <button className="secondary-button" type="button" onClick={clearSearch} disabled={loading}>Clear</button>}</div><small className="form-note">Search runs server-side across Order ID, customer name, phone, address and item description.</small></form>
       <div className="order-filters" aria-label="Order filters"><label>Order state<select value={lifecycleState} onChange={(event) => setLifecycleState(event.target.value)}><option value="">All states</option>{LIFECYCLE_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>Parcel / dispatch<select value={parcelState} onChange={(event) => setParcelState(event.target.value)}><option value="">All parcel states</option>{PARCEL_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>COD<select value={codState} onChange={(event) => setCodState(event.target.value)}><option value="">All COD states</option>{COD_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label><div className="button-group"><button className="login-button" type="button" onClick={applyFilters} disabled={loading}>Apply filters</button><button className="secondary-button" type="button" onClick={clearFilters} disabled={loading || (!lifecycleState && !parcelState && !codState)}>Clear filters</button></div></div>
       <div className="order-date-views" aria-label="Order date views"><label>Date view<select value={dateView} onChange={(event) => applyDateView(event.target.value as DateView)}>{DATE_VIEWS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>{dateView === 'Custom' && <><label>From<input aria-label="Date from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>To<input aria-label="Date to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><button className="login-button" type="button" onClick={applyCustomDateRange} disabled={loading}>Apply dates</button></>}{dateView !== 'All dates' && <button className="secondary-button" type="button" onClick={clearDateView} disabled={loading}>Clear dates</button>}</div>
