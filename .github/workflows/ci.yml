@@ -90,4 +90,5 @@ jobs:
             supabase/tests/database/056_pre_dispatch_allocation_correction.sql \
             supabase/tests/database/057_cancel_prepared_parcel.sql \
             supabase/tests/database/058_retain_allocation_history_after_cancellation.sql \
-            supabase/tests/database/059_partial_mixed_allocation_scenarios.sql
+            supabase/tests/database/059_partial_mixed_allocation_scenarios.sql \
+            supabase/tests/database/060_allocation_overage_rejection.sql
