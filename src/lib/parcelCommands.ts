@@ -53,3 +53,16 @@ export async function allocateParcelItemsSplit(
 ): Promise<AllocateParcelItemResult[]> {
   return runCommand<AllocateParcelItemResult[]>('allocate_parcel_items', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type CorrectParcelAllocationInput = {
+  p_parcel_item_id: string
+  p_corrected_quantity: number
+  p_idempotency_key: string
+}
+
+export async function correctParcelAllocation(
+  accessToken: string,
+  input: CorrectParcelAllocationInput,
+): Promise<AllocateParcelItemResult[]> {
+  return runCommand<AllocateParcelItemResult[]>('correct_parcel_allocation', accessToken, input as unknown as Record<string, unknown>)
+}
