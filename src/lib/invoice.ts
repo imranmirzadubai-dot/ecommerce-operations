@@ -14,6 +14,7 @@ export type InvoiceItem = {
 export type InvoiceSource = {
   invoiceNumber: string
   orderNumber: string
+  parcelNumber: string
   templateVersion: string
   generatedAt: string
   orderDate: string
@@ -39,9 +40,37 @@ function requiredText(value: string, field: string): string {
   return trimmed
 }
 
+const CODE128_PATTERNS = [
+  '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112',
+] as const
+
+function renderCode128Barcode(value: string): string {
+  const codeValues = Array.from(value).map((character) => character.charCodeAt(0) - 32)
+  const checksum = (104 + codeValues.reduce((sum, code, index) => sum + code * (index + 1), 0)) % 103
+  const symbols = [104, ...codeValues, checksum, 106]
+  const moduleWidth = 2
+  let x = 0
+  const bars: string[] = []
+
+  symbols.forEach((symbol) => {
+    const pattern = CODE128_PATTERNS[symbol]
+    let isBar = true
+    for (const width of pattern) {
+      const segmentWidth = Number(width) * moduleWidth
+      if (isBar) bars.push(`<rect x="${x}" y="0" width="${segmentWidth}" height="60"/>`)
+      x += segmentWidth
+      isBar = !isBar
+    }
+  })
+
+  return `<svg class="invoice-barcode-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${x} 78" role="img" aria-label="Parcel barcode ${escapeHtml(value)}" shape-rendering="crispEdges"><g fill="#171717">${bars.join('')}</g><text x="${x / 2}" y="73" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11">${escapeHtml(value)}</text></svg>`
+}
+
 function validateSource(source: InvoiceSource): void {
   requiredText(source.invoiceNumber, 'Invoice number')
   requiredText(source.orderNumber, 'Order ID')
+  const parcelNumber = requiredText(source.parcelNumber, 'Parcel number')
+  if (!/^[\x20-\x7E]+$/.test(parcelNumber)) throw new Error('Parcel number must contain printable ASCII characters')
   requiredText(source.templateVersion, 'Template version')
   requiredText(source.generatedAt, 'Generated timestamp')
   requiredText(source.orderDate, 'Order date')
@@ -89,6 +118,7 @@ function renderItems(source: InvoiceSource): string {
 export function renderInvoiceHtml(source: InvoiceSource): string {
   validateSource(source)
   const tracking = source.trackingId ? `<div><span class="invoice-label">Tracking ID</span>${escapeHtml(source.trackingId)}</div>` : ''
+  const parcelBarcode = renderCode128Barcode(requiredText(source.parcelNumber, 'Parcel number'))
 
   return `<!doctype html>
 <html lang="en">
@@ -104,6 +134,9 @@ body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #171717; bac
 .invoice-title { margin: 0; font-size: 28px; letter-spacing: .08em; }
 .invoice-meta { text-align: right; font-size: 12px; line-height: 1.6; }
 .invoice-label { display: inline-block; min-width: 88px; font-weight: 700; }
+.invoice-barcode { margin-top: 8px; text-align: right; }
+.invoice-barcode .invoice-label { display: block; margin-bottom: 2px; }
+.invoice-barcode-svg { display: block; width: 72mm; height: 24mm; margin-left: auto; }
 .invoice-section { margin-top: 22px; }
 .invoice-section h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .invoice-customer { min-height: 74px; font-size: 13px; line-height: 1.6; }
@@ -126,6 +159,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
       <div><span class="invoice-label">Order ID</span>${escapeHtml(source.orderNumber)}</div>
       <div><span class="invoice-label">Date</span>${escapeHtml(source.orderDate)}</div>
       ${tracking}
+      <div class="invoice-barcode"><span class="invoice-label">Parcel Barcode</span>${parcelBarcode}</div>
     </div>
   </header>
 
