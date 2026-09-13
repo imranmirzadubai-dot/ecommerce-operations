@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { listOrders, type OrderListRow } from '../lib/commands'
 
 type Props = { accessToken: string }
@@ -15,7 +15,7 @@ export function OperationalStatusIndicators({ accessToken }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -26,9 +26,12 @@ export function OperationalStatusIndicators({ accessToken }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken])
 
-  useEffect(() => { void refresh() }, [accessToken])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refresh() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [refresh])
 
   return <section className="operational-status-indicators" aria-label="Operational status indicators">
     <div className="section-heading"><div><span className="eyebrow">Operational Status</span><strong>Orders at a glance</strong><p>Lifecycle, parcel and COD states are shown as explicit indicators for the current order set.</p></div><button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh statuses'}</button></div>
