@@ -18,14 +18,14 @@ test('invoice renderer accepts authoritative order and customer values', () => {
 
 test('invoice renderer preserves the MVP commercial model', () => {
   assert.match(source, /Total Order Amount/)
-  assert.match(source, /No order-item monetary amount exists/)
+  assert.match(source, /does not calculate or invent commercial fields/)
   assert.doesNotMatch(source, /serviceFee|discount|vatAmount|unitPrice/)
   assert.match(source, /Number\.isInteger\(item\.quantity\)/)
   assert.match(source, /Invoice must contain at least one order item/)
 })
 
 test('invoice renderer escapes untrusted printable values', () => {
-  assert.match(source, /function escapeHtml/) 
+  assert.match(source, /function escapeHtml/)
   assert.match(source, /\.replace\(\/&\/g, '&amp;'\)/)
   assert.match(source, /escapeHtml\(source\.customer\.name\)/)
   assert.match(source, /escapeHtml\(item\.description\)/)
@@ -34,7 +34,7 @@ test('invoice renderer escapes untrusted printable values', () => {
 
 test('invoice renderer produces a print-oriented document without adding later milestone fields', () => {
   assert.match(source, /@page \{ size: A4;/)
-  assert.match(source, /renderInvoiceHtml/) 
+  assert.match(source, /renderInvoiceHtml/)
   assert.match(source, /data-template-version=/)
   assert.doesNotMatch(source, /barcode|Code 128|Order ID/)
 })
