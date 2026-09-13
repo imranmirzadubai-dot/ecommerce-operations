@@ -1,0 +1,13 @@
+begin;
+select exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='parcels') as table_exists;
+select exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='parcels' and c.contype='p') as primary_key_exists;
+select exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='parcels' and c.conname='parcels_order_id_fkey') as order_fk_exists;
+select exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='parcels' and c.conname='parcels_shipper_id_fkey') as shipper_fk_exists;
+select exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='parcels' and c.conname='parcels_state_check') as state_check_exists;
+select exists(select 1 from pg_constraint c join pg_class t on t.oid=c.conrelid where t.relname='parcels' and c.conname='parcels_barcode_check') as barcode_identity_exists;
+select relrowsecurity from pg_class where relname='parcels' as rls_enabled;
+select has_table_privilege('authenticated','public.parcels','SELECT') as authenticated_select;
+select not has_table_privilege('authenticated','public.parcels','INSERT') as authenticated_insert_denied;
+select not has_table_privilege('authenticated','public.parcels','UPDATE') as authenticated_update_denied;
+select not has_table_privilege('authenticated','public.parcels','DELETE') as authenticated_delete_denied;
+rollback;
