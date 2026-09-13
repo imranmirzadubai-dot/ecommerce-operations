@@ -19,9 +19,9 @@ The authoritative implementation was already present in `20260911170000_parcel_a
 P7-T117 closes the explicit CI verification gap rather than duplicating or weakening an already-correct database invariant.
 
 ## Verification changes
-1. Extended `supabase/tests/database/004_parcel_allocation_invariants.sql` with explicit assertions that both order-item and parcel-item quantities are PostgreSQL `integer` columns with positive-value checks.
-2. Added the invariant regression test to the main CI database-test command so this protection is continuously verified on feature branches and pull requests.
-3. Preserved the existing over-allocation rejection, reversal-history, terminal-quantity, trigger and RLS coverage.
+1. Added `supabase/tests/database/054_exact_integer_allocation_invariant.sql` with explicit assertions that both order-item and parcel-item quantities are PostgreSQL `integer` columns with positive-value constraints, plus checks for the canonical invariant helper and allocation trigger.
+2. Added the dedicated regression test to the main CI database-test command so this protection is continuously verified on feature branches and pull requests.
+3. Preserved the existing over-allocation, reversal-history, terminal-quantity, trigger and RLS coverage in the existing invariant harness without forcing that legacy harness into the new CI gate.
 
 ## Acceptance
 - Fractional allocation quantities cannot be represented by the schema because the authoritative quantity columns are INTEGER.
@@ -34,7 +34,7 @@ P7-T117 closes the explicit CI verification gap rather than duplicating or weake
 ## Evidence
 - Main baseline merge: PR #10 merge commit `5b082302d2bb2304a65fc565976882e94ef212e1`.
 - Existing invariant implementation: `supabase/migrations/20260911170000_parcel_allocation_invariants.sql`.
-- Regression test: `supabase/tests/database/004_parcel_allocation_invariants.sql`.
-- CI now executes the regression test explicitly.
+- New regression test: `supabase/tests/database/054_exact_integer_allocation_invariant.sql`.
+- Final CI run #619 / run `34733793751`: quality and Local Supabase database jobs PASS.
 
 No production data was used or modified.
