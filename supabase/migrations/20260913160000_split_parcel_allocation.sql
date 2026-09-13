@@ -2,7 +2,7 @@
 -- The order item row is locked once; every target parcel is locked in deterministic order.
 -- All allocation rows, events and audit records commit or roll back together.
 
-create or replace function public.allocate_parcel_item_split(
+create or replace function public.allocate_parcel_items(
   p_order_item_id uuid,
   p_allocations jsonb,
   p_idempotency_key text
@@ -49,7 +49,7 @@ begin
 
   v_hash:=md5(jsonb_build_object('order_item_id',p_order_item_id,'allocations',p_allocations)::text);
   select is_new,status,result into v_is_new,v_status,v_result
-  from public.claim_command_idempotency('allocate_parcel_item_split',btrim(p_idempotency_key),v_hash);
+  from public.claim_command_idempotency('allocate_parcel_items',btrim(p_idempotency_key),v_hash);
 
   if not v_is_new then
     return query
@@ -73,13 +73,10 @@ begin
     raise exception using errcode='P0002', message='Order item not found';
   end if;
 
-  select count(*),count(distinct x.parcel_id),coalesce(sum(x.quantity),0)::integer
-    into v_parcel_count,v_parcel_count,v_requested_quantity
+  select count(distinct x.parcel_id),coalesce(sum(x.quantity),0)::integer
+    into v_parcel_count,v_requested_quantity
   from jsonb_to_recordset(p_allocations) as x(parcel_id uuid, quantity integer);
 
-  if v_requested_quantity <= 0 then
-    raise exception using errcode='22023', message='Allocation quantities must be positive integers';
-  end if;
   if exists (
     select 1 from jsonb_to_recordset(p_allocations) as x(parcel_id uuid, quantity integer)
     where x.parcel_id is null or x.quantity is null or x.quantity <= 0
@@ -88,6 +85,9 @@ begin
   end if;
   if v_parcel_count <> jsonb_array_length(p_allocations) then
     raise exception using errcode='23505', message='Each parcel may appear only once in a split allocation';
+  end if;
+  if v_requested_quantity <= 0 then
+    raise exception using errcode='22023', message='Allocation quantities must be positive integers';
   end if;
   if v_requested_quantity > v_ordered_quantity then
     raise exception using errcode='23514', message=format('Split allocation exceeds ordered quantity: requested=%s ordered=%s',v_requested_quantity,v_ordered_quantity);
@@ -137,7 +137,7 @@ begin
     values(v_order_id,v_row.parcel_id,'ParcelItemAllocated',auth.uid(),jsonb_build_object('order_item_id',p_order_item_id,'quantity',v_row.quantity,'parcel_item_id',v_parcel_item_id,'split_allocation',true));
 
     insert into public.audit_logs(actor,action,entity_type,entity_id,after_data)
-    values(auth.uid(),'allocate_parcel_item_split','parcel_item',v_parcel_item_id,jsonb_build_object('parcel_id',v_row.parcel_id,'order_item_id',p_order_item_id,'quantity',v_row.quantity,'allocation_state','Allocated','split_allocation',true));
+    values(auth.uid(),'allocate_parcel_items','parcel_item',v_parcel_item_id,jsonb_build_object('parcel_id',v_row.parcel_id,'order_item_id',p_order_item_id,'quantity',v_row.quantity,'allocation_state','Allocated','split_allocation',true));
 
     v_result:=v_result || jsonb_build_array(jsonb_build_object(
       'parcel_item_id',v_parcel_item_id,
@@ -148,7 +148,7 @@ begin
     ));
   end loop;
 
-  perform public.complete_command_idempotency('allocate_parcel_item_split',btrim(p_idempotency_key),v_result);
+  perform public.complete_command_idempotency('allocate_parcel_items',btrim(p_idempotency_key),v_result);
 
   return query
     select r.parcel_item_id,r.parcel_id,r.order_item_id,r.quantity,r.allocation_state
@@ -162,6 +162,6 @@ begin
 end;
 $$;
 
-revoke execute on function public.allocate_parcel_item_split(uuid,jsonb,text) from anon;
-revoke execute on function public.allocate_parcel_item_split(uuid,jsonb,text) from public;
-grant execute on function public.allocate_parcel_item_split(uuid,jsonb,text) to authenticated;
+revoke execute on function public.allocate_parcel_items(uuid,jsonb,text) from anon;
+revoke execute on function public.allocate_parcel_items(uuid,jsonb,text) from public;
+grant execute on function public.allocate_parcel_items(uuid,jsonb,text) to authenticated;
