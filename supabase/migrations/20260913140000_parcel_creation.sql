@@ -137,5 +137,6 @@ begin
 end;
 $$;
 
-revoke all on function public.create_parcel(uuid,text) from public;
+revoke execute on function public.create_parcel(uuid,text) from anon;
+revoke execute on function public.create_parcel(uuid,text) from public;
 grant execute on function public.create_parcel(uuid,text) to authenticated;
