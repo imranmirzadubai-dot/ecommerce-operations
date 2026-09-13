@@ -30,7 +30,7 @@ export function OrderBatchSelection({ accessToken }: Props) {
     <div className="section-heading"><div><span className="eyebrow">Batch Selection</span><strong>{selectedLabel}</strong></div><div className="button-group"><button className="secondary-button" type="button" onClick={toggleAll} disabled={!visibleOrders.length}>{allSelected ? 'Clear visible' : 'Select visible'}</button><button className="secondary-button" type="button" onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div></div>
     <div className="order-batch-selection-list">{visibleOrders.map((id) => <label key={id}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} /> {id}</label>)}</div>
     <p className="form-note">Selection is scoped to the currently visible Orders workspace page. Later batch-action tasks will consume this selection.</p>
-    <OperationalStatusIndicators accessToken={accessToken} />
+    <div aria-label="Operational Status"><OperationalStatusIndicators accessToken={accessToken} /></div>
     <OrdersWorkspace accessToken={accessToken} />
   </section>
 }
