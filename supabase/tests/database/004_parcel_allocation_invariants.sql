@@ -1,6 +1,6 @@
 begin;
 set constraints all immediate;
-select plan(14);
+select plan(16);
 
 select has_function('public','assert_order_item_allocation_invariant',ARRAY['uuid'],'allocation invariant helper exists');
 select has_function('public','validate_parcel_item_allocation',ARRAY[]::text[],'allocation trigger function exists');
