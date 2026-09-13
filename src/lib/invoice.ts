@@ -13,6 +13,7 @@ export type InvoiceItem = {
 
 export type InvoiceSource = {
   invoiceNumber: string
+  orderNumber: string
   templateVersion: string
   generatedAt: string
   orderDate: string
@@ -40,6 +41,7 @@ function requiredText(value: string, field: string): string {
 
 function validateSource(source: InvoiceSource): void {
   requiredText(source.invoiceNumber, 'Invoice number')
+  requiredText(source.orderNumber, 'Order ID')
   requiredText(source.templateVersion, 'Template version')
   requiredText(source.generatedAt, 'Generated timestamp')
   requiredText(source.orderDate, 'Order date')
@@ -83,7 +85,6 @@ function renderItems(source: InvoiceSource): string {
  * The input is a snapshot assembled from authoritative database values. The
  * renderer does not calculate or invent commercial fields: the MVP has one
  * order-level original amount and integer order-item quantities only.
- * Order ID and parcel barcode are intentionally added by later milestones.
  */
 export function renderInvoiceHtml(source: InvoiceSource): string {
   validateSource(source)
@@ -122,6 +123,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
     <h1 class="invoice-title">INVOICE</h1>
     <div class="invoice-meta">
       <div><span class="invoice-label">Invoice No.</span>${escapeHtml(source.invoiceNumber)}</div>
+      <div><span class="invoice-label">Order ID</span>${escapeHtml(source.orderNumber)}</div>
       <div><span class="invoice-label">Date</span>${escapeHtml(source.orderDate)}</div>
       ${tracking}
     </div>
