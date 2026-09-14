@@ -11,6 +11,7 @@ function loadParser() {
     .replace(/: ScannerKey\[\]/g, '')
     .replace(/: ScannerInputConfig = \{\}/g, ' = {}')
     .replace(/: ScannerInputResult/g, '')
+    .replace(/: number \| null/g, '')
   const module = { exports: {} }
   new Function('module', 'exports', `${js}\nmodule.exports = { parseScannerKeySequence }`)(module, module.exports)
   return module.exports.parseScannerKeySequence
