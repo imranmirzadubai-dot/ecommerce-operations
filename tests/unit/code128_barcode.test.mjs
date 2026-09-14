@@ -9,7 +9,8 @@ const patterns = [...patternMatch[1].matchAll(/'([0-9]+)'/g)].map((match) => mat
 
 const functionMatch = invoiceSource.match(/function renderCode128Barcode\(value: string\): string \{([\s\S]*?)\n\}\n\nfunction validateSource/)
 assert.ok(functionMatch, 'invoice renderer must define renderCode128Barcode')
-const renderCode128Barcode = new Function('CODE128_PATTERNS', `return function renderCode128Barcode(value) {${functionMatch[1]}\n}`)(patterns)
+const rendererBody = functionMatch[1].replace(/:\s*string\[\]/g, '')
+const renderCode128Barcode = new Function('CODE128_PATTERNS', `return function renderCode128Barcode(value) {${rendererBody}\n}`)(patterns)
 
 function expectedChecksum(value) {
   const codeValues = Array.from(value).map((character) => character.charCodeAt(0) - 32)
