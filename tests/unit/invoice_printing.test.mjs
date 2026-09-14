@@ -4,17 +4,18 @@ import fs from 'node:fs'
 
 const component = fs.readFileSync(new URL('../../src/components/InvoicePrintWorkspace.tsx', import.meta.url), 'utf8')
 
-test('individual printing uses authoritative renderer and print event command', () => {
+
+test('individual printing uses historical renderer and print event command', () => {
   assert.ok(component.includes('renderInvoiceHtml(source)'))
   assert.ok(component.includes('p_print_mode: mode'))
   assert.ok(component.includes('record_invoice_print'))
   assert.ok(component.includes('template_version'))
-  assert.ok(component.includes('parcel_number'))
+  assert.ok(component.includes('source_snapshot'))
 })
 
-test('individual and batch printing require exactly one parcel', () => {
-  assert.ok(component.includes('order.parcels.length !== 1'))
-  assert.ok(component.includes('exactly one parcel for the order'))
+test('historical snapshot owns parcel identity and template lineage', () => {
+  assert.ok(component.includes('record.source_snapshot'))
+  assert.ok(component.includes('record.source_snapshot.templateVersion !== record.template_version'))
 })
 
 test('individual printing prevents concurrent print actions', () => {
