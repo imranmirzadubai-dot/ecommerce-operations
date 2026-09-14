@@ -18,14 +18,18 @@ function expectedChecksum(value) {
 
 test('Code 128 symbol table contains all 107 symbols', () => {
   assert.equal(patterns.length, 107)
-  assert.equal(patterns[104], '211412', 'Code 128-B START is symbol 104')
+  assert.equal(patterns[104], '211214', 'Code 128-B START is symbol 104')
   assert.equal(patterns[106], '2331112', 'Code 128 STOP is symbol 106')
 })
 
-test('Code 128-B checksum is correct for representative parcel values', () => {
-  for (const value of ['PCL-000001', 'PKG123456789', 'ABC 123']) {
-    const checksum = expectedChecksum(value)
-    assert.ok(Number.isInteger(checksum) && checksum >= 0 && checksum <= 102)
+test('Code 128-B checksum matches independent known vectors', () => {
+  const expected = {
+    'PCL-000001': 3,
+    'PKG123456789': 73,
+    'ABC 123': 18,
+  }
+  for (const [value, checksum] of Object.entries(expected)) {
+    assert.equal(expectedChecksum(value), checksum)
     assert.equal(Array.from(value).every((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) <= 127), true)
   }
 })
