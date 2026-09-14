@@ -29,35 +29,10 @@ function parseSvgBars(svg) {
   return rects.map((match) => ({ x: Number(match[1]), width: Number(match[2]) }))
 }
 
-function decodeScannerRun(symbolWidths) {
-  const modules = symbolWidths.map((width) => width / 2)
-  const symbols = []
-  let cursor = 0
-  while (cursor < modules.length) {
-    const pattern = modules.slice(cursor, cursor + 6).join('')
-    const symbol = patterns.findIndex((candidate) => candidate === pattern)
-    assert.notEqual(symbol, -1, `scanner run ${pattern} must map to a Code 128 symbol`)
-    symbols.push(symbol)
-    cursor += 6
-    if (symbol === 106) break
-  }
-  return symbols
-}
-
 function decodeCode128B(svg) {
   const bars = parseSvgBars(svg)
   const firstBar = bars[0]
-  const runs = []
-  let x = 0
-  for (const bar of bars) {
-    if (bar.x > x) runs.push(bar.x - x)
-    runs.push(bar.width)
-    x = bar.x + bar.width
-  }
-
-  // Reconstruct the complete alternating black/white module stream from the SVG.
   const expectedWidth = Number(svg.match(/viewBox="0 0 (\d+) 78"/)?.[1])
-  assert.equal(x, expectedWidth)
   assert.equal(firstBar.x, 0, 'barcode must begin with a black bar')
 
   const moduleRuns = []
@@ -67,19 +42,26 @@ function decodeCode128B(svg) {
     moduleRuns.push(bar.width)
     position = bar.x + bar.width
   }
-  if (position < expectedWidth) moduleRuns.push(expectedWidth - position)
+  assert.equal(position, expectedWidth)
 
   const symbols = []
   let runIndex = 0
   while (runIndex < moduleRuns.length) {
+    const stopPattern = moduleRuns.slice(runIndex, runIndex + 7).map((width) => String(width / 2)).join('')
+    if (stopPattern === patterns[106]) {
+      symbols.push(106)
+      runIndex += 7
+      break
+    }
+
     const pattern = moduleRuns.slice(runIndex, runIndex + 6).map((width) => String(width / 2)).join('')
     const symbol = patterns.findIndex((candidate) => candidate === pattern)
     assert.notEqual(symbol, -1, `scanner run ${pattern} must map to a Code 128 symbol`)
     symbols.push(symbol)
     runIndex += 6
-    if (symbol === 106) break
   }
 
+  assert.equal(runIndex, moduleRuns.length, 'scanner decode must consume the complete barcode')
   assert.equal(symbols[0], 104, 'scanner decode must see Code 128-B START')
   assert.equal(symbols.at(-1), 106, 'scanner decode must see Code 128 STOP')
 
