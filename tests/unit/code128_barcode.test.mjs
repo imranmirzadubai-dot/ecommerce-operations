@@ -10,7 +10,13 @@ const patterns = [...patternMatch[1].matchAll(/'([0-9]+)'/g)].map((match) => mat
 const functionMatch = invoiceSource.match(/function renderCode128Barcode\(value: string\): string \{([\s\S]*?)\n\}\n\nfunction validateSource/)
 assert.ok(functionMatch, 'invoice renderer must define renderCode128Barcode')
 const rendererBody = functionMatch[1].replace(/:\s*string\[\]/g, '')
-const renderCode128Barcode = new Function('CODE128_PATTERNS', `return function renderCode128Barcode(value) {${rendererBody}\n}`)(patterns)
+const escapeHtml = (value) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+const renderCode128Barcode = new Function('CODE128_PATTERNS', 'escapeHtml', `return function renderCode128Barcode(value) {${rendererBody}\n}`)(patterns, escapeHtml)
 
 function expectedChecksum(value) {
   const codeValues = Array.from(value).map((character) => character.charCodeAt(0) - 32)
