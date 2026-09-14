@@ -27,7 +27,7 @@ test('new invoice records snapshot authoritative generation values', () => {
 
 test('invoice printing renders from the historical snapshot rather than live order data', () => {
   assert.match(component, /source_snapshot: InvoiceSource/)
-  assert.match(component, /select=.*source_snapshot/)
+  assert.match(component, /source_snapshot,orders!inner/)
   assert.match(component, /record\.source_snapshot\.templateVersion !== record\.template_version/)
   assert.match(component, /renderInvoiceHtml\(source\)/)
   assert.doesNotMatch(component, /order\.parcels\.length !== 1/)
