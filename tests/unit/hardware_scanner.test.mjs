@@ -6,7 +6,9 @@ const source = fs.readFileSync(new URL('../../src/lib/hardwareScanner.ts', impor
 
 function loadParser() {
   const js = source
-    .replace(/^export type[\s\S]*?^\/\*\*/m, '/**')
+    .replace(/^export type ScannerKey = \{[^\n]*\}\n\n/m, '')
+    .replace(/^export type ScannerInputConfig = \{[\s\S]*?^\}\n\n/m, '')
+    .replace(/^export type ScannerInputResult = \{[\s\S]*?^\}\n\n/m, '')
     .replace('export function parseScannerKeySequence', 'function parseScannerKeySequence')
     .replace(/: ScannerKey\[\]/g, '')
     .replace(/: ScannerInputConfig = \{\}/g, ' = {}')
