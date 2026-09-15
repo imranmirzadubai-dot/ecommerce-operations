@@ -35,6 +35,7 @@ type TokenResponse = {
 }
 
 const SESSION_KEY = 'ecommerce-operations.auth.session'
+const AUTH_REQUEST_TIMEOUT_MS = 8_000
 
 export function hasOperationalAccess(profile: Profile | null): boolean {
   return profile?.active === true && APP_ROLES.includes(profile.role)
@@ -68,12 +69,28 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
-  const response = await fetch(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
-    method: 'POST',
-    headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  let response: Response
+  try {
+    response = await fetchWithTimeout(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out')
+    throw error
+  }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
     throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
@@ -82,9 +99,15 @@ async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refre
 }
 
 async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
-  const response = await fetch(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
-    headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
-  })
+  let response: Response
+  try {
+    response = await fetchWithTimeout(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out')
+    throw error
+  }
   if (!response.ok) throw new Error('Unable to load the authenticated profile')
   const rows = (await response.json()) as Profile[]
   const profile = rows[0]
@@ -136,7 +159,7 @@ export async function signOut(): Promise<void> {
   const stored = readStoredSession()
   clearStoredSession()
   if (!config || !stored) return
-  await fetch(`${config.url}/auth/v1/logout`, {
+  await fetchWithTimeout(`${config.url}/auth/v1/logout`, {
     method: 'POST',
     headers: { apikey: config.publishableKey, Authorization: `Bearer ${stored.accessToken}` },
   }).catch(() => undefined)
