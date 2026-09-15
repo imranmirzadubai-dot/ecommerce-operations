@@ -92,4 +92,5 @@ jobs:
             supabase/tests/database/058_retain_allocation_history_after_cancellation.sql \
             supabase/tests/database/059_partial_mixed_allocation_scenarios.sql \
             supabase/tests/database/060_allocation_overage_rejection.sql \
-            supabase/tests/database/061_post_dispatch_allocation_immutability.sql
+            supabase/tests/database/061_post_dispatch_allocation_immutability.sql \
+            supabase/tests/database/062_shipper_assignment.sql
