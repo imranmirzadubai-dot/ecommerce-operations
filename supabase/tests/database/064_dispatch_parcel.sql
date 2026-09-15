@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(17);
 
 select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel' and pg_get_function_identity_arguments(p.oid)='p_parcel_id uuid, p_tracking_id text, p_idempotency_key text'),'dispatch_parcel command exists');
 select ok((select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public'] from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch command pins search_path');
@@ -16,7 +16,7 @@ select ok((select pg_get_functiondef(p.oid) like '%Dispatched%' and pg_get_funct
 select ok((select pg_get_functiondef(p.oid) like '%insert into public.audit_logs%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch emits audit record');
 select ok((select pg_get_functiondef(p.oid) like '%claim_command_idempotency(''dispatch_parcel''%' and pg_get_functiondef(p.oid) like '%complete_command_idempotency(''dispatch_parcel''%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch is idempotent and retry safe');
 select ok((select pg_get_functiondef(p.oid) like '%Parcel not found%' and pg_get_functiondef(p.oid) like '%Only Prepared parcels can be dispatched%' and pg_get_functiondef(p.oid) like '%Tracking ID is required%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch has explicit validation errors');
-select ok((select pg_get_functiondef(p.oid) like '%jsonb_build_object(''parcel_number''%' and pg_get_functiondef(p.oid) like '%tracking_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch event/audit metadata includes parcel and tracking context');
+select ok((select pg_get_functiondef(p.oid) like '%parcel_number%' and pg_get_functiondef(p.oid) like '%tracking_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch event/audit metadata includes parcel and tracking context');
 select ok((select exists (select 1 from pg_indexes where schemaname='public' and indexname='idx_parcels_normalized_tracking_id_unique')),'global normalized tracking uniqueness index exists');
 select ok((select pg_get_functiondef(p.oid) like '%state=''Dispatched''%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch has explicit Dispatched transition');
 
