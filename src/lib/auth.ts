@@ -88,12 +88,12 @@ async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refre
       body: JSON.stringify(body),
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out')
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
     throw error
   }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed', { cause: payload })
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
   }
   return response.json() as Promise<T>
 }
@@ -105,10 +105,10 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
       headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out')
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
     throw error
   }
-  if (!response.ok) throw new Error('Unable to load the authenticated profile', { cause: response.status })
+  if (!response.ok) throw new Error('Unable to load the authenticated profile')
   const rows = (await response.json()) as Profile[]
   const profile = rows[0]
   if (!profile || !profile.active) throw new Error('This account does not have an active operations profile')
