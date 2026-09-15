@@ -88,7 +88,7 @@ async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refre
       body: JSON.stringify(body),
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out')
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
     throw error
   }
   if (!response.ok) {
@@ -105,7 +105,7 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
       headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out')
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
     throw error
   }
   if (!response.ok) throw new Error('Unable to load the authenticated profile')
