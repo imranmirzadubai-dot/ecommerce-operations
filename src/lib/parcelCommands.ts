@@ -121,3 +121,28 @@ export async function validateUniqueTrackingId(
 ): Promise<ValidateUniqueTrackingIdResult[]> {
   return runCommand<ValidateUniqueTrackingIdResult[]>('validate_unique_tracking_id', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type DispatchParcelInput = {
+  p_parcel_id: string
+  p_tracking_id: string
+  p_idempotency_key: string
+}
+
+export type DispatchParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  shipper_id: string
+  shipper_name: string
+  tracking_id: string
+  normalized_tracking_id: string
+  state: string
+  dispatch_at: string
+}
+
+export async function dispatchParcel(
+  accessToken: string,
+  input: DispatchParcelInput,
+): Promise<DispatchParcelResult[]> {
+  return runCommand<DispatchParcelResult[]>('dispatch_parcel', accessToken, input as unknown as Record<string, unknown>)
+}
