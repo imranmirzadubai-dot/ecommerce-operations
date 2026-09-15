@@ -68,11 +68,11 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
-async function authRequest<T>(config: AuthConfig, body: URLSearchParams): Promise<T> {
-  const response = await fetch(`${config.url}/auth/v1/token`, {
+async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
+  const response = await fetch(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
     method: 'POST',
-    headers: { apikey: config.publishableKey, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
+    headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   })
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
@@ -95,7 +95,7 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
 export async function signIn(email: string, password: string): Promise<AuthState> {
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase authentication is not configured for this environment')
-  const token = await authRequest<TokenResponse>(config, new URLSearchParams({ grant_type: 'password', email, password }))
+  const token = await authRequest<TokenResponse>(config, 'password', { email, password })
   storeSession({ accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id })
   try {
     const profile = await loadProfile(config, token.access_token, token.user.id)
@@ -113,7 +113,7 @@ export async function restoreSession(): Promise<AuthState> {
 
   if (session.expiresAt <= Date.now() + 30_000) {
     try {
-      const token = await authRequest<TokenResponse>(config, new URLSearchParams({ grant_type: 'refresh_token', refresh_token: session.refreshToken }))
+      const token = await authRequest<TokenResponse>(config, 'refresh_token', { refresh_token: session.refreshToken })
       session = { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id }
       storeSession(session)
     } catch {
