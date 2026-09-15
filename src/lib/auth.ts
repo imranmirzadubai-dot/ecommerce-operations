@@ -93,7 +93,7 @@ async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refre
   }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed', { cause: payload })
   }
   return response.json() as Promise<T>
 }
@@ -108,7 +108,7 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
     if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out')
     throw error
   }
-  if (!response.ok) throw new Error('Unable to load the authenticated profile')
+  if (!response.ok) throw new Error('Unable to load the authenticated profile', { cause: response.status })
   const rows = (await response.json()) as Profile[]
   const profile = rows[0]
   if (!profile || !profile.active) throw new Error('This account does not have an active operations profile')
