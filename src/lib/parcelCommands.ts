@@ -81,3 +81,24 @@ export type CancelParcelResult = {
 export async function cancelParcel(accessToken: string, input: CancelParcelInput): Promise<CancelParcelResult[]> {
   return runCommand<CancelParcelResult[]>('cancel_parcel', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type AssignParcelShipperInput = {
+  p_parcel_id: string
+  p_shipper_id: string
+  p_idempotency_key: string
+}
+
+export type AssignParcelShipperResult = {
+  parcel_id: string
+  parcel_number: string
+  shipper_id: string
+  shipper_name: string
+  state: string
+}
+
+export async function assignParcelShipper(
+  accessToken: string,
+  input: AssignParcelShipperInput,
+): Promise<AssignParcelShipperResult[]> {
+  return runCommand<AssignParcelShipperResult[]>('assign_parcel_shipper', accessToken, input as unknown as Record<string, unknown>)
+}
