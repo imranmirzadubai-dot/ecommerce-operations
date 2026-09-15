@@ -50,3 +50,5 @@ Production schema must not be edited casually through the Dashboard.
 ## Safe Templates
 
 `.env.example` may contain variable names and non-secret placeholders only. Actual secret values belong in the appropriate environment's secret store or local untracked configuration.
+
+<!-- Preview build trigger verification: 2026-09-15 -->
