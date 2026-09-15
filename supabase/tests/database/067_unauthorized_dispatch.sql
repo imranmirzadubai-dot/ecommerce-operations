@@ -18,7 +18,7 @@ select ok((select has_table_privilege('anon','public.parcels','INSERT')=false an
 
 select ok((select pg_get_functiondef(p.oid) like '%if auth.uid() is null%' and pg_get_functiondef(p.oid) like '%public.app_role()%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'authorization is evaluated inside the database command');
 
-select ok((select pg_get_functiondef(p.oid) like '%revoke execute on function public.dispatch_parcel%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch execution is explicitly restricted by grants');
+select ok((select has_function_privilege('anon','public.dispatch_parcel(uuid,text,text)','execute')=false and has_function_privilege('public','public.dispatch_parcel(uuid,text,text)','execute')=false),'dispatch execution is explicitly restricted by grants');
 
 select * from finish();
 rollback;
