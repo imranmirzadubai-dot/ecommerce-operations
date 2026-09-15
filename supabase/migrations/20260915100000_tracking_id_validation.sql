@@ -30,7 +30,7 @@ $$;
 revoke all on function public.normalize_tracking_id(text) from public;
 grant execute on function public.normalize_tracking_id(text) to authenticated;
 
-auto comment on function public.normalize_tracking_id(text) is
+comment on function public.normalize_tracking_id(text) is
   'Canonicalizes a parcel tracking ID for global uniqueness checks: trim outer whitespace and normalize case.';
 
 create or replace function public.validate_unique_tracking_id(
