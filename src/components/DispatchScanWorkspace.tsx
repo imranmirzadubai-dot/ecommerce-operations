@@ -36,6 +36,7 @@ function newIdempotencyKey() {
 
 export function DispatchScanWorkspace({ accessToken }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const dispatchAttemptKeys = useRef(new Map<string, string>())
   const [scan, setScan] = useState('')
   const [parcel, setParcel] = useState<Parcel | null>(null)
   const [tracking, setTracking] = useState('')
@@ -56,7 +57,13 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
       if (!found) throw new Error('Unknown barcode. Scan the parcel barcode again.')
       setParcel(found)
       if (found.tracking_id) setTracking(found.tracking_id)
-      setMessage(found.state === 'Prepared' ? 'Parcel resolved. Confirm the tracking ID and dispatch.' : `Parcel resolved in ${found.state} state.`)
+      if (found.state === 'Dispatched') {
+        setMessage(`Duplicate scan: parcel ${found.parcel_number} is already Dispatched. No duplicate dispatch was created.`)
+      } else if (found.state === 'Prepared') {
+        setMessage('Parcel resolved. Confirm the tracking ID and dispatch.')
+      } else {
+        setMessage(`Parcel resolved in ${found.state} state.`)
+      }
     } catch (lookupError) {
       setError(lookupError instanceof Error ? lookupError.message : 'Unable to resolve barcode')
     } finally {
@@ -66,22 +73,29 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   }
 
   async function handleDispatch() {
-    if (!parcel || dispatching) return
+    if (!parcel || dispatching || parcel.state !== 'Prepared') return
+    const trackingId = tracking.trim()
+    if (!trackingId) return
+    const attemptKey = `${parcel.id}:${trackingId}`
+    const idempotencyKey = dispatchAttemptKeys.current.get(attemptKey) ?? newIdempotencyKey()
+    dispatchAttemptKeys.current.set(attemptKey, idempotencyKey)
     setDispatching(true); setError(''); setMessage('')
     try {
       const result = await dispatchParcel(accessToken, {
         p_parcel_id: parcel.id,
-        p_tracking_id: tracking.trim(),
-        p_idempotency_key: newIdempotencyKey(),
+        p_tracking_id: trackingId,
+        p_idempotency_key: idempotencyKey,
       })
       const dispatched = result[0]
       if (!dispatched) throw new Error('Dispatch completed without returning the parcel')
+      dispatchAttemptKeys.current.delete(attemptKey)
       setParcel({ ...parcel, state: dispatched.state, tracking_id: dispatched.tracking_id })
       setTracking(dispatched.tracking_id)
       setScan('')
       setMessage(`Parcel ${dispatched.parcel_number} dispatched to ${dispatched.shipper_name}.`)
     } catch (dispatchError) {
       setError(dispatchError instanceof Error ? dispatchError.message : 'Dispatch failed')
+      setMessage('The dispatch was not confirmed. Retrying this parcel will reuse the same idempotency key.')
     } finally {
       setDispatching(false)
       window.setTimeout(() => inputRef.current?.focus(), 0)
@@ -99,7 +113,7 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   return (
     <section className="card dispatch-scan-workspace" aria-labelledby="dispatch-scan-title">
       <div className="section-heading">
-        <div><span className="eyebrow">Dispatch Gate · T141</span><h2 id="dispatch-scan-title">Scan-first Dispatch</h2><p>Scan the parcel barcode, verify the assigned shipper and tracking ID, then commit the individual dispatch.</p></div>
+        <div><span className="eyebrow">Dispatch Gate · T142</span><h2 id="dispatch-scan-title">Scan-first Dispatch</h2><p>Scan the parcel barcode, verify the assigned shipper and tracking ID, then commit the individual dispatch.</p></div>
         <span className="check">Operations / Admin</span>
       </div>
       <form className="dispatch-scan-form" onSubmit={handleScan}>
