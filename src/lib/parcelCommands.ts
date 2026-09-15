@@ -102,3 +102,22 @@ export async function assignParcelShipper(
 ): Promise<AssignParcelShipperResult[]> {
   return runCommand<AssignParcelShipperResult[]>('assign_parcel_shipper', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type ValidateUniqueTrackingIdInput = {
+  p_tracking_id: string
+  p_parcel_id?: string | null
+}
+
+export type ValidateUniqueTrackingIdResult = {
+  valid: boolean
+  tracking_id: string
+  normalized_tracking_id: string
+  conflicting_parcel_id: string | null
+}
+
+export async function validateUniqueTrackingId(
+  accessToken: string,
+  input: ValidateUniqueTrackingIdInput,
+): Promise<ValidateUniqueTrackingIdResult[]> {
+  return runCommand<ValidateUniqueTrackingIdResult[]>('validate_unique_tracking_id', accessToken, input as unknown as Record<string, unknown>)
+}
