@@ -81,3 +81,68 @@ export type CancelParcelResult = {
 export async function cancelParcel(accessToken: string, input: CancelParcelInput): Promise<CancelParcelResult[]> {
   return runCommand<CancelParcelResult[]>('cancel_parcel', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type AssignParcelShipperInput = {
+  p_parcel_id: string
+  p_shipper_id: string
+  p_idempotency_key: string
+}
+
+export type AssignParcelShipperResult = {
+  parcel_id: string
+  parcel_number: string
+  shipper_id: string
+  shipper_name: string
+  state: string
+}
+
+export async function assignParcelShipper(
+  accessToken: string,
+  input: AssignParcelShipperInput,
+): Promise<AssignParcelShipperResult[]> {
+  return runCommand<AssignParcelShipperResult[]>('assign_parcel_shipper', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type ValidateUniqueTrackingIdInput = {
+  p_tracking_id: string
+  p_parcel_id?: string | null
+}
+
+export type ValidateUniqueTrackingIdResult = {
+  valid: boolean
+  tracking_id: string
+  normalized_tracking_id: string
+  conflicting_parcel_id: string | null
+}
+
+export async function validateUniqueTrackingId(
+  accessToken: string,
+  input: ValidateUniqueTrackingIdInput,
+): Promise<ValidateUniqueTrackingIdResult[]> {
+  return runCommand<ValidateUniqueTrackingIdResult[]>('validate_unique_tracking_id', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type DispatchParcelInput = {
+  p_parcel_id: string
+  p_tracking_id: string
+  p_idempotency_key: string
+}
+
+export type DispatchParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  shipper_id: string
+  shipper_name: string
+  tracking_id: string
+  normalized_tracking_id: string
+  state: string
+  dispatch_at: string
+}
+
+export async function dispatchParcel(
+  accessToken: string,
+  input: DispatchParcelInput,
+): Promise<DispatchParcelResult[]> {
+  return runCommand<DispatchParcelResult[]>('dispatch_parcel', accessToken, input as unknown as Record<string, unknown>)
+}
