@@ -50,10 +50,11 @@ select is(
 );
 
 select ok(
-  pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%NDR%'
-    and pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%Delivered%'
-    and pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%RTO%',
-  'classifier explicitly defines NDR separately from terminal outcomes'
+  pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%Delivered%'
+    and pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%RTO%'
+    and pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) like '%Lost%'
+    and pg_get_functiondef('public.is_terminal_parcel_state(text)'::regprocedure) not like '%NDR%',
+  'classifier defines only terminal states and excludes NDR from terminal classification'
 );
 
 select ok(
