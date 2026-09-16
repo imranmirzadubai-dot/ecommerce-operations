@@ -1,7 +1,7 @@
 # Migration Lineage Reconciliation — 2026-09-16
 
 ## Status
-**Outcome verification complete; historical filename mismatch is not treated as implementation failure. Production migration remediation remains intentionally blocked until a reproducible forward deployment path is established.**
+**Clean-rebuild comparison completed at definition level. Historical migration-ID mismatch is not the only issue: staging has material schema and behavior drift from current `main`. Production migration remediation remains blocked until a reproducible forward deployment path is established.**
 
 ## Audit rule
 A historical migration ID/name does **not** have to match a current repository filename to prove that engineering work was completed. The audit evaluates the resulting implementation and its development evidence: database objects/state, current source code, tests/CI, and Git history. A migration may have been renamed, consolidated, superseded, squashed, or replaced by later migrations.
@@ -15,16 +15,26 @@ A historical migration ID/name does **not** have to match a current repository f
 - Staging contains the implemented database foundations visible in the current schema, including orders/order_items, parcels/parcel_items, customers, shippers, profiles, delivery_outcomes, COD/financial tables, import tables, immutable event/audit structures, and command idempotency.
 - Staging contains authoritative database functions including `create_order`, `confirm_order`, `cancel_order`, `cancel_parcel`, `claim_command_idempotency`, `complete_command_idempotency`, `normalize_phone`, `resolve_customer_by_phone`, and `app_role`.
 - Staging indexes include uniqueness and integrity boundaries such as customer normalized-phone uniqueness, order number uniqueness, parcel barcode/parcel-number/tracking-ID uniqueness, order-item line uniqueness, COD receipt uniqueness, and command-idempotency uniqueness.
-- Current repository contains the corresponding development migration/code/test evidence for the implemented baseline, even where filenames differ from historical staging IDs. For example, the current repository includes `20260910212711_database_foundation_v4.sql`, transactional-command/idempotency migrations, parcel/allocation migrations, delivery-outcome immutability, COD/financial hardening, profile/role hardening, RLS implementation, grants/security-definer hardening, and subsequent order/parcel/invoice work.
 - Searches of the current repository for representative historical staging IDs such as `20260910222428` and `20260911003036` do not locate corresponding files.
 
-## Finding
+## Finding — corrected after clean-rebuild comparison
 
-The staging migration ledger and current repository migration directory are **not a one-to-one lineage**. This is a historical bookkeeping/lineage mismatch, not evidence that the underlying engineering work was not done.
+The staging migration ledger and current repository migration directory are **not a one-to-one lineage**. More importantly, the clean-rebuild comparison now proves that this is **not merely a historical bookkeeping mismatch**.
 
-The actual implementation must be judged from the resulting schema and development proof. The current staging schema demonstrates that substantial baseline work exists. Where a specific historical requirement is represented by current code/database objects/tests, it can be considered implemented even if its original migration filename is unavailable.
+The current staging schema is materially divergent from the schema produced by the current repository. Confirmed differences include:
 
-The remaining issue is narrower: the current repository's later migration files extend beyond the staging ledger's last recorded migration. Therefore, **we still cannot assume that every current repository migration is already present in staging**, and we must not blindly replay the whole current directory against a live database.
+- staging is missing `invoice_print_events`;
+- staging is missing `invoice_template_versions`;
+- staging is missing `update_order()` and multiple other current-main functions;
+- staging is missing the current-main invoice-print/template indexes and policies;
+- staging's `invoice_records` is missing the `source_snapshot` column and its object-shape check;
+- staging is missing the current-main `parcel_items` composite uniqueness boundary;
+- staging contains duplicate logical `orders` checks;
+- staging contains duplicate logical `invoice_records.invoice_number` uniqueness constraints.
+
+Therefore the earlier framing that staging was essentially **"already implemented and only needed lineage reconciliation"** is **superseded by this evidence**.
+
+The correct current conclusion is: **staging has a substantial implemented baseline, but it also has real schema and behavior drift relative to current `main`.** The remaining work is to reconcile that drift safely and establish the forward migration path.
 
 ## Evidence classification
 
@@ -34,20 +44,29 @@ For each historical milestone or migration-derived requirement, classify it as:
 2. **Implemented, historical lineage unresolved** — functionality is demonstrably present, but the exact historical migration that introduced it cannot be reconstructed from currently accessible artifacts.
 3. **Not verified** — the claimed implementation cannot be established from database state and development evidence.
 
-A filename mismatch alone never moves an item into category 3.
+A filename mismatch alone never moves an item into category 3. However, verified schema drift must be recorded independently rather than being absorbed into the lineage category.
+
+## Definition-level comparison evidence
+
+A clean-main schema artifact was successfully generated by GitHub Actions run `35137155690` after a fresh local Supabase reset from the reconciliation branch. The database job completed successfully and uploaded artifact `clean-main-public-schema`.
+
+A literal remote `pg_dump` of staging could not be executed from the available environment because the staging database password/connection credential is not exposed and local `pg_dump`/`migra` binaries are unavailable. Instead, the live staging database was exported through PostgreSQL catalog queries covering tables, columns, defaults, nullability, constraints, indexes, RLS, policies, triggers, and function definitions. This is a machine-readable definition-level comparison, but is not described as a literal `pg_dump`.
+
+The detailed comparison is recorded in `docs/audit/STAGING_VS_CLEAN_MAIN_SCHEMA_DIFF_2026-09-17.md`.
 
 ## Safe deployment implication
 
-The audit does **not** require recovering all 33 original SQL files merely to prove that the work was completed. However, before production deployment we still need a reproducible way to take the **current staging state** to the **current canonical repository state**.
+The clean-main baseline is now the canonical comparison target. Before production deployment we need a reproducible way to take the **current staging state** to the **current canonical repository state**, while explicitly reviewing destructive/corrective differences and unexplained legacy objects.
 
-That can be achieved by:
+That requires:
 
-1. Treating the verified staging schema as the starting state rather than trying to recreate its historical filenames.
-2. Comparing current staging schema objects against the current repository's intended schema.
-3. Identifying which current repository migrations represent changes already present in staging versus genuinely new forward changes.
-4. Building a clean disposable database from a documented baseline and applying only the required forward migrations.
-5. Running the complete database/quality test suite against that clean reconstruction.
-6. Only then preparing the production migration plan.
+1. Preserve staging; do not reset it.
+2. Use the clean-main schema as the canonical target.
+3. Classify each definition-level difference as additive, corrective/destructive, or unexplained/legacy.
+4. Determine provenance and data-safety implications before writing any forward migration.
+5. Build and test the forward migration against a disposable copy/reconstruction of the staging state.
+6. Re-run the schema comparison and require zero meaningful differences.
+7. Only then prepare the production migration plan.
 
 ## Explicit non-actions
 
@@ -59,6 +78,17 @@ That can be achieved by:
 
 ## Decision gate
 
-**Historical migration-ID mismatch is no longer considered a blocker to proving implementation.**
+**Historical migration-ID mismatch is not, by itself, a blocker to proving implementation.**
 
-**Production deployment remains gated only by establishing and testing the reproducible forward migration path from the verified staging schema to the current canonical repository state.**
+**Material schema/behavior drift between staging and clean-main is now an explicit deployment blocker.**
+
+**Production deployment remains gated until the forward staging-to-main migration path is built, tested, and verified by a zero-diff schema comparison.**
+
+## Explicit correction to prior framing
+
+The earlier statement that migration-ID mismatch was "not evidence that the underlying engineering work was not done" remains true as a historical observation, but it is **insufficient as the current deployment conclusion**. The clean-rebuild comparison establishes independent schema/behavior drift. Both facts must remain visible together:
+
+1. migration lineage is divergent; and
+2. staging is materially behind/divergent from current `main`.
+
+The second finding is now the operative deployment gate.
