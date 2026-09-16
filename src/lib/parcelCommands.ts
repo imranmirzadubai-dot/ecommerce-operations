@@ -176,3 +176,30 @@ export async function recordDeliveryOutcome(
     input as unknown as Record<string, unknown>,
   )
 }
+
+export type RetryNdrParcelInput = {
+  p_parcel_id: string
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type RetryNdrParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  previous_state: string
+  state: string
+  note: string | null
+  retried_at: string
+}
+
+export async function retryNdrParcel(
+  accessToken: string,
+  input: RetryNdrParcelInput,
+): Promise<RetryNdrParcelResult[]> {
+  return runCommand<RetryNdrParcelResult[]>(
+    'retry_ndr_parcel',
+    accessToken,
+    input as unknown as Record<string, unknown>,
+  )
+}
