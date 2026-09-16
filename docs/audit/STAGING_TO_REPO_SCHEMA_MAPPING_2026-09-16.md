@@ -61,7 +61,7 @@ The current repository foundation creates all 18 staging application tables, but
 
 ### 2. Staging contains selected later command functions
 
-The current staging database exposes functions including `create_order`, `confirm_order`, `cancel_order`, `cancel_parcel`, `normalize_phone`, and `resolve_customer_by_phone`. This means the staging schema cannot be dated solely from the migration-ledger timestamps.
+The current staging database exposes functions including `create_order`, `confirm_order`, `cancel_order`, `cancel_parcel`, `normalize_phone`, and `resolve_customer_by_phone`. The live function inventory contains 15 public functions in total, with 11 security-definer functions owned by `postgres`. This means the staging schema cannot be dated solely from the migration-ledger timestamps.
 
 Conversely, the current repository's `20260913090000_pre_confirmation_order_editing.sql` defines `update_order`, and the staging function inventory does **not** contain `update_order`. This is direct evidence that the staging state is a mixed/partial implementation relative to current `main` rather than a simple old snapshot.
 
@@ -72,6 +72,16 @@ Current `main` defines `invoice_template_versions` in `20260914010000_invoice_te
 ### 4. Constraint-level drift is already visible
 
 Staging contains duplicate logical checks/unique constraints in at least the `orders` and `invoice_records` areas (for example the duplicated AED/original-amount checks and duplicated invoice-number uniqueness). This reinforces the requirement to compare exact constraint definitions rather than only object existence.
+
+### 5. Index inventory is materially richer than table presence suggests
+
+The live staging database has 66 indexes across the 18 application tables. The inventory includes unique indexes and at least one partial index (`customers` has a partial index). Index equivalence therefore needs definition-level comparison, including predicates and expressions, not just index counts or names.
+
+### 6. Clean-main rebuild evidence is now being captured without touching staging
+
+The repository CI already creates an isolated local Supabase project, copies the repository migrations and seed, runs `supabase db reset`, and executes database verification/tests. On the reconciliation branch, CI was extended to capture the resulting **clean-main public schema** with `supabase db dump --local --schema public` and upload it as a GitHub Actions artifact. This gives the mapping process a concrete target schema generated from the current repository migration chain without creating a paid Supabase branch or modifying staging/production.
+
+The new capture is running in PR #51. The schema artifact must be obtained from a completed green run before the final object-by-object comparison is marked complete.
 
 ## Reconciliation status model
 
@@ -87,12 +97,16 @@ Use these statuses for every object/dimension:
 ## Required deep-diff procedure
 
 1. Capture staging definitions from `pg_catalog` / `information_schema` for all 18 tables, constraints, indexes, policies, triggers, functions, sequences and grants.
-2. Derive the intended current-repository schema from the full ordered migration set on a disposable clean database, without touching staging or production.
+2. Build the intended current-repository schema from the full ordered migration set on a disposable clean database. The CI workflow now performs this rebuild and captures a public-schema dump as an artifact.
 3. Compare normalized definitions, not names alone. Normalize whitespace and PostgreSQL-generated naming where appropriate, but retain semantic differences.
 4. Produce a per-object diff with source migration and evidence.
 5. Resolve every `MISSING`, `DRIFTED`, and `EXTRA/LEGACY` item.
 6. Rebuild from the canonical path and run the full database test suite.
 7. Only then define the production forward-migration sequence.
+
+## Current gate
+
+The mapping is **not yet complete**. The remaining hard evidence is the completed clean-main schema artifact plus a machine-checkable comparison against the live staging definitions. No production DDL and no staging reset should occur before that comparison is resolved.
 
 ## Safety gate
 
