@@ -42,14 +42,11 @@ Missing from staging:
 - `prevent_invoice_record_historical_snapshot_mutation`
 - `prevent_invoice_template_version_mutation`
 - `record_invoice_print`
-- `resolve_customer_by_phone` — present in staging
 - `resolve_or_create_customer`
 - `set_profile_active`
 - `update_order`
 - `validate_parcel_item_allocation`
 - `validate_parcel_state_allocation`
-
-> `resolve_customer_by_phone` is present in staging and is listed here only to document the checked function set; it is **not** a missing function.
 
 No staging-only public functions were found.
 
