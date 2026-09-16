@@ -98,4 +98,5 @@ jobs:
             supabase/tests/database/064_dispatch_parcel.sql \
             supabase/tests/database/065_duplicate_dispatch_idempotency.sql \
             supabase/tests/database/066_tracking_id_concurrency.sql \
-            supabase/tests/database/067_unauthorized_dispatch.sql
+            supabase/tests/database/067_unauthorized_dispatch.sql \
+            supabase/tests/database/068_invalid_dispatch_scans.sql
