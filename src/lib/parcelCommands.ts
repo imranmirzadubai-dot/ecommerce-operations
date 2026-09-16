@@ -146,3 +146,33 @@ export async function dispatchParcel(
 ): Promise<DispatchParcelResult[]> {
   return runCommand<DispatchParcelResult[]>('dispatch_parcel', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type RecordDeliveryOutcomeInput = {
+  p_parcel_id: string
+  p_outcome: 'Delivered' | 'RTO' | 'Lost' | 'Damaged' | 'NDR'
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type RecordDeliveryOutcomeResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  previous_state: string
+  state: string
+  outcome_id: string
+  outcome: string
+  note: string | null
+  occurred_at: string
+}
+
+export async function recordDeliveryOutcome(
+  accessToken: string,
+  input: RecordDeliveryOutcomeInput,
+): Promise<RecordDeliveryOutcomeResult[]> {
+  return runCommand<RecordDeliveryOutcomeResult[]>(
+    'record_delivery_outcome',
+    accessToken,
+    input as unknown as Record<string, unknown>,
+  )
+}
