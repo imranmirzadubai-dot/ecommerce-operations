@@ -1,0 +1,27 @@
+name: Triple A Compile Fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install gh-aw
+        uses: github/gh-aw/actions/setup-cli@main
+        with:
+          version: v0.89.15
+      - name: Compile audit workflow
+        run: gh aw compile ecommerce-audit --actionlint --validate --approve
+      - name: Upload compiled lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: triple-a-compiled-lock-fix
+          path: .github/workflows/ecommerce-audit.lock.yml
