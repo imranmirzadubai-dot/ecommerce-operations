@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   compile:
@@ -23,21 +23,11 @@ jobs:
           version: v0.89.15
       - name: Compile audit workflow
         run: gh aw compile ecommerce-audit --actionlint --validate --approve
-      - name: Update generated lock on branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml; then
-            echo "Generated lock is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ecommerce-audit.lock.yml .gitattributes .github/aw/actions-lock.json
-          git commit -m "chore: update Triple A generated lock [skip ci]"
-          git push origin HEAD:${GITHUB_REF_NAME}
-      - name: Upload compiled lock
+      - name: Upload generated Triple A files
         uses: actions/upload-artifact@v4
         with:
-          name: triple-a-compiled-lock-fix
-          path: .github/workflows/ecommerce-audit.lock.yml
+          name: triple-a-generated-files
+          path: |
+            .github/workflows/ecommerce-audit.lock.yml
+            .github/aw/actions-lock.json
+            .gitattributes
