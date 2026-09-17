@@ -6,7 +6,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   compile:
@@ -20,6 +20,19 @@ jobs:
           version: v0.89.15
       - name: Compile audit workflow
         run: gh aw compile ecommerce-audit --actionlint --validate --approve
+      - name: Update generated lock on PR branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml; then
+            echo "Generated lock is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ecommerce-audit.lock.yml .gitattributes .github/aw/actions-lock.json
+          git commit -m "chore: update Triple A generated lock [skip ci]"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
       - name: Upload compiled lock
         uses: actions/upload-artifact@v4
         with:
