@@ -1,6 +1,7 @@
 name: Compile Triple A Auth Fix
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - fix/triple-a-auth-system-settings
