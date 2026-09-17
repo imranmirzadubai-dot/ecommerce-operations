@@ -293,3 +293,5 @@ Do not create commits or pull requests.
 Do not alter project state.
 
 The purpose of this run is to establish an **independent factual baseline** of the E-Commerce Operations MVP.
+
+<!-- auth-fix compile trigger -->
