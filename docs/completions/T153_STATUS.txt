@@ -1,0 +1,3 @@
+P10-T153 implementation branch: feature/t153-direct-in-transit-delivered.
+Status: branch implementation ready for CI verification.
+Integration gate: independent approval, merge, green main CI, fresh-main verification.
