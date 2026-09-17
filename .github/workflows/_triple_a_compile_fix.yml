@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install gh-aw
         uses: github/gh-aw/actions/setup-cli@main
         with:
@@ -27,7 +27,7 @@ jobs:
         run: gh aw compile ecommerce-audit --actionlint --validate --approve
       - name: Commit generated Triple A files
         env:
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         run: |
           if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml .github/aw/actions-lock.json .gitattributes; then
             echo "Generated files are already current."
