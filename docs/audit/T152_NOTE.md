@@ -1,0 +1,1 @@
+P10-T152 branch evidence: feature/t152-ndr-rto. The authoritative delivery outcome command now permits NDR -> RTO while retaining NDR -> Delivered and rejecting other NDR outcomes. Integration requires approval, merge, main CI, and fresh-main verification.
