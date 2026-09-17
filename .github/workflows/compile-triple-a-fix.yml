@@ -1,0 +1,37 @@
+name: Compile Triple A Fix
+
+on:
+  push:
+    branches:
+      - fix/triple-a-gemini-auth-v2
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Install gh-aw
+        uses: github/gh-aw/actions/setup-cli@main
+
+      - name: Compile Triple A
+        run: gh aw compile .github/workflows/ecommerce-audit.md --approve
+
+      - name: Commit generated lock and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/compile-triple-a-fix.yml
+          git add .github/workflows/ecommerce-audit.lock.yml .github/workflows/compile-triple-a-fix.yml
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: regenerate Triple A workflow with Gemini CLI 0.60.0"
+          git push
