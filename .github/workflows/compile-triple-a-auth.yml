@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: true
+          fetch-depth: 0
 
       - name: Install gh-aw
         uses: github/gh-aw/actions/setup-cli@main
@@ -40,4 +41,5 @@ jobs:
             exit 0
           fi
           git commit -m 'chore: regenerate Triple A workflow'
-          git push
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "${GITHUB_REF_NAME}"
