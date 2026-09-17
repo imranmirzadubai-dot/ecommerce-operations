@@ -25,3 +25,4 @@ jobs:
         with:
           name: aaa-compiled-lock
           path: .github/workflows/ecommerce-audit.lock.yml
+      # Trigger corrected compile test
