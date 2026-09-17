@@ -1,0 +1,27 @@
+name: AAA Compile Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install gh-aw 0.89.15
+        uses: github/gh-aw/actions/setup-cli@main
+        with:
+          version: v0.89.15
+      - name: Compile audit workflow
+        run: gh aw compile ecommerce-audit --actionlint --validate --approve
+      - name: Upload compiled lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: aaa-compiled-lock-08915
+          path: .github/workflows/ecommerce-audit.lock.yml
