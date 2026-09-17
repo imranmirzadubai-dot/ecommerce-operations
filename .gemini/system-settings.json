@@ -4,5 +4,8 @@
       "selectedType": "gemini-api-key",
       "enforcedType": "gemini-api-key"
     }
+  },
+  "general": {
+    "enableAutoUpdate": false
   }
 }
