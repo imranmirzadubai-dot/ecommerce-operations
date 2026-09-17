@@ -2,7 +2,7 @@
 begin;
 select plan(17);
 
-select ok((select count(*) = 48 from supabase_migrations.schema_migrations), 'rebuild applied the complete repository migration chain');
+select ok((select count(*) = 49 from supabase_migrations.schema_migrations), 'rebuild applied the complete repository migration chain');
 select ok((select count(*) = 20 from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and table_name in ('profiles','customers','shippers','orders','order_items','parcels','parcel_items','delivery_outcomes','cod_obligations','cod_obligation_allocations','cod_receipts','financial_adjustments','invoice_records','invoice_template_versions','invoice_print_events','order_events','audit_logs','import_batches','import_rows','command_idempotency')), 'all 20 application/foundation tables exist');
 select ok((select count(*) = 3 from information_schema.sequences where sequence_schema='public' and sequence_name in ('customer_code_seq','order_number_seq','parcel_number_seq')), 'all 3 identifier sequences exist');
 select ok((select count(*) = 19 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity and c.relname in ('profiles','customers','shippers','orders','order_items','parcels','parcel_items','delivery_outcomes','cod_obligations','cod_obligation_allocations','cod_receipts','financial_adjustments','invoice_records','invoice_template_versions','invoice_print_events','order_events','audit_logs','import_batches','import_rows')), 'all 19 application tables retain RLS');
