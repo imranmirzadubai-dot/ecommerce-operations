@@ -1,0 +1,1 @@
+T153 scope: authoritative direct In Transit -> Delivered lifecycle transition only. Uses record_delivery_outcome; no parallel mutation path. Regression test 075 covers authorization, locking, outcome support, idempotency, and audit/event recording.
