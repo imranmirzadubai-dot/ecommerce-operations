@@ -1,0 +1,1 @@
+T152 scope: authoritative NDR -> RTO lifecycle transition only.
