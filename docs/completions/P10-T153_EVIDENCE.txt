@@ -1,0 +1,1 @@
+P10-T153 direct delivery evidence: record_delivery_outcome + test 075. Integration pending approval, merge, main CI, fresh-main verification.
