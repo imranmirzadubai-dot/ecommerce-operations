@@ -12,6 +12,7 @@ engine:
   version: "0.60.0"
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
+    GEMINI_CLI_SYSTEM_SETTINGS_PATH: ${{ github.workspace }}/.gemini/system-settings.json
 
 network: defaults
 
