@@ -1,0 +1,102 @@
+name: Triple A Compile Fix
+
+on:
+  push:
+    branches:
+      - fix/triple-a-gemini-system-settings
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GH_AW_COMPILE_TOKEN }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Install gh-aw
+        uses: github/gh-aw/actions/setup-cli@main
+        with:
+          version: v0.89.15
+
+      - name: Compile audit workflow
+        run: gh aw compile ecommerce-audit --actionlint --validate --approve
+
+      - name: Commit generated Triple A files
+        uses: actions/github-script@v9
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        with:
+          github-token: ${{ secrets.GH_AW_COMPILE_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const parentSha = process.env.SOURCE_SHA;
+            const branchName = process.env.BRANCH_NAME;
+            const paths = [
+              '.github/workflows/ecommerce-audit.lock.yml',
+              '.github/aw/actions-lock.json',
+              '.gitattributes',
+            ].filter((p) => fs.existsSync(p));
+
+            const baseCommit = await github.rest.git.getCommit({
+              owner,
+              repo,
+              commit_sha: parentSha,
+            });
+
+            const tree = [];
+            for (const filePath of paths) {
+              const content = fs.readFileSync(filePath, 'utf8');
+              const blob = await github.rest.git.createBlob({
+                owner,
+                repo,
+                content,
+                encoding: 'utf-8',
+              });
+              tree.push({ path: filePath, mode: '100644', type: 'blob', sha: blob.data.sha });
+            }
+
+            const newTree = await github.rest.git.createTree({
+              owner,
+              repo,
+              base_tree: baseCommit.data.tree.sha,
+              tree,
+            });
+
+            const commit = await github.rest.git.createCommit({
+              owner,
+              repo,
+              message: 'chore: update Triple A generated lock',
+              tree: newTree.data.sha,
+              parents: [parentSha],
+            });
+
+            await github.rest.git.updateRef({
+              owner,
+              repo,
+              ref: `heads/${branchName}`,
+              sha: commit.data.sha,
+              force: false,
+            });
+
+            core.info(`Created generated-lock commit ${commit.data.sha}`);
+
+      - name: Upload generated Triple A files
+        uses: actions/upload-artifact@v4
+        with:
+          name: triple-a-generated-files
+          path: |
+            .github/workflows/ecommerce-audit.lock.yml
+            .github/aw/actions-lock.json
+            .gitattributes
