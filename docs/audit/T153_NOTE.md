@@ -1,0 +1,1 @@
+P10-T153 evidence note: direct In Transit -> Delivered is verified through the authoritative record_delivery_outcome command and dedicated database regression test 075. No production data changes. Integration requires independent approval, merge, green main CI, and fresh-main verification.
