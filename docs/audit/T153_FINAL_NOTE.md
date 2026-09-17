@@ -1,0 +1,1 @@
+T153 direct In Transit -> Delivered is implemented through record_delivery_outcome and covered by database regression 075. Branch-only until approval, merge, green main CI, and fresh-main verification.
