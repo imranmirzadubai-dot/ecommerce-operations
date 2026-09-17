@@ -1,6 +1,9 @@
 name: Triple A Compile Fix
 
 on:
+  push:
+    branches:
+      - fix/triple-a-gemini-system-settings
   pull_request:
     branches:
       - main
@@ -20,7 +23,7 @@ jobs:
           version: v0.89.15
       - name: Compile audit workflow
         run: gh aw compile ecommerce-audit --actionlint --validate --approve
-      - name: Update generated lock on PR branch
+      - name: Update generated lock on branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -32,7 +35,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/workflows/ecommerce-audit.lock.yml .gitattributes .github/aw/actions-lock.json
           git commit -m "chore: update Triple A generated lock [skip ci]"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin HEAD:${GITHUB_REF_NAME}
       - name: Upload compiled lock
         uses: actions/upload-artifact@v4
         with:
