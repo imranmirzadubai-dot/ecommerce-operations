@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          token: ${{ secrets.GH_AW_COMPILE_TOKEN }}
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Install gh-aw
@@ -35,7 +35,7 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         with:
-          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_COMPILE_TOKEN }}
           script: |
             const fs = require('fs');
 
