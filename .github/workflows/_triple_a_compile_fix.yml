@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          token: ${{ secrets.GH_AW_COMPILE_TOKEN }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Install gh-aw
@@ -31,7 +31,7 @@ jobs:
 
       - name: Commit generated Triple A files
         env:
-          GH_AW_COMPILE_TOKEN: ${{ secrets.GH_AW_COMPILE_TOKEN }}
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml .github/aw/actions-lock.json .gitattributes; then
