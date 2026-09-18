@@ -1,0 +1,20 @@
+name: P12-T189 Deterministic Source Identity
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20260919050000_deterministic_source_identity.sql'
+      - 'supabase/tests/database/108_deterministic_source_identity.sql'
+      - '.github/workflows/p12-t189-deterministic-source-identity.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/108_deterministic_source_identity.sql
