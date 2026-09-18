@@ -25,5 +25,5 @@ jobs:
 
       - name: Dispatch Triple A audit
         env:
-          GH_TOKEN: ${{ secrets.TRIPLE_A_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run ecommerce-audit.lock.yml --ref main
