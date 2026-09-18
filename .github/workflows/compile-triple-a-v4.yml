@@ -43,3 +43,5 @@ jobs:
           git commit -m 'chore: compile Triple A with Gemini CLI 0.43.0'
           git remote set-url origin "https://x-access-token:${TRIPLE_A_PAT}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin HEAD:fix/triple-a-gemini-auth-v4
+
+# Temporary compiler for the v4 compatibility fix.
