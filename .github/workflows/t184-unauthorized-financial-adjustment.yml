@@ -1,0 +1,21 @@
+name: P11-T184 Unauthorized Financial Adjustment
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/104_unauthorized_financial_adjustment.sql'
+      - '.github/workflows/t184-unauthorized-financial-adjustment.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/104_unauthorized_financial_adjustment.sql
