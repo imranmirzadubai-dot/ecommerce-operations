@@ -19,6 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          token: ${{ secrets.TRIPLE_A_PAT }}
           persist-credentials: true
           fetch-depth: 0
 
@@ -31,7 +32,7 @@ jobs:
         uses: github/gh-aw/actions/setup-cli@main
         with:
           version: v0.88.7
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.TRIPLE_A_PAT }}
 
       - name: Compile Triple A
         run: gh aw compile .github/workflows/ecommerce-audit.md --approve
