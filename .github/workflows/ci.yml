@@ -89,4 +89,4 @@ jobs:
             supabase/tests/database/085_illegal_lifecycle_transitions.sql \
             supabase/tests/database/086_duplicate_rto_scan.sql \
             supabase/tests/database/087_unknown_cancelled_barcode_scans.sql \
-            supabase/tests/database/088_order_cod_obligation.sql
+            supabase/tests/database/087_order_cod_obligation.sql
