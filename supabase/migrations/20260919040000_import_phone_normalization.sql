@@ -54,6 +54,11 @@ begin
     end if;
   end loop;
 
+  if (select count(*) from jsonb_array_elements_text(p_phone_fields))
+     <> (select count(distinct value) from jsonb_array_elements_text(p_phone_fields)) then
+    raise exception using errcode='22023', message='Phone field names must be unique';
+  end if;
+
   select status into v_status
   from public.import_batches
   where id = p_batch_id
@@ -84,34 +89,33 @@ begin
     return;
   end if;
 
-  -- Raw source values remain immutable. Each configured phone field is rewritten in
-  -- normalized_data to a canonical +<country-code><subscriber> representation.
+  -- Raw source values remain immutable. Only successfully normalized configured
+  -- phone fields are overlaid onto normalized_data; all other mapped fields remain.
   update public.import_rows r
-  set normalized_data = x.normalized_data,
+  set normalized_data = r.normalized_data || coalesce(x.phone_data, '{}'::jsonb),
       status = case when x.error_text is null then r.status else 'Error' end,
       error = case when x.error_text is null then r.error else x.error_text end
   from lateral (
-    select coalesce(jsonb_object_agg(v.field, v.value), r.normalized_data) as normalized_data,
-           case when count(v.error_text) filter (where v.error_text is not null) = 0
-                then null
-                else array_to_string(array_agg(v.error_text order by v.ord) filter (where v.error_text is not null), '; ')
-           end as error_text
+    select
+      jsonb_object_agg(v.field, v.value) filter (where v.value is not null) as phone_data,
+      case when count(v.error_text) filter (where v.error_text is not null) = 0
+           then null
+           else array_to_string(array_agg(v.error_text order by v.ord) filter (where v.error_text is not null), '; ')
+      end as error_text
     from (
       select pf.field, pf.ord,
              case
                when not (r.normalized_data ? pf.field) or r.normalized_data -> pf.field is null then null
-               else case
-                 when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9+]', '', 'g') ~ '^\\+[0-9]{7,15}$'
-                   then to_jsonb(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9+]', '', 'g'))
-                 when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^00[0-9]{7,15}$'
-                   then to_jsonb('+' || substring(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') from 3))
-                 when v_country <> ''
-                      and regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^0[0-9]{6,14}$'
-                   then to_jsonb('+' || v_country || substring(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') from 2))
-                 when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^[1-9][0-9]{6,14}$'
-                   then to_jsonb('+' || regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g'))
-                 else null
-               end
+               when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9+]', '', 'g') ~ '^\\+[0-9]{7,15}$'
+                 then to_jsonb(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9+]', '', 'g'))
+               when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^00[0-9]{7,15}$'
+                 then to_jsonb('+' || substring(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') from 3))
+               when v_country <> ''
+                    and regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^0[0-9]{6,14}$'
+                 then to_jsonb('+' || v_country || substring(regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') from 2))
+               when regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g') ~ '^[1-9][0-9]{6,14}$'
+                 then to_jsonb('+' || regexp_replace(btrim(r.normalized_data ->> pf.field), '[^0-9]', '', 'g'))
+               else null
              end as value,
              case
                when not (r.normalized_data ? pf.field) or r.normalized_data -> pf.field is null then null
@@ -132,9 +136,9 @@ begin
   select count(*)::integer into v_normalized_count
   from public.import_rows r
   where r.batch_id = p_batch_id
-    and r.status <> 'Error'
     and exists (
-      select 1 from jsonb_array_elements_text(p_phone_fields) pf(field)
+      select 1
+      from jsonb_array_elements_text(p_phone_fields) pf(field)
       where r.normalized_data ? pf.field
         and (r.normalized_data ->> pf.field) ~ '^\\+[1-9][0-9]{6,14}$'
     );
