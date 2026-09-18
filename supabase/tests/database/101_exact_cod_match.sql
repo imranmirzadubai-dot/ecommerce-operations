@@ -28,7 +28,7 @@ select ok((select position('v_received = v_effective' in pg_get_functiondef(p.oi
     and p.proname = 'get_cod_financial_reconciliation'),
   'exact receipt/effective amount equality is explicitly evaluated');
 
-select ok((select position("reconciliation_state := 'Reconciled'" in pg_get_functiondef(p.oid)) > 0
+select ok((select position('reconciliation_state := ''Reconciled''' in pg_get_functiondef(p.oid)) > 0
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
@@ -51,8 +51,8 @@ select ok((select position('outstanding_amount := round(v_effective - v_received
     and p.proname = 'get_cod_financial_reconciliation'),
   'exact COD match derives outstanding amount from effective less received');
 
-select ok((select position("elsif v_received < v_effective" in pg_get_functiondef(p.oid)) > 0
-  and position("else\n    reconciliation_state := 'Overcollected'" in pg_get_functiondef(p.oid)) > 0
+select ok((select position('elsif v_received < v_effective' in pg_get_functiondef(p.oid)) > 0
+  and position('else\n    reconciliation_state := ''Overcollected''' in pg_get_functiondef(p.oid)) > 0
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
