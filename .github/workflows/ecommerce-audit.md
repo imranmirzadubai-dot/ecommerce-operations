@@ -9,7 +9,7 @@ permissions:
 
 engine:
   id: gemini
-  version: "0.60.0"
+  version: "0.43.0"
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
 
