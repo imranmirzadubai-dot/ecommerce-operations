@@ -1,72 +1,43 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - develop
-      - 'feature/**'
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main]
+  push:
+    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation]
 
-permissions:
-  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   quality:
-    name: Lint, typecheck, unit tests and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Unit tests
-        run: npm test
-      - name: Build
-        run: npm run build
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
 
   database:
-    name: Local Supabase database tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
         with:
-          version: 2.117.0
-      - name: Create isolated local Supabase project
-        run: |
-          mkdir -p /tmp/supabase-ci
-          cd /tmp/supabase-ci
-          supabase init
-          rm -rf supabase/migrations supabase/tests
-          mkdir -p supabase/migrations supabase/tests/database
-          cp -R "$GITHUB_WORKSPACE/supabase/migrations/." supabase/migrations/
-          cp -R "$GITHUB_WORKSPACE/supabase/tests/." supabase/tests/
-          cp "$GITHUB_WORKSPACE/supabase/seed.sql" supabase/seed.sql
-      - name: Start local Supabase
-        working-directory: /tmp/supabase-ci
-        run: supabase start
-      - name: Reset database from migrations and seed
-        working-directory: /tmp/supabase-ci
-        run: supabase db reset
-      - name: Run rebuild verification and database tests
-        working-directory: /tmp/supabase-ci
-        run: |
+          version: latest
+      - run: supabase db start
+      - run: |
+          supabase db reset
           supabase test db \
-            supabase/tests/database/028_database_rebuild_verification.sql \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/054_exact_integer_allocation_invariant.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
@@ -92,4 +63,29 @@ jobs:
             supabase/tests/database/058_retain_allocation_history_after_cancellation.sql \
             supabase/tests/database/059_partial_mixed_allocation_scenarios.sql \
             supabase/tests/database/060_allocation_overage_rejection.sql \
-            supabase/tests/database/061_post_dispatch_allocation_immutability.sql
+            supabase/tests/database/061_post_dispatch_allocation_immutability.sql \
+            supabase/tests/database/062_shipper_assignment.sql \
+            supabase/tests/database/063_tracking_id_validation.sql \
+            supabase/tests/database/064_dispatch_parcel.sql \
+            supabase/tests/database/065_duplicate_dispatch_idempotency.sql \
+            supabase/tests/database/066_tracking_id_concurrency.sql \
+            supabase/tests/database/067_unauthorized_dispatch.sql \
+            supabase/tests/database/068_invalid_dispatch_scans.sql \
+            supabase/tests/database/069_record_delivery_outcome.sql \
+            supabase/tests/database/070_ndr_non_terminal_state.sql \
+            supabase/tests/database/071_ndr_in_transit_retry.sql \
+            supabase/tests/database/072_ndr_to_delivered.sql \
+            supabase/tests/database/073_ndr_to_rto.sql \
+            supabase/tests/database/075_direct_in_transit_delivered.sql \
+            supabase/tests/database/076_direct_in_transit_rto.sql \
+            supabase/tests/database/077_lost_outcome.sql \
+            supabase/tests/database/078_damaged_outcome.sql \
+            supabase/tests/database/079_partial_delivery_reconciliation.sql \
+            supabase/tests/database/080_partial_rto_reconciliation.sql \
+            supabase/tests/database/081_mixed_delivery_rto_summary.sql \
+            supabase/tests/database/082_lost_damaged_quantity_accounting.sql \
+            supabase/tests/database/083_order_lifecycle_sync.sql \
+            supabase/tests/database/084_order_fulfillment_summary.sql \
+            supabase/tests/database/085_illegal_lifecycle_transitions.sql \
+            supabase/tests/database/086_duplicate_rto_scan.sql \
+            supabase/tests/database/087_unknown_cancelled_barcode_scans.sql

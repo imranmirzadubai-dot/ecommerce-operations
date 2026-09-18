@@ -1,0 +1,1 @@
+P10-T152 — NDR to RTO. Implementation branch feature/t152-ndr-rto. Integration gate: approval, merge, green main CI, fresh-main verification.
