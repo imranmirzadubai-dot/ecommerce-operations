@@ -3,7 +3,7 @@ name: Compile Triple A Runtime
 on:
   push:
     branches:
-      - fix/triple-a-runtime-final
+      - main
     paths:
       - '.github/workflows/ecommerce-audit.md'
       - '.github/workflows/compile-triple-a-runtime.yml'
@@ -31,13 +31,21 @@ jobs:
         run: gh aw compile .github/workflows/ecommerce-audit.md --approve
 
       - name: Commit compiled workflow
+        id: commit
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml; then
             echo 'Compiled workflow is already current.'
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git add .github/workflows/ecommerce-audit.lock.yml
           git commit -m 'chore: compile Triple A runtime'
-          git push origin HEAD:fix/triple-a-runtime-final
+          git push origin HEAD:main
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Triple A audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ecommerce-audit.lock.yml --ref main
