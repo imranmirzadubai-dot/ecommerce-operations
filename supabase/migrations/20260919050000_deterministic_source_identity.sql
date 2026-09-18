@@ -84,6 +84,7 @@ begin
     return;
   end if;
 
+  -- raw_data and source_record_id are intentionally untouched by identity assignment.
   update public.import_rows r
   set source_identity = md5(
     concat_ws(
