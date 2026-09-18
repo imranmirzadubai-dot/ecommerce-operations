@@ -1,0 +1,16 @@
+begin;
+select plan(10);
+
+select ok((select count(*) = 1 from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='financial_adjustments' and a.attname='reason' and a.attnotnull),'financial adjustment reason remains NOT NULL');
+select ok((select count(*) = 1 from pg_constraint c join pg_class t on t.oid=c.conrelid join pg_namespace n on n.oid=t.relnamespace where n.nspname='public' and t.relname='financial_adjustments' and c.conname='financial_adjustments_reason_required'),'mandatory reason constraint exists with stable name');
+select ok((select position('btrim(reason)' in lower(pg_get_constraintdef(c.oid))) > 0 from pg_constraint c join pg_class t on t.oid=c.conrelid join pg_namespace n on n.oid=t.relnamespace where n.nspname='public' and t.relname='financial_adjustments' and c.conname='financial_adjustments_reason_required'),'reason constraint rejects blank or whitespace-only values');
+select ok((select position('length(reason)' in lower(pg_get_constraintdef(c.oid))) > 0 from pg_constraint c join pg_class t on t.oid=c.conrelid join pg_namespace n on n.oid=t.relnamespace where n.nspname='public' and t.relname='financial_adjustments' and c.conname='financial_adjustments_reason_required'),'reason constraint retains the 500-character limit');
+select ok((select position('btrim(coalesce(p_reason' in lower(pg_get_functiondef(p.oid))) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'authoritative command validates the supplied reason');
+select ok((select position('p_reason <> btrim(p_reason)' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'authoritative command rejects untrimmed reasons');
+select ok((select position('length(p_reason) > 500' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'authoritative command rejects overlong reasons');
+select ok((select position('Adjustment reason must be nonempty' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'authoritative command exposes an explicit reason validation error');
+select ok((select position('p_reason' in pg_get_functiondef(p.oid)) > 0 and position('claim_command_idempotency' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'reason remains part of the idempotent command contract');
+select ok((select position('reason' in lower(pg_get_functiondef(p.oid))) > 0 and position('insert into public.financial_adjustments' in lower(pg_get_functiondef(p.oid))) > 0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'accepted adjustments persist the mandatory reason in the immutable ledger');
+
+select * from finish();
+rollback;
