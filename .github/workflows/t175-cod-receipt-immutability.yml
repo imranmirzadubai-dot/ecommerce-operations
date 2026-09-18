@@ -1,0 +1,21 @@
+name: P11-T175 COD Receipt Immutability
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/095_cod_receipt_immutability.sql'
+      - '.github/workflows/t175-cod-receipt-immutability.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/095_cod_receipt_immutability.sql
