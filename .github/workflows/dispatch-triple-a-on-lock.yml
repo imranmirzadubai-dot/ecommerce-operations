@@ -1,0 +1,22 @@
+name: Dispatch Triple A After Compile
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/ecommerce-audit.lock.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Dispatch Triple A audit
+        env:
+          GH_TOKEN: ${{ secrets.TRIPLE_A_PAT }}
+        run: gh workflow run ecommerce-audit.lock.yml --ref main
