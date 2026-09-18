@@ -16,6 +16,12 @@ jobs:
   dispatch:
     runs-on: ubuntu-slim
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.TRIPLE_A_PAT }}
+
       - name: Dispatch Triple A audit
         env:
           GH_TOKEN: ${{ secrets.TRIPLE_A_PAT }}
