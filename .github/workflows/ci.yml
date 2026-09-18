@@ -73,4 +73,5 @@ jobs:
             supabase/tests/database/073_ndr_to_rto.sql \
             supabase/tests/database/075_direct_in_transit_delivered.sql \
             supabase/tests/database/076_direct_in_transit_rto.sql \
-            supabase/tests/database/077_lost_outcome.sql
+            supabase/tests/database/077_lost_outcome.sql \
+            supabase/tests/database/078_damaged_outcome.sql
