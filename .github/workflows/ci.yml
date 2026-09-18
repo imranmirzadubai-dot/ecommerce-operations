@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, develop, feature/t157-partial-delivery-reconciliation]
+    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation]
 
 jobs:
   quality:
@@ -75,4 +75,5 @@ jobs:
             supabase/tests/database/076_direct_in_transit_rto.sql \
             supabase/tests/database/077_lost_outcome.sql \
             supabase/tests/database/078_damaged_outcome.sql \
-            supabase/tests/database/079_partial_delivery_reconciliation.sql
+            supabase/tests/database/079_partial_delivery_reconciliation.sql \
+            supabase/tests/database/080_partial_rto_reconciliation.sql
