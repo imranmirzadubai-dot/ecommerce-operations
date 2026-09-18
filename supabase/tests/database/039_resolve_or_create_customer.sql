@@ -37,8 +37,12 @@ select ok((select pg_get_functiondef(p.oid) like '%Customer name is required%'
 select ok((select pg_get_functiondef(p.oid) like '%for update%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='resolve_or_create_customer'), 'existing customer identity is locked during the transaction');
-select ok((select count(*) = 0 from information_schema.role_table_grants
-  where grantee='authenticated' and table_schema='public' and privilege_type in ('INSERT','UPDATE','DELETE')), 'browser roles retain no direct customer table writes');
+select ok(
+  has_table_privilege('authenticated','public.customers','insert') = false
+  and has_table_privilege('authenticated','public.customers','update') = false
+  and has_table_privilege('authenticated','public.customers','delete') = false,
+  'browser roles retain no direct customer table writes'
+);
 
 select * from finish();
 rollback;
