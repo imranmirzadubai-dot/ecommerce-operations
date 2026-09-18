@@ -1,0 +1,18 @@
+-- P11-T184: unauthorized financial adjustment regression coverage.
+begin;
+
+select plan(10);
+
+select ok((select count(*) = 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment' and pg_get_function_identity_arguments(p.oid) = 'p_order_id uuid, p_adjustment_type text, p_delta_amount numeric, p_reason text, p_parcel_id uuid, p_cod_receipt_id uuid, p_idempotency_key text'),'authoritative financial adjustment command exists with expected signature');
+select ok((select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public'] from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'financial adjustment command uses SECURITY DEFINER and controlled search_path');
+select ok((select position('auth.uid() is null' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'unauthenticated callers are explicitly rejected');
+select ok((select position('public.app_role() <> ''admin''' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'non-admin operational roles are explicitly rejected');
+select ok((select position('errcode=''42501''' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'unauthorized financial adjustment attempts use insufficient-privilege semantics');
+select ok((select position('Admin role required to create financial adjustments' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'unauthorized financial adjustment attempts return the explicit Admin-only message');
+select ok((select position('revoke all on function public.create_financial_adjustment' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'function privileges are not inherited from public defaults');
+select ok((select position('from public, anon' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'anonymous and public execution are explicitly revoked');
+select ok((select position('grant execute on function public.create_financial_adjustment' in pg_get_functiondef(p.oid)) > 0 and position('to authenticated' in pg_get_functiondef(p.oid)) > 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'authenticated access is gated by the command role check rather than unrestricted execution');
+select ok((select position('public.app_role() <> ''admin''' in pg_get_functiondef(p.oid)) > 0 and position('insert into public.financial_adjustments' in pg_get_functiondef(p.oid)) > position('public.app_role() <> ''admin''' in pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_financial_adjustment'),'the Admin-only authorization guard executes before any financial adjustment insert');
+
+select * from finish();
+rollback;
