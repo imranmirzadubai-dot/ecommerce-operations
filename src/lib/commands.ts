@@ -31,6 +31,13 @@ export type CreateCodObligationInput = {
   p_idempotency_key: string
 }
 
+export type AllocateCodObligationToParcelInput = {
+  p_cod_obligation_id: string
+  p_parcel_id: string
+  p_expected_amount: string
+  p_idempotency_key: string
+}
+
 export type CreateOrderResult = {
   order_id: string
   order_number: string
@@ -54,6 +61,13 @@ export type CreateCodObligationResult = {
   order_id: string
   expected_amount: number
   state: string
+}
+
+export type AllocateCodObligationToParcelResult = {
+  allocation_id: string
+  cod_obligation_id: string
+  parcel_id: string
+  expected_amount: number
 }
 
 export type OrderItemRow = {
@@ -132,6 +146,10 @@ export async function confirmOrder(accessToken: string, input: ConfirmOrderInput
 
 export async function createCodObligation(accessToken: string, input: CreateCodObligationInput): Promise<CreateCodObligationResult[]> {
   return runCommand<CreateCodObligationResult[]>('create_cod_obligation', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export async function allocateCodObligationToParcel(accessToken: string, input: AllocateCodObligationToParcelInput): Promise<AllocateCodObligationToParcelResult[]> {
+  return runCommand<AllocateCodObligationToParcelResult[]>('allocate_cod_obligation_to_parcel', accessToken, input as unknown as Record<string, unknown>)
 }
 
 export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
