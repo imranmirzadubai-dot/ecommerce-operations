@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/ecommerce-audit.md'
       - '.gemini/system-settings.json'
+      - '.github/workflows/compile-triple-a-auth.yml'
 
 permissions:
   contents: write
