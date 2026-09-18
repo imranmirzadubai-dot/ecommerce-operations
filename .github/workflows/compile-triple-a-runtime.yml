@@ -1,0 +1,43 @@
+name: Compile Triple A Runtime
+
+on:
+  push:
+    branches:
+      - fix/triple-a-runtime-final
+    paths:
+      - '.github/workflows/ecommerce-audit.md'
+      - '.github/workflows/compile-triple-a-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install gh-aw
+        run: gh extension install github/gh-aw
+
+      - name: Compile Triple A
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh aw compile .github/workflows/ecommerce-audit.md --approve
+
+      - name: Commit compiled workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet -- .github/workflows/ecommerce-audit.lock.yml; then
+            echo 'Compiled workflow is already current.'
+            exit 0
+          fi
+          git add .github/workflows/ecommerce-audit.lock.yml
+          git commit -m 'chore: compile Triple A runtime'
+          git push origin HEAD:fix/triple-a-runtime-final
