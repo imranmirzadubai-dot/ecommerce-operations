@@ -81,7 +81,7 @@ select ok(
 );
 
 select ok(
-  (select position("v_obligation.state in ('Received','Closed')" in pg_get_functiondef(p.oid)) > 0
+  (select position('v_obligation.state in (''Received'',''Closed'')' in pg_get_functiondef(p.oid)) > 0
           and position('v_allocated <> v_obligation.expected_amount' in pg_get_functiondef(p.oid)) > 0
    from pg_proc p
    join pg_namespace n on n.oid = p.pronamespace
