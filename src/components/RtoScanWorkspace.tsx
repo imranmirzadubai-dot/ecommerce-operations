@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { processRto } from '../lib/parcelCommands'
-import { processRtoBulk } from '../lib/bulkRto'
 import { BulkRtoWorkspace } from './BulkRtoWorkspace'
 
 type Props = { accessToken: string }
@@ -85,5 +84,3 @@ export function RtoScanWorkspace({ accessToken }: Props) {
     <BulkRtoWorkspace accessToken={accessToken} resolveParcelByBarcode={resolveParcelByBarcode} />
   </>
 }
-
-export type RtoParcelResolver = typeof resolveParcelByBarcode
