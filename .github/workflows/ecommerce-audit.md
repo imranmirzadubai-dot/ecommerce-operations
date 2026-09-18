@@ -13,7 +13,14 @@ engine:
   model: "gemini-2.5-pro"
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
-    GEMINI_CLI_SYSTEM_SETTINGS_PATH: ${{ github.workspace }}/.gemini/triple-a-system-settings.json
+
+pre-steps:
+  - name: Install trusted Gemini system settings
+    run: |
+      sudo install -d -o root -g root -m 755 /etc/gemini-cli
+      printf '%s\n' '{"security":{"auth":{"selectedType":"gemini-api-key"}}}' | sudo tee /etc/gemini-cli/settings.json >/dev/null
+      sudo chown root:root /etc/gemini-cli/settings.json
+      sudo chmod 644 /etc/gemini-cli/settings.json
 
 network: defaults
 
