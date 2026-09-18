@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Install gh-aw
-        run: gh extension install github/gh-aw@v0.88.7
+        run: gh extension install github/gh-aw
 
       - name: Compile Triple A
         run: gh aw compile .github/workflows/ecommerce-audit.md --no-check-update
