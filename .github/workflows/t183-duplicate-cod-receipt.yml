@@ -1,0 +1,21 @@
+name: P11-T183 Duplicate COD Receipt
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/103_duplicate_cod_receipt.sql'
+      - '.github/workflows/t183-duplicate-cod-receipt.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/103_duplicate_cod_receipt.sql
