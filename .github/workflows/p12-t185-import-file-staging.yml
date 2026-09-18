@@ -1,0 +1,21 @@
+name: P12-T185 Import File Staging
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/104_import_file_staging.sql'
+      - '.github/workflows/p12-t185-import-file-staging.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/104_import_file_staging.sql
