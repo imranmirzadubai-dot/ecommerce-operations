@@ -71,4 +71,5 @@ jobs:
             supabase/tests/database/071_ndr_in_transit_retry.sql \
             supabase/tests/database/072_ndr_to_delivered.sql \
             supabase/tests/database/073_ndr_to_rto.sql \
-            supabase/tests/database/075_direct_in_transit_delivered.sql
+            supabase/tests/database/075_direct_in_transit_delivered.sql \
+            supabase/tests/database/076_direct_in_transit_rto.sql
