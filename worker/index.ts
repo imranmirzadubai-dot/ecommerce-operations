@@ -1,7 +1,7 @@
 const ALLOWED_COMMANDS = new Set([
   "resolve_customer_by_phone", "create_order", "update_order", "update_order_items", "confirm_order", "cancel_order",
   "create_parcel", "allocate_parcel_items", "correct_parcel_allocation", "cancel_parcel", "dispatch_parcel", "bulk_dispatch",
-  "record_delivery_outcome", "process_rto", "bulk_rto", "create_cod_obligation", "record_cod_receipt", "resolve_cod_exception", "record_financial_adjustment",
+  "record_delivery_outcome", "process_rto", "bulk_rto", "create_cod_obligation", "allocate_cod_obligation_to_parcel", "record_cod_receipt", "resolve_cod_exception", "record_financial_adjustment",
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
 ]);
 

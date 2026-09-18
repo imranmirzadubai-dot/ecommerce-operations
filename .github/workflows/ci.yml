@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation, feature/t167-order-cod-obligation]
+    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation, feature/t167-order-cod-obligation, feature/t168-parcel-cod-allocation]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
@@ -89,4 +89,5 @@ jobs:
             supabase/tests/database/085_illegal_lifecycle_transitions.sql \
             supabase/tests/database/086_duplicate_rto_scan.sql \
             supabase/tests/database/087_unknown_cancelled_barcode_scans.sql \
-            supabase/tests/database/087_order_cod_obligation.sql
+            supabase/tests/database/087_order_cod_obligation.sql \
+            supabase/tests/database/088_parcel_cod_allocation.sql
