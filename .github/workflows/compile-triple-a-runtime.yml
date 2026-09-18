@@ -35,7 +35,7 @@ jobs:
       - name: Publish compiled workflow through PR
         id: publish
         env:
-          GH_TOKEN: ${{ secrets.TRIPLE_A_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
