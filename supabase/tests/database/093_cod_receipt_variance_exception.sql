@@ -33,35 +33,31 @@ select ok(
 );
 
 select ok(
-  position("'Exception'" in pg_get_functiondef('public.enforce_cod_receipt_variance_state()'::regprocedure)) > 0,
+  position('new.state := ''Exception''' in pg_get_functiondef('public.enforce_cod_receipt_variance_state()'::regprocedure)) > 0,
   'P11-T173 assigns Exception for variance'
 );
 
 select ok(
-  position("'Received'" in pg_get_functiondef('public.enforce_cod_receipt_variance_state()'::regprocedure)) > 0,
+  position('new.state := ''Received''' in pg_get_functiondef('public.enforce_cod_receipt_variance_state()'::regprocedure)) > 0,
   'P11-T173 preserves Received for exact match'
 );
 
 select ok(
-  position('BEFORE INSERT OR UPDATE' in pg_get_triggerdef(t.oid)) > 0,
+  position('BEFORE INSERT OR UPDATE' in upper(pg_get_triggerdef(t.oid))) > 0,
   'P11-T173 trigger runs before receipt writes'
 )
 from pg_trigger t
 where t.tgrelid = 'public.cod_receipts'::regclass
   and t.tgname = 'trg_cod_receipt_variance_state';
 
-select has_privilege(
-  'public',
-  'public.enforce_cod_receipt_variance_state()',
-  'execute',
+select is(
+  (select has_function_privilege('public', 'public.enforce_cod_receipt_variance_state()', 'execute')),
   false,
   'P11-T173 trigger function is not executable by public'
 );
 
-select has_privilege(
-  'authenticated',
-  'public.enforce_cod_receipt_variance_state()',
-  'execute',
+select is(
+  (select has_function_privilege('authenticated', 'public.enforce_cod_receipt_variance_state()', 'execute')),
   false,
   'P11-T173 trigger function is not directly executable by authenticated users'
 );
