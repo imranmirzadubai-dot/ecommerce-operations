@@ -16,6 +16,9 @@ engine:
     GEMINI_CLI_SYSTEM_SETTINGS_PATH: ${{ github.workspace }}/.gemini/triple-a-system-settings.json
 
 pre-steps:
+  - name: Checkout repository
+    uses: actions/checkout@v7
+
   - name: Install trusted Gemini system settings
     run: |
       sudo install -d -o root -g root -m 755 "${GITHUB_WORKSPACE}/.gemini"
