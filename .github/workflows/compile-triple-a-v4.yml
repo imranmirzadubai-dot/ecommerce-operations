@@ -1,9 +1,10 @@
 name: Compile Triple A v4
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize]
     branches:
-      - fix/triple-a-gemini-auth-v4
+      - main
     paths:
       - '.github/workflows/ecommerce-audit.md'
       - '.github/workflows/compile-triple-a-v4.yml'
@@ -13,11 +14,13 @@ permissions:
 
 jobs:
   compile:
+    if: github.event.pull_request.head.ref == 'fix/triple-a-gemini-auth-v4' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout PR head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -43,5 +46,3 @@ jobs:
           git commit -m 'chore: compile Triple A with Gemini CLI 0.43.0'
           git remote set-url origin "https://x-access-token:${TRIPLE_A_PAT}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin HEAD:fix/triple-a-gemini-auth-v4
-
-# Temporary compiler for the v4 compatibility fix.
