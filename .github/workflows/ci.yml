@@ -80,4 +80,7 @@ jobs:
             supabase/tests/database/081_mixed_delivery_rto_summary.sql \
             supabase/tests/database/082_lost_damaged_quantity_accounting.sql \
             supabase/tests/database/083_order_lifecycle_sync.sql \
-            supabase/tests/database/084_order_fulfillment_summary.sql
+            supabase/tests/database/084_order_fulfillment_summary.sql \
+            supabase/tests/database/085_illegal_lifecycle_transitions.sql \
+            supabase/tests/database/086_duplicate_rto_scan.sql \
+            supabase/tests/database/087_unknown_cancelled_barcode_scans.sql
