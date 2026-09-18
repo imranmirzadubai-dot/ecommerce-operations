@@ -1,0 +1,23 @@
+name: P11-T174 COD Exception Resolution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/094_cod_exception_resolution.sql'
+      - 'src/lib/codExceptionCommands.ts'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: |
+          supabase db reset
+          supabase test db supabase/tests/database/094_cod_exception_resolution.sql
