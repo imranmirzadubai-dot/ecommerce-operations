@@ -81,3 +81,150 @@ export type CancelParcelResult = {
 export async function cancelParcel(accessToken: string, input: CancelParcelInput): Promise<CancelParcelResult[]> {
   return runCommand<CancelParcelResult[]>('cancel_parcel', accessToken, input as unknown as Record<string, unknown>)
 }
+
+export type AssignParcelShipperInput = {
+  p_parcel_id: string
+  p_shipper_id: string
+  p_idempotency_key: string
+}
+
+export type AssignParcelShipperResult = {
+  parcel_id: string
+  parcel_number: string
+  shipper_id: string
+  shipper_name: string
+  state: string
+}
+
+export async function assignParcelShipper(
+  accessToken: string,
+  input: AssignParcelShipperInput,
+): Promise<AssignParcelShipperResult[]> {
+  return runCommand<AssignParcelShipperResult[]>('assign_parcel_shipper', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type ValidateUniqueTrackingIdInput = {
+  p_tracking_id: string
+  p_parcel_id?: string | null
+}
+
+export type ValidateUniqueTrackingIdResult = {
+  valid: boolean
+  tracking_id: string
+  normalized_tracking_id: string
+  conflicting_parcel_id: string | null
+}
+
+export async function validateUniqueTrackingId(
+  accessToken: string,
+  input: ValidateUniqueTrackingIdInput,
+): Promise<ValidateUniqueTrackingIdResult[]> {
+  return runCommand<ValidateUniqueTrackingIdResult[]>('validate_unique_tracking_id', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type DispatchParcelInput = {
+  p_parcel_id: string
+  p_tracking_id: string
+  p_idempotency_key: string
+}
+
+export type DispatchParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  shipper_id: string
+  shipper_name: string
+  tracking_id: string
+  normalized_tracking_id: string
+  state: string
+  dispatch_at: string
+}
+
+export async function dispatchParcel(
+  accessToken: string,
+  input: DispatchParcelInput,
+): Promise<DispatchParcelResult[]> {
+  return runCommand<DispatchParcelResult[]>('dispatch_parcel', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type RecordDeliveryOutcomeInput = {
+  p_parcel_id: string
+  p_outcome: 'Delivered' | 'RTO' | 'Lost' | 'Damaged' | 'NDR'
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type RecordDeliveryOutcomeResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  previous_state: string
+  state: string
+  outcome_id: string
+  outcome: string
+  note: string | null
+  occurred_at: string
+}
+
+export async function recordDeliveryOutcome(
+  accessToken: string,
+  input: RecordDeliveryOutcomeInput,
+): Promise<RecordDeliveryOutcomeResult[]> {
+  return runCommand<RecordDeliveryOutcomeResult[]>(
+    'record_delivery_outcome',
+    accessToken,
+    input as unknown as Record<string, unknown>,
+  )
+}
+
+export type ProcessRtoInput = {
+  p_parcel_id: string
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type ProcessRtoResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  shipper_id: string | null
+  shipper_name: string | null
+  tracking_id: string | null
+  state: string
+  rto_at: string | null
+  outcome_id: string
+}
+
+export async function processRto(
+  accessToken: string,
+  input: ProcessRtoInput,
+): Promise<ProcessRtoResult[]> {
+  return runCommand<ProcessRtoResult[]>('process_rto', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export type RetryNdrParcelInput = {
+  p_parcel_id: string
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type RetryNdrParcelResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  previous_state: string
+  state: string
+  note: string | null
+  retried_at: string
+}
+
+export async function retryNdrParcel(
+  accessToken: string,
+  input: RetryNdrParcelInput,
+): Promise<RetryNdrParcelResult[]> {
+  return runCommand<RetryNdrParcelResult[]>(
+    'retry_ndr_parcel',
+    accessToken,
+    input as unknown as Record<string, unknown>,
+  )
+}
