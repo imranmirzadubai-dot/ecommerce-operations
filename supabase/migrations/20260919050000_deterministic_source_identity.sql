@@ -85,31 +85,23 @@ begin
   end if;
 
   update public.import_rows r
-  set source_identity = encode(
-    extensions.digest(
-      convert_to(
-        concat_ws(
-          '|',
-          coalesce(v_source_system, ''),
-          coalesce(v_source_file, ''),
-          r.source_row_number::text,
-          coalesce(
-            (select string_agg(
-               btrim(p_identity_fields ->> (ord - 1)),
-               '|' order by ord
-             )
-             from generate_series(1, jsonb_array_length(p_identity_fields)) ord
-             where r.normalized_data ? (p_identity_fields ->> (ord - 1))
-            ),
-            ''
-          ),
-          coalesce(r.source_record_id, '')
+  set source_identity = md5(
+    concat_ws(
+      '|',
+      coalesce(v_source_system, ''),
+      coalesce(v_source_file, ''),
+      coalesce(r.source_record_id, ''),
+      coalesce(
+        (select string_agg(
+           coalesce(r.normalized_data ->> (p_identity_fields ->> (ord - 1)), '<NULL>'),
+           '|' order by ord
+         )
+         from generate_series(1, jsonb_array_length(p_identity_fields)) ord
         ),
-        'utf8'
+        '<NO_IDENTITY_FIELDS>'
       ),
-      'sha256'
-    ),
-    'hex'
+      case when r.source_record_id is null then r.source_row_number::text else '' end
+    )
   )
   where r.batch_id = p_batch_id;
 
