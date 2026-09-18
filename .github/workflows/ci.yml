@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -90,4 +91,5 @@ jobs:
             supabase/tests/database/086_duplicate_rto_scan.sql \
             supabase/tests/database/087_unknown_cancelled_barcode_scans.sql \
             supabase/tests/database/087_order_cod_obligation.sql \
-            supabase/tests/database/088_parcel_cod_allocation.sql
+            supabase/tests/database/088_parcel_cod_allocation.sql \
+            supabase/tests/database/096_financial_adjustment_command.sql
