@@ -14,7 +14,7 @@ engine:
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
 
-pre-agent-steps:
+steps:
   - name: Install trusted Gemini system settings
     run: |
       sudo install -d -o root -g root -m 755 /etc/gemini-cli
