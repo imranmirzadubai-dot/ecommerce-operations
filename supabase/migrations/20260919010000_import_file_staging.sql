@@ -19,8 +19,6 @@ declare
   v_row_count integer;
   v_claim record;
   v_result jsonb;
-  v_row jsonb;
-  v_source_record_id text;
 begin
   v_actor_id := auth.uid();
 
@@ -101,5 +99,6 @@ begin
 end;
 $$;
 
-revoke all on function public.stage_import_file(text, text, jsonb, text) from public;
+-- Match the repository-wide command access contract: no PUBLIC/anon execution.
+revoke all on function public.stage_import_file(text, text, jsonb, text) from public, anon;
 grant execute on function public.stage_import_file(text, text, jsonb, text) to authenticated;
