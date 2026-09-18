@@ -16,15 +16,14 @@ select ok(
 );
 
 select ok(
-  (select count(*) = 1
+  (select pg_get_constraintdef(c.oid) = 'UNIQUE (parcel_id)'
    from pg_constraint c
    join pg_class t on t.oid = c.conrelid
    join pg_namespace n on n.oid = t.relnamespace
    where n.nspname = 'public'
      and t.relname = 'cod_receipts'
-     and c.conname = 'cod_receipts_one_per_parcel_key'
-     and c.conkey = array[(select attnum from pg_attribute where attrelid = t.oid and attname = 'parcel_id')::smallint]),
-  'the unique constraint covers parcel_id'
+     and c.conname = 'cod_receipts_one_per_parcel_key'),
+  'the unique constraint covers parcel_id only'
 );
 
 select ok(
@@ -51,31 +50,15 @@ select ok(
 );
 
 select ok(
-  (select position('unique (parcel_id)' in lower(pg_get_tabledef)) = 0
-   from (select ''::text as pg_get_tabledef) s),
-  'constraint is represented explicitly rather than relying on undocumented application behavior'
-);
-
-select ok(
-  (select position('cod_receipts_one_per_parcel_key' in pg_get_constraintdef(c.oid)) = 0
+  (select count(*) = 1
    from pg_constraint c
    join pg_class t on t.oid = c.conrelid
    join pg_namespace n on n.oid = t.relnamespace
    where n.nspname = 'public'
      and t.relname = 'cod_receipts'
-     and c.conname = 'cod_receipts_one_per_parcel_key'),
-  'unique constraint definition is structurally maintained by PostgreSQL'
-);
-
-select ok(
-  (select c.contype = 'u'
-   from pg_constraint c
-   join pg_class t on t.oid = c.conrelid
-   join pg_namespace n on n.oid = t.relnamespace
-   where n.nspname = 'public'
-     and t.relname = 'cod_receipts'
-     and c.conname = 'cod_receipts_one_per_parcel_key'),
-  'duplicate receipt prevention is a database constraint, not a client check'
+     and c.contype = 'u'
+     and c.conkey = array[(select attnum::smallint from pg_attribute where attrelid = t.oid and attname = 'parcel_id')]),
+  'exactly one unique constraint targets parcel_id'
 );
 
 select ok(
@@ -101,6 +84,28 @@ select ok(
 );
 
 select ok(
+  (select c.contype = 'u'
+   from pg_constraint c
+   join pg_class t on t.oid = c.conrelid
+   join pg_namespace n on n.oid = t.relnamespace
+   where n.nspname = 'public'
+     and t.relname = 'cod_receipts'
+     and c.conname = 'cod_receipts_one_per_parcel_key'),
+  'duplicate receipt prevention is a database unique constraint'
+);
+
+select ok(
+  (select array_length(c.conkey, 1) = 1
+   from pg_constraint c
+   join pg_class t on t.oid = c.conrelid
+   join pg_namespace n on n.oid = t.relnamespace
+   where n.nspname = 'public'
+     and t.relname = 'cod_receipts'
+     and c.conname = 'cod_receipts_one_per_parcel_key'),
+  'constraint is scoped to exactly one column'
+);
+
+select ok(
   (select count(*) = 1
    from pg_constraint c
    join pg_class t on t.oid = c.conrelid
@@ -108,8 +113,9 @@ select ok(
    where n.nspname = 'public'
      and t.relname = 'cod_receipts'
      and c.conname = 'cod_receipts_one_per_parcel_key'
-     and array_length(c.conkey, 1) = 1),
-  'constraint is scoped to exactly one parcel key'
+     and c.contype = 'u'
+     and c.convalidated),
+  'validated unique constraint exists for the authoritative receipt table'
 );
 
 select * from finish();
