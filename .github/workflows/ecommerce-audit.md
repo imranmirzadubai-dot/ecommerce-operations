@@ -13,6 +13,7 @@ engine:
   model: "gemini-2.5-pro"
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
+    GEMINI_CLI_SYSTEM_SETTINGS_PATH: ${{ github.workspace }}/.gemini/triple-a-system-settings.json
 
 network: defaults
 
