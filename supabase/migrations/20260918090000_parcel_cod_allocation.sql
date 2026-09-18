@@ -120,7 +120,7 @@ begin
 end;
 $$;
 
-revoke all on function public.allocate_cod_obligation_to_parcel(uuid,uuid,numeric,text) from public;
+revoke all on function public.allocate_cod_obligation_to_parcel(uuid,uuid,numeric,text) from public, anon;
 grant execute on function public.allocate_cod_obligation_to_parcel(uuid,uuid,numeric,text) to authenticated;
 
 commit;
