@@ -1,0 +1,16 @@
+begin;
+select plan(10);
+
+select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment' and pg_get_function_identity_arguments(p.oid)='p_order_id uuid, p_adjustment_type text, p_delta_amount numeric, p_reason text, p_parcel_id uuid, p_cod_receipt_id uuid, p_idempotency_key text'),'financial adjustment command retains expected signature');
+select ok((select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public'] from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'financial adjustment command retains SECURITY DEFINER and controlled search_path');
+select ok((select position('for update' in lower(pg_get_functiondef(p.oid)))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'authoritative order row is locked before resulting amount validation');
+select ok((select position('sum(fa.delta_amount)' in lower(pg_get_functiondef(p.oid)))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'validation derives the current effective amount from the adjustment ledger');
+select ok((select position('v_current_effective_amount' in pg_get_functiondef(p.oid))>0 and position('v_resulting_amount' in pg_get_functiondef(p.oid))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'validation explicitly calculates the resulting effective amount');
+select ok((select position('v_resulting_amount < 0' in pg_get_functiondef(p.oid))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'negative resulting effective amounts are rejected');
+select ok((select position('Adjustment would make effective order amount negative' in pg_get_functiondef(p.oid))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'negative-result rejection has an explicit domain error');
+select ok((select position('insert into public.financial_adjustments' in pg_get_functiondef(p.oid))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'adjustment is appended only after resulting amount validation');
+select ok((select position('FinancialAdjustmentCreated' in pg_get_functiondef(p.oid))>0 and position('audit_logs' in pg_get_functiondef(p.oid))>0 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_financial_adjustment'),'accepted adjustments retain domain event and audit behavior');
+select ok((select has_function_privilege('public','public.create_financial_adjustment(uuid,text,numeric,text,uuid,uuid,text)','execute')=false and has_function_privilege('authenticated','public.create_financial_adjustment(uuid,text,numeric,text,uuid,uuid,text)','execute')=true),'function access remains restricted to authenticated callers');
+
+select * from finish();
+rollback;
