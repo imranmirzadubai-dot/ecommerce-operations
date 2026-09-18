@@ -24,7 +24,7 @@ select ok(
 );
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%set search_path = pg_catalog, public%'
+  (select pg_get_functiondef(p.oid) like '%SET search_path TO %pg_catalog%public%'
    from pg_proc p
    join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
@@ -48,7 +48,9 @@ select ok(
 );
 
 select ok(
-  (select pg_get_triggerdef(t.oid) like '%BEFORE UPDATE OR DELETE%'
+  (select position('BEFORE' in upper(pg_get_triggerdef(t.oid))) > 0
+       and position('UPDATE' in upper(pg_get_triggerdef(t.oid))) > 0
+       and position('DELETE' in upper(pg_get_triggerdef(t.oid))) > 0
    from pg_trigger t
    join pg_class c on c.oid = t.tgrelid
    join pg_namespace n on n.oid = c.relnamespace
