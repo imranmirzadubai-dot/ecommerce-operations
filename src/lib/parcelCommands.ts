@@ -177,6 +177,31 @@ export async function recordDeliveryOutcome(
   )
 }
 
+export type ProcessRtoInput = {
+  p_parcel_id: string
+  p_note?: string | null
+  p_idempotency_key: string
+}
+
+export type ProcessRtoResult = {
+  parcel_id: string
+  parcel_number: string
+  order_id: string
+  shipper_id: string | null
+  shipper_name: string | null
+  tracking_id: string | null
+  state: string
+  rto_at: string | null
+  outcome_id: string
+}
+
+export async function processRto(
+  accessToken: string,
+  input: ProcessRtoInput,
+): Promise<ProcessRtoResult[]> {
+  return runCommand<ProcessRtoResult[]>('process_rto', accessToken, input as unknown as Record<string, unknown>)
+}
+
 export type RetryNdrParcelInput = {
   p_parcel_id: string
   p_note?: string | null
