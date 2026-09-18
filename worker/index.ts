@@ -1,30 +1,16 @@
 const ALLOWED_COMMANDS = new Set([
   "resolve_customer_by_phone", "create_order", "update_order", "update_order_items", "confirm_order", "cancel_order",
   "create_parcel", "allocate_parcel_items", "correct_parcel_allocation", "cancel_parcel", "dispatch_parcel", "bulk_dispatch",
-  "record_delivery_outcome", "process_rto", "bulk_rto", "record_cod_receipt", "resolve_cod_exception", "record_financial_adjustment",
+  "record_delivery_outcome", "process_rto", "bulk_rto", "create_cod_obligation", "record_cod_receipt", "resolve_cod_exception", "record_financial_adjustment",
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
 ]);
 
 type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
 
-function json(data: unknown, status = 200, headers?: HeadersInit): Response {
-  return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } });
-}
-function getBearerToken(request: Request): string | null {
-  const authorization = request.headers.get("Authorization");
-  if (!authorization) return null;
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  return match?.[1] ?? null;
-}
-function getRequestId(request: Request): string {
-  const supplied = request.headers.get("X-Request-ID")?.trim();
-  if (supplied && /^[A-Za-z0-9._:-]{1,128}$/.test(supplied)) return supplied;
-  return crypto.randomUUID();
-}
-function getSupabaseConfig(env: WorkerEnv) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) return null;
-  return { url: env.SUPABASE_URL.replace(/\/$/, ""), key: env.SUPABASE_PUBLISHABLE_KEY };
-}
+function json(data: unknown, status = 200, headers?: HeadersInit): Response { return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } }); }
+function getBearerToken(request: Request): string | null { const authorization = request.headers.get("Authorization"); if (!authorization) return null; const match = authorization.match(/^Bearer\s+(.+)$/i); return match?.[1] ?? null; }
+function getRequestId(request: Request): string { const supplied = request.headers.get("X-Request-ID")?.trim(); if (supplied && /^[A-Za-z0-9._:-]{1,128}$/.test(supplied)) return supplied; return crypto.randomUUID(); }
+function getSupabaseConfig(env: WorkerEnv) { if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) return null; return { url: env.SUPABASE_URL.replace(/\/$/, ""), key: env.SUPABASE_PUBLISHABLE_KEY }; }
 function logEvent(event: string, fields: Record<string, unknown>) { console.log(JSON.stringify({ event, ...fields })); }
 function escapeSearchTerm(value: string) { return value.replace(/[(),.*]/g, " ").replace(/%/g, " ").replace(/\s+/g, " ").trim().slice(0, 100); }
 function validFilter(value: string | null, allowed: readonly string[]) { return value === null || allowed.includes(value); }
@@ -84,10 +70,7 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
     const codEmbed = codState ? "cod_obligations!inner(state)" : "cod_obligations(state)";
     const select = `id,order_number,lifecycle_state,original_amount,notes,order_date,created_at,updated_at,${customerEmbed},${itemEmbed},${parcelEmbed},${codEmbed}`;
     const query = new URLSearchParams({ select, order: "order_date.desc,created_at.desc,id.desc", limit: String(limit), offset: String(offset) });
-    if (search) {
-      const pattern = `*${search}*`;
-      query.set("or", `(order_number.ilike.${pattern},customers.name.ilike.${pattern},customers.phone.ilike.${pattern},customers.address.ilike.${pattern},order_items.description.ilike.${pattern})`);
-    }
+    if (search) { const pattern = `*${search}*`; query.set("or", `(order_number.ilike.${pattern},customers.name.ilike.${pattern},customers.phone.ilike.${pattern},customers.address.ilike.${pattern},order_items.description.ilike.${pattern})`); }
     if (lifecycleState) query.set("lifecycle_state", `eq.${lifecycleState}`);
     if (parcelState) query.set("parcels.state", `eq.${parcelState}`);
     if (codState) query.set("cod_obligations.state", `eq.${codState}`);
@@ -96,10 +79,7 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
     response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
   } catch { logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
   const body = await response.text();
-  if (!response.ok) {
-    logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
-    return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
-  }
+  if (!response.ok) { logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
   const parsed: unknown = (() => { try { return JSON.parse(body); } catch { return null; } })();
   if (!Array.isArray(parsed)) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
   const hasMore = parsed.length > rawPageSize;
@@ -108,37 +88,9 @@ async function handleOrders(request: Request, env: WorkerEnv, requestId: string)
   return new Response(JSON.stringify(pageRows), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId, "X-Page": String(rawPage), "X-Page-Size": String(rawPageSize), "X-Has-More": String(hasMore) } });
 }
 
-async function handleOrderTimeline(request: Request, env: WorkerEnv, requestId: string, orderId: string): Promise<Response> {
-  const startedAt = performance.now();
-  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
-  const accessToken = getBearerToken(request);
-  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
-  if (!/^[0-9a-fA-F-]{36}$/.test(orderId)) return json({ error: "invalid_order_id" }, 400, { "X-Request-ID": requestId });
-  const config = getSupabaseConfig(env);
-  if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
-  let response: Response;
-  try { const query = new URLSearchParams({ select: "id,event_type,event_time,performed_by,notes,metadata,parcel_id", order_id: `eq.${orderId}`, order: "event_time.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/order_events?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); }
-  catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
-  const body = await response.text();
-  logEvent("order_timeline_request", { request_id: requestId, order_id: orderId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
-  return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
-}
+async function handleOrderTimeline(request: Request, env: WorkerEnv, requestId: string, orderId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); if (!/^[0-9a-fA-F-]{36}$/.test(orderId)) return json({ error: "invalid_order_id" }, 400, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); let response: Response; try { const query = new URLSearchParams({ select: "id,event_type,event_time,performed_by,notes,metadata,parcel_id", order_id: `eq.${orderId}`, order: "event_time.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/order_events?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const body = await response.text(); logEvent("order_timeline_request", { request_id: requestId, order_id: orderId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
 
-async function handleCustomerHistory(request: Request, env: WorkerEnv, requestId: string, customerId: string): Promise<Response> {
-  const startedAt = performance.now();
-  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
-  const accessToken = getBearerToken(request);
-  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
-  if (!/^[0-9a-fA-F-]{36}$/.test(customerId)) return json({ error: "invalid_customer_id" }, 400, { "X-Request-ID": requestId });
-  const config = getSupabaseConfig(env);
-  if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
-  let response: Response;
-  try { const query = new URLSearchParams({ select: "id,order_number,order_date,lifecycle_state,original_amount", customer_id: `eq.${customerId}`, order: "order_date.desc,created_at.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); }
-  catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
-  const body = await response.text();
-  logEvent("customer_history_request", { request_id: requestId, customer_id: customerId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" });
-  return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
-}
+async function handleCustomerHistory(request: Request, env: WorkerEnv, requestId: string, customerId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); if (!/^[0-9a-fA-F-]{36}$/.test(customerId)) return json({ error: "invalid_customer_id" }, 400, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); let response: Response; try { const query = new URLSearchParams({ select: "id,order_number,order_date,lifecycle_state,original_amount", customer_id: `eq.${customerId}`, order: "order_date.desc,created_at.desc", limit: "100" }); response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const body = await response.text(); logEvent("customer_history_request", { request_id: requestId, customer_id: customerId, result: response.status >= 500 ? "server_error" : response.status >= 400 ? "client_error" : "success", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
 
 export default {
   async fetch(request, env) {
@@ -150,8 +102,8 @@ export default {
     if (timelineMatch) return handleOrderTimeline(request, env as WorkerEnv, requestId, decodeURIComponent(timelineMatch[1]));
     const historyMatch = url.pathname.match(/^\/api\/customers\/([^/]+)\/history$/);
     if (historyMatch) return handleCustomerHistory(request, env as WorkerEnv, requestId, decodeURIComponent(historyMatch[1]));
-    if (url.pathname.startsWith("/api/commands/")) return handleRpc(request, env as WorkerEnv, decodeURIComponent(url.pathname.slice("/api/commands/".length)), requestId);
-    logEvent("http_request", { request_id: requestId, result: "client_error", status: 404 });
-    return new Response(null, { status: 404, headers: { "X-Request-ID": requestId } });
+    const commandMatch = url.pathname.match(/^\/api\/commands\/([^/]+)$/);
+    if (commandMatch) return handleRpc(request, env as WorkerEnv, decodeURIComponent(commandMatch[1]), requestId);
+    return json({ error: "not_found" }, 404, { "X-Request-ID": requestId });
   },
-} satisfies ExportedHandler<Env>;
+};
