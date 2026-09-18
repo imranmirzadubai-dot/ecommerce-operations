@@ -13,6 +13,7 @@ engine:
   model: "gemini-2.5-pro"
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 }}
+    GEMINI_CLI_SYSTEM_SETTINGS_PATH: /etc/gemini-cli/settings.json
 
 steps:
   - name: Install trusted Gemini system settings
