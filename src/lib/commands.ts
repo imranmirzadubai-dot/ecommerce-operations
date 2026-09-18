@@ -26,6 +26,11 @@ export type ConfirmOrderInput = {
   p_idempotency_key: string
 }
 
+export type CreateCodObligationInput = {
+  p_order_id: string
+  p_idempotency_key: string
+}
+
 export type CreateOrderResult = {
   order_id: string
   order_number: string
@@ -42,6 +47,13 @@ export type ConfirmOrderResult = {
   order_id: string
   order_number: string
   lifecycle_state: string
+}
+
+export type CreateCodObligationResult = {
+  cod_obligation_id: string
+  order_id: string
+  expected_amount: number
+  state: string
 }
 
 export type OrderItemRow = {
@@ -116,6 +128,10 @@ export async function updateOrder(accessToken: string, input: UpdateOrderInput):
 
 export async function confirmOrder(accessToken: string, input: ConfirmOrderInput): Promise<ConfirmOrderResult[]> {
   return runCommand<ConfirmOrderResult[]>('confirm_order', accessToken, input as unknown as Record<string, unknown>)
+}
+
+export async function createCodObligation(accessToken: string, input: CreateCodObligationInput): Promise<CreateCodObligationResult[]> {
+  return runCommand<CreateCodObligationResult[]>('create_cod_obligation', accessToken, input as unknown as Record<string, unknown>)
 }
 
 export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
