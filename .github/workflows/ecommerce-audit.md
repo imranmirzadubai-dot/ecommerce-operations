@@ -18,7 +18,7 @@ engine:
 pre-steps:
   - name: Install trusted Gemini system settings
     run: |
-      install -d -m 755 "${GITHUB_WORKSPACE}/.gemini"
+      sudo install -d -o root -g root -m 755 "${GITHUB_WORKSPACE}/.gemini"
       printf '%s\n' '{"security":{"auth":{"selectedType":"gemini-api-key"}}}' | sudo tee "${GITHUB_WORKSPACE}/.gemini/triple-a-system-settings.json" >/dev/null
       sudo chown root:root "${GITHUB_WORKSPACE}/.gemini/triple-a-system-settings.json"
       sudo chmod 644 "${GITHUB_WORKSPACE}/.gemini/triple-a-system-settings.json"
