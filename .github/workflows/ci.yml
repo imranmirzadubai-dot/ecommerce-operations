@@ -77,4 +77,5 @@ jobs:
             supabase/tests/database/078_damaged_outcome.sql \
             supabase/tests/database/079_partial_delivery_reconciliation.sql \
             supabase/tests/database/080_partial_rto_reconciliation.sql \
-            supabase/tests/database/081_mixed_delivery_rto_summary.sql
+            supabase/tests/database/081_mixed_delivery_rto_summary.sql \
+            supabase/tests/database/082_lost_damaged_quantity_accounting.sql
