@@ -3,7 +3,6 @@ import { runCommand } from './commands'
 export type RecordCodReceiptInput = {
   p_cod_obligation_id: string
   p_parcel_id: string
-  p_expected_amount_snapshot: string
   p_received_amount: string
   p_idempotency_key: string
 }
