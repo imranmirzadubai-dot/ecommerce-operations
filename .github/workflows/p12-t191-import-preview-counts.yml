@@ -3,7 +3,7 @@ name: P12-T191 Import Preview Counts
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/20260919060000_import_preview_counts.sql'
+      - 'supabase/migrations/20260919061000_import_preview_counts.sql'
       - 'supabase/tests/database/110_import_preview_counts.sql'
       - '.github/workflows/p12-t191-import-preview-counts.yml'
 
