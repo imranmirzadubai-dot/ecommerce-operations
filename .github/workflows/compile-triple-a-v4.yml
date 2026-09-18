@@ -1,0 +1,45 @@
+name: Compile Triple A v4
+
+on:
+  push:
+    branches:
+      - fix/triple-a-gemini-auth-v4
+    paths:
+      - '.github/workflows/ecommerce-audit.md'
+      - '.github/workflows/compile-triple-a-v4.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gh-aw
+        run: gh extension install github/gh-aw@v0.88.7
+
+      - name: Compile Triple A
+        run: gh aw compile .github/workflows/ecommerce-audit.md --no-check-update
+
+      - name: Commit compiled workflow
+        env:
+          TRIPLE_A_PAT: ${{ secrets.TRIPLE_A_PAT }}
+        run: |
+          set -euo pipefail
+          test -n "$TRIPLE_A_PAT"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/ecommerce-audit.lock.yml
+          if git diff --cached --quiet; then
+            echo 'No compiled workflow changes.'
+            exit 0
+          fi
+          git commit -m 'chore: compile Triple A with Gemini CLI 0.43.0'
+          git remote set-url origin "https://x-access-token:${TRIPLE_A_PAT}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:fix/triple-a-gemini-auth-v4
