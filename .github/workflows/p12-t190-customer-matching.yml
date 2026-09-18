@@ -1,0 +1,20 @@
+name: P12-T190 Customer Matching
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20260919060000_import_customer_matching.sql'
+      - 'supabase/tests/database/109_import_customer_matching.sql'
+      - '.github/workflows/p12-t190-customer-matching.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/109_import_customer_matching.sql
