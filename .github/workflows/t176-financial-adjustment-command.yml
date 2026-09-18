@@ -1,0 +1,23 @@
+name: P11-T176 Financial Adjustment Command
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/database/096_financial_adjustment_command.sql'
+      - 'src/lib/financialAdjustmentCommands.ts'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: |
+          supabase db reset
+          supabase test db supabase/tests/database/096_financial_adjustment_command.sql
