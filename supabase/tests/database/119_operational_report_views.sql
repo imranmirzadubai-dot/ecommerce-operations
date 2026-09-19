@@ -1,6 +1,6 @@
 -- P13-T201: Operational report view contract tests.
 
-select plan(31);
+select plan(42);
 
 select has_view('public', 'report_orders', 'orders report view exists');
 select has_view('public', 'report_parcel_delivery', 'parcel delivery report view exists');
