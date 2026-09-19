@@ -90,8 +90,8 @@ select ok((select c.confdeltype = 'r'
              and c.conname='orders_historical_import_batch_fk'),
   'historical batch lineage cannot be orphaned by deleting its batch');
 
-select ok((select position('security definer' in lower(pg_get_functiondef(p.oid))) > 0
-              and position('search_path = pg_catalog, public' in lower(pg_get_functiondef(p.oid))) > 0
+select ok((select p.prosecdef
+              and 'search_path=pg_catalog, public' = any(coalesce(p.proconfig,array[]::text[]))
            from pg_proc p join pg_namespace n on n.oid=p.pronamespace
            where n.nspname='public' and p.proname='retain_historical_import_lineage'),
   'lineage trigger function uses the repository security-definer search-path contract');
