@@ -1,0 +1,1 @@
+Acceptance evidence for this implementation is CI success, review approval, merge to `main`, and post-merge verification. Production schema/data changes are outside this milestone's staging implementation.
