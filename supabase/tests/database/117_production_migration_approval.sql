@@ -32,7 +32,7 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'import_historical_batch';
 
 select ok(
-  position("v_status <> 'ready'" in lower(pg_get_functiondef(p.oid))) > 0,
+  position('v_status <> ''ready''' in lower(pg_get_functiondef(p.oid))) > 0,
   'production import requires Ready batch status'
 ) from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
@@ -57,7 +57,7 @@ where n.nspname = 'public' and p.proname = 'import_historical_batch';
 select ok(
   position('insert into public.orders' in lower(pg_get_functiondef(p.oid))) > 0
   and position('original_amount' in lower(pg_get_functiondef(p.oid))) > 0
-  and position("'completed'" in lower(pg_get_functiondef(p.oid))) > 0,
+  and position('''completed''' in lower(pg_get_functiondef(p.oid))) > 0,
   'production import creates historical orders with authoritative amount and Completed state'
 ) from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
