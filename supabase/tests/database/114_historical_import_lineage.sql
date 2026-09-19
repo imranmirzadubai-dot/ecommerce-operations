@@ -82,7 +82,7 @@ select ok((select position('already has conflicting historical import lineage' i
            where n.nspname='public' and p.proname='retain_historical_import_lineage'),
   'existing conflicting order lineage is rejected');
 
-select ok((select position('on delete restrict' in lower(pg_get_constraintdef(c.oid))) > 0
+select ok((select c.confdeltype = 'r'
            from pg_constraint c
            join pg_class t on t.oid=c.conrelid
            join pg_namespace n on n.oid=t.relnamespace
