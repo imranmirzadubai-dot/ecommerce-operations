@@ -29,7 +29,7 @@ select ok((select has_function_privilege('anon','public.generate_import_error_re
 select ok((select has_function_privilege('authenticated','public.generate_import_error_report(uuid)','EXECUTE') = true),
   'authenticated entry remains available for server-side role gating');
 
-select ok((select position("status = 'Error'" in pg_get_functiondef(p.oid)) > 0
+select ok((select position('status = ''Error''' in pg_get_functiondef(p.oid)) > 0
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='generate_import_error_report'),
   'report includes only retained error rows');
