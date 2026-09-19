@@ -1,0 +1,22 @@
+name: P12-T196 Import Error Reports
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20260919110000_import_error_reports.sql'
+      - 'supabase/tests/database/115_import_error_reports.sql'
+      - '.github/workflows/p12-t196-import-error-reports.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/115_import_error_reports.sql
