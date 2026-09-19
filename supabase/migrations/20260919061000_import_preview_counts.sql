@@ -15,7 +15,6 @@ returns table(
 )
 language plpgsql
 security definer
-stable
 set search_path = pg_catalog, public
 as $$
 declare
