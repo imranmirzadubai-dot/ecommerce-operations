@@ -91,7 +91,11 @@ select ok((select c.confdeltype = 'r'
   'historical batch lineage cannot be orphaned by deleting its batch');
 
 select ok((select p.prosecdef
-              and 'search_path=pg_catalog, public' = any(coalesce(p.proconfig,array[]::text[]))
+              and exists (
+                select 1
+                from unnest(coalesce(p.proconfig,array[]::text[])) as cfg
+                where replace(cfg, ' ', '') = 'search_path=pg_catalog,public'
+              )
            from pg_proc p join pg_namespace n on n.oid=p.pronamespace
            where n.nspname='public' and p.proname='retain_historical_import_lineage'),
   'lineage trigger function uses the repository security-definer search-path contract');
