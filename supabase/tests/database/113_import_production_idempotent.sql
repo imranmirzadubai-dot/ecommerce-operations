@@ -1,7 +1,7 @@
 -- P12-T194 static regression coverage for idempotent historical production import.
 begin;
 
-select plan(14);
+select plan(13);
 
 select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='import_historical_batch' and pg_get_function_identity_arguments(p.oid)='p_batch_id uuid, p_field_map jsonb, p_idempotency_key text'),'production import command exists with expected signature');
 select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='import_historical_batch'),'production import is SECURITY DEFINER');
