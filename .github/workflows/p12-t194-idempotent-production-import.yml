@@ -1,0 +1,22 @@
+name: P12-T194 Idempotent Production Import
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20260919090000_import_production_idempotent.sql'
+      - 'supabase/tests/database/113_import_production_idempotent.sql'
+      - '.github/workflows/p12-t194-idempotent-production-import.yml'
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db supabase/tests/database/113_import_production_idempotent.sql
