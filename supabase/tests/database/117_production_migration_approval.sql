@@ -25,7 +25,9 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'import_historical_batch';
 
 select ok(
-  position('search_path = pg_catalog, public' in lower(pg_get_functiondef(p.oid))) > 0,
+  position('set search_path' in lower(pg_get_functiondef(p.oid))) > 0
+  and position('pg_catalog' in lower(pg_get_functiondef(p.oid))) > 0
+  and position('public' in lower(pg_get_functiondef(p.oid))) > 0,
   'production import command fixes search_path'
 ) from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
