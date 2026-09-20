@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { downloadExcelWorkbook } from '../lib/excel'
 
 type Props = { selectedOrderIds: string[] }
 
@@ -9,10 +10,6 @@ type ExportRow = {
   state: string
   amount: string
   date: string
-}
-
-function csvCell(value: string) {
-  return `"${value.replace(/"/g, '""')}"`
 }
 
 function readVisibleRows(): ExportRow[] {
@@ -27,21 +24,6 @@ function readVisibleRows(): ExportRow[] {
       date: cells[4]?.textContent?.trim() ?? '',
     }
   }).filter((row) => row.order)
-}
-
-function downloadCsv(rows: ExportRow[]) {
-  const header = ['Order ID', 'Customer', 'Phone', 'Lifecycle State', 'Amount', 'Order Date']
-  const body = rows.map((row) => [row.order, row.customer, row.phone, row.state, row.amount, row.date].map(csvCell).join(','))
-  const csv = `\uFEFF${[header.map(csvCell).join(','), ...body].join('\r\n')}\r\n`
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
 }
 
 export function OrderExport({ selectedOrderIds }: Props) {
@@ -60,10 +42,14 @@ export function OrderExport({ selectedOrderIds }: Props) {
     const selected = new Set(selectedOrderIds)
     const exportRows = selected.size ? rows.filter((row) => selected.has(row.order)) : rows
     if (!exportRows.length) return
-    downloadCsv(exportRows)
+    const sheetRows = [
+      ['Order', 'Customer', 'Phone', 'Lifecycle State', 'Amount (AED)', 'Order Date'],
+      ...exportRows.map((row) => [row.order, row.customer, row.phone, row.state, row.amount.replace(/^AED\s*/i, ''), row.date]),
+    ]
+    downloadExcelWorkbook(`orders-export-${new Date().toISOString().slice(0, 10)}.xlsx`, [{ name: 'Orders', rows: sheetRows }])
   }
 
   const selectedCount = selectedOrderIds.length
   const label = selectedCount ? `Export ${selectedCount} selected` : 'Export visible orders'
-  return <button className="secondary-button" type="button" onClick={exportOrders} disabled={!visibleCount || (selectedCount > 0 && !selectedOrderIds.length)} aria-label="Export orders">{label}</button>
+  return <button className="secondary-button" type="button" onClick={exportOrders} disabled={!visibleCount || (selectedCount > 0 && !selectedOrderIds.length)} aria-label="Export orders to Excel">{label} to Excel</button>
 }
