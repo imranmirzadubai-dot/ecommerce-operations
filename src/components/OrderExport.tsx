@@ -1,29 +1,20 @@
 import { useEffect, useState } from 'react'
 import { downloadExcelWorkbook } from '../lib/excel'
+import { ReportWorkspace } from './ReportWorkspace'
 
 type Props = { selectedOrderIds: string[] }
-
-type ExportRow = {
-  order: string
-  customer: string
-  phone: string
-  state: string
-  amount: string
-  date: string
-}
+type StoredSession = { accessToken?: string }
+type ExportRow = { order: string; customer: string; phone: string; state: string; amount: string; date: string }
 
 function readVisibleRows(): ExportRow[] {
   return Array.from(document.querySelectorAll<HTMLTableRowElement>('.orders-table tbody tr')).map((row) => {
     const cells = Array.from(row.querySelectorAll<HTMLTableCellElement>('td'))
-    return {
-      order: cells[0]?.querySelector('strong')?.textContent?.trim() ?? '',
-      customer: cells[1]?.querySelector('span')?.textContent?.trim() ?? '',
-      phone: cells[1]?.querySelector('small')?.textContent?.trim() ?? '',
-      state: cells[2]?.textContent?.trim() ?? '',
-      amount: cells[3]?.textContent?.trim() ?? '',
-      date: cells[4]?.textContent?.trim() ?? '',
-    }
+    return { order: cells[0]?.querySelector('strong')?.textContent?.trim() ?? '', customer: cells[1]?.querySelector('span')?.textContent?.trim() ?? '', phone: cells[1]?.querySelector('small')?.textContent?.trim() ?? '', state: cells[2]?.textContent?.trim() ?? '', amount: cells[3]?.textContent?.trim() ?? '', date: cells[4]?.textContent?.trim() ?? '' }
   }).filter((row) => row.order)
+}
+
+function readAccessToken(): string {
+  try { return (JSON.parse(localStorage.getItem('ecommerce-operations.auth.session') ?? '{}') as StoredSession).accessToken ?? '' } catch { return '' }
 }
 
 export function OrderExport({ selectedOrderIds }: Props) {
@@ -38,18 +29,17 @@ export function OrderExport({ selectedOrderIds }: Props) {
   }, [])
 
   function exportOrders() {
-    const rows = readVisibleRows()
-    const selected = new Set(selectedOrderIds)
-    const exportRows = selected.size ? rows.filter((row) => selected.has(row.order)) : rows
+    const rows = readVisibleRows(); const selected = new Set(selectedOrderIds); const exportRows = selected.size ? rows.filter((row) => selected.has(row.order)) : rows
     if (!exportRows.length) return
-    const sheetRows = [
-      ['Order', 'Customer', 'Phone', 'Lifecycle State', 'Amount (AED)', 'Order Date'],
-      ...exportRows.map((row) => [row.order, row.customer, row.phone, row.state, row.amount.replace(/^AED\s*/i, ''), row.date]),
-    ]
+    const sheetRows = [['Order', 'Customer', 'Phone', 'Lifecycle State', 'Amount (AED)', 'Order Date'], ...exportRows.map((row) => [row.order, row.customer, row.phone, row.state, row.amount.replace(/^AED\s*/i, ''), row.date])]
     downloadExcelWorkbook(`orders-export-${new Date().toISOString().slice(0, 10)}.xlsx`, [{ name: 'Orders', rows: sheetRows }])
   }
 
   const selectedCount = selectedOrderIds.length
   const label = selectedCount ? `Export ${selectedCount} selected` : 'Export visible orders'
-  return <button className="secondary-button" type="button" onClick={exportOrders} disabled={!visibleCount || (selectedCount > 0 && !selectedOrderIds.length)} aria-label="Export orders to Excel">{label} to Excel</button>
+  const accessToken = readAccessToken()
+  return <>
+    <button className="secondary-button" type="button" onClick={exportOrders} disabled={!visibleCount || (selectedCount > 0 && !selectedOrderIds.length)} aria-label="Export orders to Excel">{label} to Excel</button>
+    {accessToken && <ReportWorkspace accessToken={accessToken} />}
+  </>
 }
