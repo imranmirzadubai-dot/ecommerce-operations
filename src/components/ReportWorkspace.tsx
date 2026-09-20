@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { downloadExcelWorkbook } from '../lib/excel'
 
 type Props = { accessToken: string }
-type Report = { name: string; title: string; columns: string[]; rows: Record<string, unknown>[] }
+type Report = { name: string; title: string; columns: string[]; dateColumn?: string; rows: Record<string, unknown>[] }
+type DatePreset = 'all' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom'
+type DateRange = { from: string; to: string }
 
 const REPORTS: Omit<Report, 'rows'>[] = [
   { name: 'report_kpi_orders', title: 'Order Summary', columns: ['lifecycle_state', 'order_count', 'original_amount_total'] },
@@ -11,13 +13,58 @@ const REPORTS: Omit<Report, 'rows'>[] = [
   { name: 'report_kpi_delivery_outcomes', title: 'Delivery Outcomes', columns: ['outcome', 'outcome_count'] },
   { name: 'report_kpi_financial', title: 'COD & Financial Reconciliation', columns: ['cod_obligation_total', 'cod_receipt_total', 'cod_variance_total', 'financial_adjustment_total'] },
   { name: 'report_kpi_imports', title: 'Historical Import Reconciliation', columns: ['source_row_total', 'matched_row_total', 'create_row_total', 'exception_row_total', 'unclassified_row_total', 'status_mismatch_row_total', 'reconciled_batch_count', 'reconciled_batch_summary_count', 'import_batch_count'] },
-  { name: 'report_orders', title: 'Orders Detail', columns: ['order_number', 'customer_name', 'city', 'currency_code', 'original_amount', 'lifecycle_state', 'order_date'] },
-  { name: 'report_parcel_delivery', title: 'Parcel & Delivery', columns: ['parcel_number', 'order_number', 'parcel_state', 'shipper_name', 'tracking_id', 'dispatch_at', 'latest_outcome', 'latest_outcome_at', 'delivered_amount', 'collected_at'] },
-  { name: 'report_customer_activity', title: 'Customer Activity', columns: ['customer_code', 'customer_name', 'normalized_phone', 'city', 'order_count', 'first_order_date', 'latest_order_date', 'original_order_amount_total', 'current_open_order_count'] },
+  { name: 'report_orders', title: 'Orders Detail', columns: ['order_number', 'customer_name', 'city', 'currency_code', 'original_amount', 'lifecycle_state', 'order_date'], dateColumn: 'order_date' },
+  { name: 'report_parcel_delivery', title: 'Parcel & Delivery', columns: ['parcel_number', 'order_number', 'parcel_state', 'shipper_name', 'tracking_id', 'dispatch_at', 'latest_outcome', 'latest_outcome_at', 'delivered_amount', 'collected_at'], dateColumn: 'dispatch_at' },
+  { name: 'report_customer_activity', title: 'Customer Activity', columns: ['customer_code', 'customer_name', 'normalized_phone', 'city', 'order_count', 'first_order_date', 'latest_order_date', 'original_order_amount_total', 'current_open_order_count'], dateColumn: 'latest_order_date' },
   { name: 'report_cod_financial_reconciliation', title: 'COD & Financial Reconciliation Detail', columns: ['order_number', 'parcel_number', 'cod_obligation_amount', 'receipt_amount', 'variance', 'financial_adjustment_total', 'effective_amount', 'reconciliation_status', 'obligation_state', 'receipt_state'] },
-  { name: 'report_historical_import_reconciliation', title: 'Historical Import Reconciliation Detail', columns: ['source_system', 'source_file', 'batch_status', 'started_at', 'completed_at', 'total_source_rows', 'valid_count', 'error_count', 'create_count', 'matched_count', 'exception_count', 'reconciliation_result'] },
+  { name: 'report_historical_import_reconciliation', title: 'Historical Import Reconciliation Detail', columns: ['source_system', 'source_file', 'batch_status', 'started_at', 'completed_at', 'total_source_rows', 'valid_count', 'error_count', 'create_count', 'matched_count', 'exception_count', 'reconciliation_result'], dateColumn: 'started_at' },
   { name: 'report_reconciliation_exceptions', title: 'Reconciliation Exceptions', columns: ['exception_category', 'entity_type', 'entity_identifier', 'expected_value', 'actual_value', 'variance', 'resolution_state', 'exception_detail', 'responsible_actor', 'source_system', 'source_file'] },
 ]
+
+function dateKey(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null
+  const match = value.match(/^\d{4}-\d{2}-\d{2}/)
+  return match ? match[0] : null
+}
+
+export function filterRowsByDate(rows: Record<string, unknown>[], dateColumn: string | undefined, range: DateRange): Record<string, unknown>[] {
+  if (!dateColumn || (!range.from && !range.to)) return rows
+  return rows.filter((row) => {
+    const key = dateKey(row[dateColumn])
+    if (!key) return false
+    if (range.from && key < range.from) return false
+    if (range.to && key > range.to) return false
+    return true
+  })
+}
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function resolveDatePreset(preset: DatePreset, now = new Date()): DateRange {
+  const today = formatDate(now)
+  if (preset === 'all') return { from: '', to: '' }
+  if (preset === 'today') return { from: today, to: today }
+  const start = new Date(now)
+  if (preset === 'yesterday') {
+    start.setDate(start.getDate() - 1)
+    const day = formatDate(start)
+    return { from: day, to: day }
+  }
+  if (preset === 'last7') {
+    start.setDate(start.getDate() - 6)
+    return { from: formatDate(start), to: today }
+  }
+  if (preset === 'last30') {
+    start.setDate(start.getDate() - 29)
+    return { from: formatDate(start), to: today }
+  }
+  return { from: today, to: today }
+}
 
 async function readReport(accessToken: string, report: Omit<Report, 'rows'>): Promise<Record<string, unknown>[]> {
   const config = getAuthConfig()
@@ -41,6 +88,10 @@ export function ReportWorkspace({ accessToken }: Props) {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [preset, setPreset] = useState<DatePreset>('all')
+  const [customRange, setCustomRange] = useState<DateRange>({ from: '', to: '' })
+
+  const dateRange = useMemo(() => preset === 'custom' ? customRange : resolveDatePreset(preset), [preset, customRange])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -57,14 +108,31 @@ export function ReportWorkspace({ accessToken }: Props) {
     return () => window.clearTimeout(timer)
   }, [load])
 
-  function exportReport(report: Report) {
-    const rows = [report.columns, ...report.rows.map((row) => report.columns.map((column) => display(row[column])))]
-    downloadExcelWorkbook(`report-${report.name}-${new Date().toISOString().slice(0, 10)}.xlsx`, [{ name: report.title.slice(0, 31), rows }])
+  function setPresetAndRange(nextPreset: DatePreset) {
+    setPreset(nextPreset)
+    if (nextPreset === 'custom') return
+    setCustomRange(resolveDatePreset(nextPreset))
+  }
+
+  function exportReport(report: Report, rows: Record<string, unknown>[]) {
+    const exportRows = [report.columns, ...rows.map((row) => report.columns.map((column) => display(row[column])))]
+    downloadExcelWorkbook(`report-${report.name}-${new Date().toISOString().slice(0, 10)}.xlsx`, [{ name: report.title.slice(0, 31), rows: exportRows }])
   }
 
   return <section className="card report-workspace" aria-label="Reports">
     <div className="section-heading"><div><span className="eyebrow">Reports</span><h2>Operational Reports</h2><p>Authenticated read-only reporting from the authoritative Phase 13 report views.</p></div><button className="secondary-button" type="button" onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh reports'}</button></div>
+    <div className="report-filters" aria-label="Report date filters">
+      <strong>Date range</strong>
+      {(['all', 'today', 'yesterday', 'last7', 'last30', 'custom'] as DatePreset[]).map((value) => <button key={value} className={preset === value ? 'secondary-button active' : 'secondary-button'} type="button" onClick={() => setPresetAndRange(value)}>{value === 'all' ? 'All dates' : value === 'today' ? 'Today' : value === 'yesterday' ? 'Yesterday' : value === 'last7' ? 'Last 7 days' : value === 'last30' ? 'Last 30 days' : 'Custom'}</button>)}
+      {preset === 'custom' && <><label>Date from <input aria-label="Date from" type="date" value={customRange.from} onChange={(event) => setCustomRange((current) => ({ ...current, from: event.target.value }))} /></label><label>Date to <input aria-label="Date to" type="date" value={customRange.to} onChange={(event) => setCustomRange((current) => ({ ...current, to: event.target.value }))} /></label></>}
+      {preset === 'custom' && customRange.from && customRange.to && customRange.from > customRange.to && <span className="form-error" role="alert">Date from must be on or before Date to.</span>}
+    </div>
     {error && <p className="form-error" role="alert">{error}</p>}
-    {reports.map((report) => <article className="report-card" key={report.name}><div className="section-heading"><div><strong>{report.title}</strong><span className="form-note">{report.rows.length} row{report.rows.length === 1 ? '' : 's'}</span></div><button className="secondary-button" type="button" onClick={() => exportReport(report)} disabled={!report.rows.length}>Export Excel</button></div><div className="report-table-wrap"><table className="report-table"><thead><tr>{report.columns.map((column) => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{report.rows.slice(0, 25).map((row, index) => <tr key={index}>{report.columns.map((column) => <td key={column}>{display(row[column])}</td>)}</tr>)}</tbody></table>{!report.rows.length && <p className="form-note">No rows returned for the current authenticated dataset.</p>}{report.rows.length > 25 && <p className="form-note">Showing the first 25 rows. Export includes the complete returned dataset.</p>}</div></article>)}
+    {reports.map((report) => {
+      const validRange = !dateRange.from || !dateRange.to || dateRange.from <= dateRange.to
+      const filteredRows = validRange ? filterRowsByDate(report.rows, report.dateColumn, dateRange) : []
+      const hasDateFilter = Boolean(report.dateColumn && (dateRange.from || dateRange.to))
+      return <article className="report-card" key={report.name}><div className="section-heading"><div><strong>{report.title}</strong><span className="form-note">{filteredRows.length} row{filteredRows.length === 1 ? '' : 's'}{hasDateFilter ? ` · filtered by ${report.dateColumn?.replaceAll('_', ' ')}` : ''}</span></div><button className="secondary-button" type="button" onClick={() => exportReport(report, filteredRows)} disabled={!filteredRows.length}>Export Excel</button></div><div className="report-table-wrap"><table className="report-table"><thead><tr>{report.columns.map((column) => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{filteredRows.slice(0, 25).map((row, index) => <tr key={index}>{report.columns.map((column) => <td key={column}>{display(row[column])}</td>)}</tr>)}</tbody></table>{!filteredRows.length && <p className="form-note">No rows returned for the current authenticated dataset and date filter.</p>}{filteredRows.length > 25 && <p className="form-note">Showing the first 25 rows. Export includes the complete filtered dataset.</p>}{!report.dateColumn && (dateRange.from || dateRange.to) && <p className="form-note">Date filtering is not applied because this report has no authoritative date column.</p>}</div></article>
+    })}
   </section>
 }
