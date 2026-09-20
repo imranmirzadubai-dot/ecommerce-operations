@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(11);
 set local role postgres;
 
 -- P14-T212: deterministic, rollback-scoped RTO load characterization.
@@ -9,7 +9,6 @@ set local role postgres;
 
 insert into auth.users (id, aud, role, email, encrypted_password)
 values ('00000000-0000-0000-0000-000000000320'::uuid, 'authenticated', 'authenticated', 'rto-load@example.test', 'test-only');
-
 insert into public.profiles(id,name,email,role,active)
 values ('00000000-0000-0000-0000-000000000320'::uuid,'RTO Load Test','rto-load@example.test','admin',true);
 
@@ -46,7 +45,6 @@ from generate_series(1,5000) g;
 
 select is((select count(*) from public.parcels p join public.orders o on o.id=p.order_id where o.notes='P14-T212 synthetic RTO load row'),5000::bigint,'5,000 synthetic parcels loaded for RTO workload');
 
--- Bulk RTO transition: capture one timestamp for deterministic batch integrity.
 do $$
 declare
   started timestamptz;
@@ -58,9 +56,7 @@ begin
   update public.parcels p
   set state='RTO', rto_at=rto_time, updated_at=rto_time
   from public.orders o
-  where o.id=p.order_id
-    and o.notes='P14-T212 synthetic RTO load row'
-    and p.state='In Transit';
+  where o.id=p.order_id and o.notes='P14-T212 synthetic RTO load row' and p.state='In Transit';
   get diagnostics changed_count = row_count;
   elapsed_ms := extract(epoch from (clock_timestamp()-started))*1000;
   perform is(changed_count,5000::bigint,'bulk RTO transition changes all 5,000 parcels');
@@ -68,21 +64,14 @@ begin
 end $$;
 
 insert into public.delivery_outcomes(parcel_id,outcome,note,occurred_at,performed_by)
-select
-  p.id,
-  'RTO',
-  'P14-T212 synthetic RTO outcome',
-  p.rto_at,
-  '00000000-0000-0000-0000-000000000320'::uuid
-from public.parcels p
-join public.orders o on o.id=p.order_id
+select p.id,'RTO','P14-T212 synthetic RTO outcome',p.rto_at,'00000000-0000-0000-0000-000000000320'::uuid
+from public.parcels p join public.orders o on o.id=p.order_id
 where o.notes='P14-T212 synthetic RTO load row';
 
 select is((select count(*) from public.delivery_outcomes d where d.note='P14-T212 synthetic RTO outcome'),5000::bigint,'5,000 RTO delivery outcomes recorded');
 select is((select count(*) from public.parcels p join public.orders o on o.id=p.order_id where o.notes='P14-T212 synthetic RTO load row' and p.state='RTO' and p.rto_at is not null),5000::bigint,'all RTO parcels have RTO timestamp');
 select is((select count(*) from public.delivery_outcomes d where d.note='P14-T212 synthetic RTO outcome' and d.outcome='RTO'),5000::bigint,'all recorded delivery outcomes are RTO');
 
--- RTO operational query: state filter + order/customer join + latest outcome.
 do $$
 declare
   started timestamptz;
@@ -95,21 +84,15 @@ begin
   join public.orders o on o.id=p.order_id
   join public.customers c on c.id=o.customer_id
   left join lateral (
-    select d.outcome, d.occurred_at
-    from public.delivery_outcomes d
-    where d.parcel_id=p.id
-    order by d.occurred_at desc
-    limit 1
+    select d.outcome, d.occurred_at from public.delivery_outcomes d
+    where d.parcel_id=p.id order by d.occurred_at desc limit 1
   ) latest on true
-  where o.notes='P14-T212 synthetic RTO load row'
-    and p.state='RTO'
-    and latest.outcome='RTO';
+  where o.notes='P14-T212 synthetic RTO load row' and p.state='RTO' and latest.outcome='RTO';
   elapsed_ms := extract(epoch from (clock_timestamp()-started))*1000;
   perform is(result_count,5000::bigint,'RTO operational query returns all 5,000 RTO parcels');
   perform ok(elapsed_ms < 5000,'RTO operational query completes within 5s characterization budget');
 end $$;
 
--- RTO summary aggregation used by operational reporting.
 do $$
 declare
   started timestamptz;
