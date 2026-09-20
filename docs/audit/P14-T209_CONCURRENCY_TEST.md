@@ -1,0 +1,1 @@
+P14-T209 database test: supabase/tests/database/121_concurrency_transactional_integrity.sql. Scope is deterministic repository/local verification of idempotency uniqueness/locking and transactional command row-locking/race handling. No production business data is modified. True two-session timing stress is explicitly outside this pgTAP milestone.
