@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
+const app = await readFile(new URL('../../src/App.tsx', import.meta.url), 'utf8')
 const exporter = await readFile(new URL('../../src/components/OrderExport.tsx', import.meta.url), 'utf8')
 const batch = await readFile(new URL('../../src/components/OrderBatchSelection.tsx', import.meta.url), 'utf8')
 const reports = await readFile(new URL('../../src/components/ReportWorkspace.tsx', import.meta.url), 'utf8')
@@ -17,6 +18,13 @@ test('P6-T110 exports visible filtered orders as XLSX', () => {
 
 test('P6-T110 limits selected export to the current visible page', () => {
   assert.match(exporter, /selected\.size \? rows\.filter\(\(row\) => selected\.has\(row\.order\)\) : rows/)
+})
+
+test('P13-T204 mounts authenticated order export and reports in the active app shell', () => {
+  assert.match(app, /import \{ OrderExport \} from '\.\/components\/OrderExport'/)
+  assert.match(app, /<OrderExport selectedOrderIds=\{\[\]\} accessToken=\{auth\.accessToken\} \/>/)
+  assert.match(app, /id="reports-title"/)
+  assert.match(app, /onClick=\{\(\) => navigateTo\(item\)\}/)
 })
 
 test('P13-T204 exposes authenticated report views and Excel export', () => {
