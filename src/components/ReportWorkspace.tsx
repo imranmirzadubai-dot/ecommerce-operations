@@ -52,7 +52,10 @@ export function ReportWorkspace({ accessToken }: Props) {
     } finally { setLoading(false) }
   }, [accessToken])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
 
   function exportReport(report: Report) {
     const rows = [report.columns, ...report.rows.map((row) => report.columns.map((column) => display(row[column])))]
