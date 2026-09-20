@@ -6,6 +6,7 @@ const app = await readFile(new URL('../../src/App.tsx', import.meta.url), 'utf8'
 const exporter = await readFile(new URL('../../src/components/OrderExport.tsx', import.meta.url), 'utf8')
 const batch = await readFile(new URL('../../src/components/OrderBatchSelection.tsx', import.meta.url), 'utf8')
 const reports = await readFile(new URL('../../src/components/ReportWorkspace.tsx', import.meta.url), 'utf8')
+const reportFilters = await readFile(new URL('../../src/lib/reportFilters.ts', import.meta.url), 'utf8')
 
 test('P6-T110 exports visible filtered orders as XLSX', () => {
   assert.match(exporter, /readVisibleRows/)
@@ -33,4 +34,36 @@ test('P13-T204 exposes authenticated report views and Excel export', () => {
   assert.match(reports, /downloadExcelWorkbook/)
   assert.match(reports, /Export Excel/)
   assert.match(reports, /authenticated read-only/i)
+})
+
+test('P13-T205 provides locked quick date views and custom date range controls', () => {
+  for (const preset of ['All dates', 'Today', 'Yesterday', 'Last 7 days', 'Last 30 days', 'Custom']) assert.match(reports, new RegExp(preset))
+  assert.match(reports, /Date from/)
+  assert.match(reports, /Date to/)
+  assert.match(reports, /type="date"/)
+})
+
+test('P13-T205 applies inclusive report-specific date filtering without inventing dates', () => {
+  assert.match(reports, /filterRowsByDate/)
+  assert.match(reportFilters, /if \(range\.from && key < range\.from\) return false/)
+  assert.match(reportFilters, /if \(range\.to && key > range\.to\) return false/)
+  assert.match(reports, /dateColumn: 'order_date'/)
+  assert.match(reports, /dateColumn: 'dispatch_at'/)
+  assert.match(reports, /dateColumn: 'latest_order_date'/)
+  assert.match(reports, /dateColumn: 'started_at'/)
+  assert.match(reports, /has no authoritative date column/)
+})
+
+test('P13-T205 uses deterministic calendar-day ranges for quick views', () => {
+  assert.match(reportFilters, /resolveDatePreset/)
+  assert.match(reportFilters, /preset === 'yesterday'/)
+  assert.match(reportFilters, /preset === 'last7'/)
+  assert.match(reportFilters, /preset === 'last30'/)
+  assert.match(reportFilters, /start\.setDate\(start\.getDate\(\) - 6\)/)
+  assert.match(reportFilters, /start\.setDate\(start\.getDate\(\) - 29\)/)
+})
+
+test('P13-T205 prevents inverted custom date ranges', () => {
+  assert.match(reports, /Date from must be on or before Date to/)
+  assert.match(reports, /dateRange\.from <= dateRange\.to/)
 })
