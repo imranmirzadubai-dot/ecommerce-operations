@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { downloadExcelWorkbook } from '../lib/excel'
 import { filterRowsByDate, resolveDatePreset, type DatePreset, type DateRange } from '../lib/reportFilters'
+import { createCorrelationContext, correlationHeaders } from '../lib/correlation'
+import { logger } from '../lib/logger'
 
 type Props = { accessToken: string }
 type Report = { name: string; title: string; columns: string[]; dateColumn?: string; rows: Record<string, unknown>[] }
@@ -24,11 +26,20 @@ async function readReport(accessToken: string, report: Omit<Report, 'rows'>): Pr
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase is not configured for this deployment')
   const select = report.columns.join(',')
+  const requestContext = createCorrelationContext()
   const response = await fetch(`${config.url}/rest/v1/${report.name}?select=${encodeURIComponent(select)}`, {
-    headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    headers: {
+      apikey: config.publishableKey,
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+      ...correlationHeaders(requestContext.correlationId),
+    },
   })
   const payload = await response.json().catch(() => null)
-  if (!response.ok) throw new Error((payload as { message?: string } | null)?.message ?? `Report request failed (${response.status})`)
+  if (!response.ok) {
+    logger.error('report.request.failed', { report: report.name, ...requestContext, status: response.status })
+    throw new Error((payload as { message?: string } | null)?.message ?? `Report request failed (${response.status})`)
+  }
   return Array.isArray(payload) ? payload as Record<string, unknown>[] : []
 }
 

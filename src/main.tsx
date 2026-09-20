@@ -5,6 +5,8 @@ import { RouteGuard } from './RouteGuard.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { installGlobalErrorReporting } from './lib/errorReporting'
 
+// This entry-point intentionally owns the bootstrap component; Fast Refresh is not used here.
+// eslint-disable-next-line react-refresh/only-export-components
 function ErrorReportingBootstrap() {
   useEffect(() => installGlobalErrorReporting(), [])
   return null
