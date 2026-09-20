@@ -34,3 +34,35 @@ test('P13-T204 exposes authenticated report views and Excel export', () => {
   assert.match(reports, /Export Excel/)
   assert.match(reports, /authenticated read-only/i)
 })
+
+test('P13-T205 provides locked quick date views and custom date range controls', () => {
+  for (const preset of ['All dates', 'Today', 'Yesterday', 'Last 7 days', 'Last 30 days', 'Custom']) assert.match(reports, new RegExp(preset))
+  assert.match(reports, /Date from/)
+  assert.match(reports, /Date to/)
+  assert.match(reports, /type="date"/)
+})
+
+test('P13-T205 applies inclusive report-specific date filtering without inventing dates', () => {
+  assert.match(reports, /filterRowsByDate/)
+  assert.match(reports, /if \(range\.from && key < range\.from\) return false/)
+  assert.match(reports, /if \(range\.to && key > range\.to\) return false/)
+  assert.match(reports, /dateColumn: 'order_date'/)
+  assert.match(reports, /dateColumn: 'dispatch_at'/)
+  assert.match(reports, /dateColumn: 'latest_order_date'/)
+  assert.match(reports, /dateColumn: 'started_at'/)
+  assert.match(reports, /has no authoritative date column/)
+})
+
+test('P13-T205 uses deterministic calendar-day ranges for quick views', () => {
+  assert.match(reports, /resolveDatePreset/)
+  assert.match(reports, /preset === 'yesterday'/)
+  assert.match(reports, /preset === 'last7'/)
+  assert.match(reports, /preset === 'last30'/)
+  assert.match(reports, /start\.setDate\(start\.getDate\(\) - 6\)/)
+  assert.match(reports, /start\.setDate\(start\.getDate\(\) - 29\)/)
+})
+
+test('P13-T205 prevents inverted custom date ranges', () => {
+  assert.match(reports, /Date from must be on or before Date to/)
+  assert.match(reports, /dateRange\.from <= dateRange\.to/)
+})
