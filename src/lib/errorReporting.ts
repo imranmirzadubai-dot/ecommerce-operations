@@ -1,7 +1,9 @@
 import { logger, type LogContext } from './logger'
+import { createCorrelationContext } from './correlation'
 
 export function reportError(error: unknown, context: LogContext = {}): void {
   const errorContext: LogContext = {
+    ...createCorrelationContext(typeof context.correlationId === 'string' ? context.correlationId : undefined),
     ...context,
     error: error instanceof Error
       ? { name: error.name, message: error.message, stack: error.stack }
