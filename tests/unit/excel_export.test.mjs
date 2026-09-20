@@ -1,0 +1,54 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+
+const excel = await readFile(new URL('../../src/lib/excel.ts', import.meta.url), 'utf8')
+
+test('P13-T206 builds a valid XLSX package structure', () => {
+  assert.match(excel, /0x04034b50/)
+  assert.match(excel, /0x02014b50/)
+  assert.match(excel, /0x06054b50/)
+  assert.match(excel, /\[Content_Types\]\.xml/)
+  assert.match(excel, /_rels\/\.rels/)
+  assert.match(excel, /xl\/workbook\.xml/)
+  assert.match(excel, /xl\/_rels\/workbook\.xml\.rels/)
+  assert.match(excel, /xl\/worksheets\/sheet\$\{index \+ 1\}\.xml/)
+})
+
+test('P13-T206 writes package metadata and worksheet relationships', () => {
+  assert.match(excel, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet\.main\+xml/)
+  assert.match(excel, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.worksheet\+xml/)
+  assert.match(excel, /officeDocument\/2006\/relationships\/officeDocument/)
+  assert.match(excel, /officeDocument\/2006\/relationships\/worksheet/)
+  assert.match(excel, /r:id=\\"rId\$\{sheet\.index\}\\"/)
+})
+
+test('P13-T206 generates worksheet cells with stable Excel references', () => {
+  assert.match(excel, /columnName\(columnIndex\)/)
+  assert.match(excel, /\$\{columnName\(columnIndex\)\}\$\{rowIndex \+ 1\}/)
+  assert.match(excel, /t=\\"inlineStr\\"/)
+  assert.match(excel, /xml:space=\\"preserve\\"/)
+})
+
+test('P13-T206 escapes XML-sensitive cell and sheet values', () => {
+  for (const entity of ['&amp;', '&lt;', '&gt;', '&quot;', '&apos;']) assert.match(excel, new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  assert.match(excel, /escapeXml\(text\)/)
+  assert.match(excel, /escapeXml\(sheet\.name\)/)
+})
+
+test('P13-T206 produces an XLSX Blob and enforces the xlsx filename extension', () => {
+  assert.match(excel, /new Blob\(\[bytes\], \{ type: 'application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet'\}\)/)
+  assert.match(excel, /filename\.endsWith\('\.xlsx'\)/)
+  assert.match(excel, /\$\{filename\}\.xlsx/)
+})
+
+test('P13-T206 handles empty sheet input without producing an empty workbook', () => {
+  assert.match(excel, /safeSheets = sheets\.length \? sheets : \[\{ name: 'Sheet1', rows: \[\[\]\] \}\]/)
+})
+
+test('P13-T206 sanitizes and bounds worksheet names', () => {
+  assert.match(excel, /replaceAll\('\\\\', ''\)/)
+  assert.match(excel, /replaceAll\('\/', ''\)/)
+  assert.match(excel, /slice\(0, 31\)/)
+  assert.match(excel, /\$\{sheet\.index \+ 1\}/)
+})
