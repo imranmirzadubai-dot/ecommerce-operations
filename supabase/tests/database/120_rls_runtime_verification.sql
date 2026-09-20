@@ -1,6 +1,6 @@
 begin;
 
-select plan(28);
+select plan(24);
 
 -- Use deterministic identities only inside this rollback-scoped test transaction.
 set local role postgres;
@@ -15,7 +15,6 @@ insert into test_users (id, email, role_name) values
   ('00000000-0000-0000-0000-000000000208'::uuid, 'rls-sales@example.test', 'sales'),
   ('00000000-0000-0000-0000-000000000209'::uuid, 'rls-admin@example.test', 'admin');
 
--- Local Supabase auth.users accepts these minimal fields; all generated defaults remain intact.
 insert into auth.users (id, aud, role, email, encrypted_password)
 select id, 'authenticated', 'authenticated', email, 'test-only'
 from test_users;
@@ -58,21 +57,10 @@ values (
 
 -- Anonymous has no table privileges, so direct reads must fail.
 set local role anon;
-select throws_ok(
-  $$select count(*) from public.customers$$,
-  '42501',
-  null,
-  'anon cannot directly read customers'
-);
+select throws_ok($$select count(*) from public.customers$$, '42501', null, 'anon cannot directly read customers');
+select throws_ok($$select count(*) from public.orders$$, '42501', null, 'anon cannot directly read orders');
 
-select throws_ok(
-  $$select count(*) from public.orders$$,
-  '42501',
-  null,
-  'anon cannot directly read orders'
-);
-
--- Sales user: positive access to operational data through the RLS policy.
+-- Sales user: positive access to operational data through RLS.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000208', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -85,38 +73,15 @@ select is((select count(*) from public.audit_logs), 0::bigint, 'sales cannot rea
 select is((select count(*) from public.import_batches), 0::bigint, 'sales cannot read admin-only import batches');
 select is((select count(*) from public.import_rows), 0::bigint, 'sales cannot read admin-only import rows');
 
--- RLS does not grant direct mutation; authenticated is intentionally SELECT-only.
-select throws_ok(
-  $$insert into public.customers (name) values ('should fail')$$,
-  '42501',
-  null,
-  'authenticated cannot directly insert customers'
-);
+-- Authenticated is intentionally SELECT-only.
+select throws_ok($$insert into public.customers (name) values ('should fail')$$, '42501', null, 'authenticated cannot directly insert customers');
+select throws_ok($$update public.orders set notes = 'should fail'$$, '42501', null, 'authenticated cannot directly update orders');
+select throws_ok($$delete from public.customers$$, '42501', null, 'authenticated cannot directly delete customers');
 
-select throws_ok(
-  $$update public.orders set notes = 'should fail'$$,
-  '42501',
-  null,
-  'authenticated cannot directly update orders'
-);
-
-select throws_ok(
-  $$delete from public.customers$$,
-  '42501',
-  null,
-  'authenticated cannot directly delete customers'
-);
-
--- Sales must not be able to see another user's profile.
-select is(
-  (select count(*) from public.profiles where id = '00000000-0000-0000-0000-000000000209'::uuid),
-  0::bigint,
-  'sales cannot read another profile'
-);
+select is((select count(*) from public.profiles where id = '00000000-0000-0000-0000-000000000209'::uuid), 0::bigint, 'sales cannot read another profile');
 
 -- Admin user: positive access to admin-only data plus normal operational data.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000209', true);
-
 select is(public.app_role(), 'admin', 'active admin profile resolves through app_role');
 select is((select count(*) from public.profiles), 1::bigint, 'admin also sees only its own profile');
 select is((select count(*) from public.customers), 1::bigint, 'admin can read customers');
@@ -127,13 +92,9 @@ select is((select count(*) from public.import_rows), 1::bigint, 'admin can read 
 
 -- Inactive users lose the role-derived RLS access.
 set local role postgres;
-update public.profiles
-set active = false
-where id = '00000000-0000-0000-0000-000000000208'::uuid;
-
+update public.profiles set active = false where id = '00000000-0000-0000-0000-000000000208'::uuid;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000208', true);
-
 select is(public.app_role(), null, 'inactive user resolves to no application role');
 select is((select count(*) from public.customers), 0::bigint, 'inactive user loses customer access');
 select is((select count(*) from public.orders), 0::bigint, 'inactive user loses order access');
