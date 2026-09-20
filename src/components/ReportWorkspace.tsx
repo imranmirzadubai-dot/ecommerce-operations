@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { downloadExcelWorkbook } from '../lib/excel'
+import { filterRowsByDate, resolveDatePreset, type DatePreset, type DateRange } from '../lib/reportFilters'
 
 type Props = { accessToken: string }
 type Report = { name: string; title: string; columns: string[]; dateColumn?: string; rows: Record<string, unknown>[] }
-type DatePreset = 'all' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom'
-type DateRange = { from: string; to: string }
 
 const REPORTS: Omit<Report, 'rows'>[] = [
   { name: 'report_kpi_orders', title: 'Order Summary', columns: ['lifecycle_state', 'order_count', 'original_amount_total'] },
@@ -20,51 +19,6 @@ const REPORTS: Omit<Report, 'rows'>[] = [
   { name: 'report_historical_import_reconciliation', title: 'Historical Import Reconciliation Detail', columns: ['source_system', 'source_file', 'batch_status', 'started_at', 'completed_at', 'total_source_rows', 'valid_count', 'error_count', 'create_count', 'matched_count', 'exception_count', 'reconciliation_result'], dateColumn: 'started_at' },
   { name: 'report_reconciliation_exceptions', title: 'Reconciliation Exceptions', columns: ['exception_category', 'entity_type', 'entity_identifier', 'expected_value', 'actual_value', 'variance', 'resolution_state', 'exception_detail', 'responsible_actor', 'source_system', 'source_file'] },
 ]
-
-function dateKey(value: unknown): string | null {
-  if (typeof value !== 'string' || !value) return null
-  const match = value.match(/^\d{4}-\d{2}-\d{2}/)
-  return match ? match[0] : null
-}
-
-export function filterRowsByDate(rows: Record<string, unknown>[], dateColumn: string | undefined, range: DateRange): Record<string, unknown>[] {
-  if (!dateColumn || (!range.from && !range.to)) return rows
-  return rows.filter((row) => {
-    const key = dateKey(row[dateColumn])
-    if (!key) return false
-    if (range.from && key < range.from) return false
-    if (range.to && key > range.to) return false
-    return true
-  })
-}
-
-function formatDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-export function resolveDatePreset(preset: DatePreset, now = new Date()): DateRange {
-  const today = formatDate(now)
-  if (preset === 'all') return { from: '', to: '' }
-  if (preset === 'today') return { from: today, to: today }
-  const start = new Date(now)
-  if (preset === 'yesterday') {
-    start.setDate(start.getDate() - 1)
-    const day = formatDate(start)
-    return { from: day, to: day }
-  }
-  if (preset === 'last7') {
-    start.setDate(start.getDate() - 6)
-    return { from: formatDate(start), to: today }
-  }
-  if (preset === 'last30') {
-    start.setDate(start.getDate() - 29)
-    return { from: formatDate(start), to: today }
-  }
-  return { from: today, to: today }
-}
 
 async function readReport(accessToken: string, report: Omit<Report, 'rows'>): Promise<Record<string, unknown>[]> {
   const config = getAuthConfig()
