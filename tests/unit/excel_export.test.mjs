@@ -15,14 +15,14 @@ test('P13-T206 writes workbook content types and worksheet relationships', () =>
   assert.match(excel, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.worksheet\+xml/)
   assert.match(excel, /officeDocument\/2006\/relationships\/officeDocument/)
   assert.match(excel, /officeDocument\/2006\/relationships\/worksheet/)
-  assert.match(excel, /r:id=\\"rId\$\{sheet\.index\}\\"/)
+  assert.match(excel, /r:id="rId\$\{sheet\.index\}"/)
 })
 
 test('P13-T206 generates worksheet cells with deterministic Excel references', () => {
   assert.match(excel, /columnName\(columnIndex\)/)
   assert.match(excel, /\$\{columnName\(columnIndex\)\}\$\{rowIndex \+ 1\}/)
-  assert.match(excel, /t=\\"inlineStr\\"/)
-  assert.match(excel, /xml:space=\\"preserve\\"/)
+  assert.match(excel, /t="inlineStr"/)
+  assert.match(excel, /xml:space="preserve"/)
 })
 
 test('P13-T206 XML-escapes cell and worksheet names', () => {
