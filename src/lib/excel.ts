@@ -85,7 +85,7 @@ function zipStore(files: { name: string; content: string }[]) {
 export function downloadExcelWorkbook(filename: string, sheets: ExcelSheet[]) {
   const safeSheets = sheets.length ? sheets : [{ name: 'Sheet1', rows: [[]] }]
   const sheetEntries = safeSheets.map((sheet, index) => ({
-    name: sheet.name.replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || `Sheet${index + 1}`,
+    name: sheet.name.replaceAll('\\', '').replaceAll('/', '').replaceAll('?', '').replaceAll('*', '').replaceAll('[', '').replaceAll(']', '').replaceAll(':', '').slice(0, 31) || `Sheet${index + 1}`,
     index: index + 1,
   }))
   const workbookSheets = sheetEntries.map((sheet) => `<sheet name="${escapeXml(sheet.name)}" sheetId="${sheet.index}" r:id="rId${sheet.index}"/>`).join('')
