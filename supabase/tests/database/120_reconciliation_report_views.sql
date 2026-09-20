@@ -1,6 +1,6 @@
 -- P13-T202: Reconciliation report view contract tests.
 
-select plan(28);
+select plan(32);
 
 select has_view('public', 'report_cod_financial_reconciliation', 'COD and financial reconciliation report exists');
 select has_view('public', 'report_historical_import_reconciliation', 'historical import reconciliation report exists');
