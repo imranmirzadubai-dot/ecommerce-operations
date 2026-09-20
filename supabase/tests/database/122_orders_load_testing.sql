@@ -1,6 +1,6 @@
 begin;
 
-select plan(8);
+select plan(10);
 set local role postgres;
 
 -- Synthetic, rollback-scoped workload. This is an application-database load
@@ -8,14 +8,11 @@ set local role postgres;
 -- one customer and one item per order, exercises representative Orders queries,
 -- and removes everything on rollback.
 
-create temporary table load_actor(id uuid primary key);
 insert into auth.users (id, aud, role, email, encrypted_password)
 values ('00000000-0000-0000-0000-000000000310'::uuid, 'authenticated', 'authenticated', 'orders-load@example.test', 'test-only');
 insert into public.profiles(id,name,email,role,active)
 values ('00000000-0000-0000-0000-000000000310'::uuid,'Orders Load Test','orders-load@example.test','admin',true);
-insert into load_actor values ('00000000-0000-0000-0000-000000000310'::uuid);
 
--- 5,000 synthetic customers and orders, distributed over 30 calendar days.
 insert into public.customers(id,name,phone,normalized_phone,address,city)
 select
   ('10000000-0000-0000-0000-' || lpad(g::text,12,'0'))::uuid,
@@ -51,6 +48,7 @@ select is((select count(*) from public.orders where notes='P14-T210 synthetic lo
 select is((select count(*) from public.order_items oi join public.orders o on o.id=oi.order_id where o.notes='P14-T210 synthetic load row'),5000::bigint,'5,000 order items loaded');
 
 -- Orders workspace-style filtered listing: date + lifecycle, joined to customer.
+do $$
 declare
   started timestamptz;
   elapsed_ms numeric;
@@ -67,9 +65,10 @@ begin
   elapsed_ms := extract(epoch from (clock_timestamp()-started))*1000;
   perform ok(result_count > 0,'filtered Orders query returns rows under load');
   perform ok(elapsed_ms < 5000,'filtered Orders query completes within 5s on 5,000 synthetic orders');
-end;
+end $$;
 
 -- Orders workspace-style lifecycle summary.
+do $$
 declare
   started timestamptz;
   elapsed_ms numeric;
@@ -86,9 +85,10 @@ begin
   elapsed_ms := extract(epoch from (clock_timestamp()-started))*1000;
   perform is(result_count,5::bigint,'lifecycle summary returns all five lifecycle states');
   perform ok(elapsed_ms < 5000,'lifecycle summary completes within 5s on 5,000 synthetic orders');
-end;
+end $$;
 
 -- Customer activity-style aggregation used by Phase 13 reporting.
+do $$
 declare
   started timestamptz;
   elapsed_ms numeric;
@@ -106,7 +106,7 @@ begin
   elapsed_ms := extract(epoch from (clock_timestamp()-started))*1000;
   perform is(result_count,5000::bigint,'customer activity aggregation returns all 5,000 customers');
   perform ok(elapsed_ms < 5000,'customer activity aggregation completes within 5s on 5,000 synthetic orders');
-end;
+end $$;
 
 select is((select count(*) from public.orders where notes='P14-T210 synthetic load row'),5000::bigint,'load dataset remains intact after read workload');
 
