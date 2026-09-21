@@ -29,8 +29,7 @@ function newIdempotencyKey() { return crypto.randomUUID() }
 
 export function DispatchScanWorkspace({ accessToken }: Props) {
   const requestedMode = new URLSearchParams(window.location.search).get('only')?.trim().toLowerCase()
-  if (requestedMode === 'bulk') return <BulkDispatchWorkspace accessToken={accessToken} />
-
+  const bulkOnly = requestedMode === 'bulk'
   const inputRef = useRef<HTMLInputElement>(null)
   const dispatchAttemptKeys = useRef(new Map<string, string>())
   const [scan, setScan] = useState('')
@@ -41,7 +40,7 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => { if (!bulkOnly) inputRef.current?.focus() }, [bulkOnly])
 
   async function handleScan(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -93,7 +92,7 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
 
   const canDispatch = parcel?.state === 'Prepared' && Boolean(parcel.shipper_id) && Boolean(parcel.shippers?.active) && tracking.trim().length > 0
 
-  return (
+  return bulkOnly ? <BulkDispatchWorkspace accessToken={accessToken} /> : (
     <section className="card dispatch-scan-workspace" aria-labelledby="dispatch-scan-title">
       <div className="section-heading"><div><span className="eyebrow">Dispatch Gate · T142</span><h2 id="dispatch-scan-title">Scan-first Dispatch</h2><p>Scan the parcel barcode, verify the assigned shipper and tracking ID, then commit the individual dispatch.</p></div><span className="check">Operations / Admin</span></div>
       <form className="dispatch-scan-form" onSubmit={handleScan}><label htmlFor="dispatch-barcode">Parcel barcode</label><div className="button-group"><input ref={inputRef} id="dispatch-barcode" value={scan} onChange={(event) => setScan(event.target.value)} placeholder="Scan parcel barcode" autoComplete="off" autoFocus inputMode="text" aria-describedby="dispatch-scan-help" /><button className="login-button" type="submit" disabled={!scan.trim() || loading || dispatching}>{loading ? 'Resolving…' : 'Resolve parcel'}</button></div><small id="dispatch-scan-help" className="form-note">The barcode is the immutable parcel number. Scanner input should submit with Enter.</small></form>
