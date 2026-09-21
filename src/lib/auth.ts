@@ -129,6 +129,27 @@ export async function signIn(email: string, password: string): Promise<AuthState
   }
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  const config = getAuthConfig()
+  if (!config) throw new Error('Supabase authentication is not configured for this environment')
+  const redirectTo = `${window.location.origin}/login`
+  let response: Response
+  try {
+    response = await fetchWithTimeout(`${config.url}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, redirect_to: redirectTo }),
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Password reset request timed out', { cause: error })
+    throw error
+  }
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Unable to send password reset email')
+  }
+}
+
 export async function restoreSession(): Promise<AuthState> {
   const config = getAuthConfig()
   let session = readStoredSession()
