@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getAuthConfig } from '../lib/auth'
+import { getRecoveryToken } from '../lib/passwordRecovery'
 
 const RECOVERY_TIMEOUT_MS = 8_000
-
-function getRecoveryToken(): string | null {
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  if (params.get('type') !== 'recovery') return null
-  return params.get('access_token')
-}
 
 async function updatePassword(accessToken: string, password: string): Promise<void> {
   const config = getAuthConfig()
@@ -40,10 +35,6 @@ async function updatePassword(accessToken: string, password: string): Promise<vo
   } finally {
     window.clearTimeout(timeout)
   }
-}
-
-export function isPasswordRecoveryCallback(): boolean {
-  return getRecoveryToken() !== null
 }
 
 export function PasswordRecovery() {

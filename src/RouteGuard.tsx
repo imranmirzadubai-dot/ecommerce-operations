@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import App from './App.tsx'
-import { PasswordRecovery, isPasswordRecoveryCallback } from './components/PasswordRecovery.tsx'
+import { PasswordRecovery } from './components/PasswordRecovery.tsx'
 import { restoreSession, type AuthState } from './lib/auth'
+import { getRecoveryToken } from './lib/passwordRecovery'
 import { getLoginRedirect, isProtectedPath } from './lib/routes'
 
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 
 export function RouteGuard() {
-  const passwordRecovery = isPasswordRecoveryCallback()
+  const passwordRecovery = getRecoveryToken() !== null
   const protectedPath = isProtectedPath(window.location.pathname)
   const [checking, setChecking] = useState(!passwordRecovery && protectedPath)
   const [allowed, setAllowed] = useState(passwordRecovery || !protectedPath)
