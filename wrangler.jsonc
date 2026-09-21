@@ -5,7 +5,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ecommerce-operations",
-  "main": "worker/index.ts",
+  "main": "worker/entry.ts",
   "compatibility_date": "2026-09-07",
   "assets": {
     "not_found_handling": "single-page-application"
@@ -32,8 +32,8 @@
   /**
    * Bindings
    * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-   * databases, object storage, AI inference, real-time communication and more.
-   * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+   * databases, object storage, AI inference, and more.
+   * https://developers.cloudflare.com/workers/configuration/bindings/
    */
   /**
    * Environment Variables

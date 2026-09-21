@@ -112,22 +112,22 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
   }
 }
 
-async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
-  const result = await requestJsonWithXhr<T>(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
+async function authRequest<T>(_config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
+  const result = await requestJsonWithXhr<T>(`${window.location.origin}/api/auth/token?grant_type=${grantType}`, {
     method: 'POST',
-    headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (result.status < 200 || result.status >= 300) {
-    const payload = result.data as { msg?: string; error_description?: string; message?: string }
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
+    const payload = result.data as { msg?: string; error_description?: string; message?: string; error?: string }
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? payload?.error ?? 'Authentication request failed')
   }
   return result.data
 }
 
-async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
-  const result = await requestJsonWithXhr<Profile[]>(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
-    headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
+async function loadProfile(_config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
+  const result = await requestJsonWithXhr<Profile[]>(`${window.location.origin}/api/auth/profile?user_id=${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (result.status < 200 || result.status >= 300) throw new Error('Unable to load the authenticated profile')
   const profile = result.data[0]
@@ -152,13 +152,12 @@ export async function signIn(email: string, password: string): Promise<AuthState
 export async function requestPasswordReset(email: string): Promise<void> {
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase authentication is not configured for this environment')
-  const redirectTo = `${window.location.origin}/login`
   let response: Response
   try {
-    response = await fetchWithTimeout(`${config.url}/auth/v1/recover`, {
+    response = await fetchWithTimeout(`${window.location.origin}/api/auth/recover`, {
       method: 'POST',
-      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, redirect_to: redirectTo }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
     })
   } catch (error) {
     if (error instanceof Error && error.message === 'Authentication request timed out') {
@@ -167,8 +166,8 @@ export async function requestPasswordReset(email: string): Promise<void> {
     throw error
   }
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Unable to send password reset email')
+    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string; error?: string } | null
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? payload?.error ?? 'Unable to send password reset email')
   }
 }
 
@@ -202,8 +201,8 @@ export async function signOut(): Promise<void> {
   const stored = readStoredSession()
   clearStoredSession()
   if (!config || !stored) return
-  await fetchWithTimeout(`${config.url}/auth/v1/logout`, {
+  await fetchWithTimeout(`${window.location.origin}/api/auth/logout`, {
     method: 'POST',
-    headers: { apikey: config.publishableKey, Authorization: `Bearer ${stored.accessToken}` },
+    headers: { Authorization: `Bearer ${stored.accessToken}` },
   }).catch(() => undefined)
 }
