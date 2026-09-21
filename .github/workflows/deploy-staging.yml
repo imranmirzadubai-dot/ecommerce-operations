@@ -18,6 +18,7 @@ jobs:
     env:
       CLOUDFLARE_ENV: staging
       CLOUDFLARE_ACCOUNT_ID: 17075bc25305c27192e086ada673751b
+      VITE_APP_ENVIRONMENT: staging
       VITE_SUPABASE_URL: https://mijbpvgxrxjaalimyqgm.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
     steps:
@@ -36,6 +37,7 @@ jobs:
       - name: Verify staging configuration
         run: |
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          test "$VITE_APP_ENVIRONMENT" = "staging"
           test "$VITE_SUPABASE_URL" = "https://mijbpvgxrxjaalimyqgm.supabase.co"
           grep -q '"name": "ecommerce-operations-staging"' wrangler.jsonc
 
