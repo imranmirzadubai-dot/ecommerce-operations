@@ -37,6 +37,8 @@ type TokenResponse = {
 const SESSION_KEY = 'ecommerce-operations.auth.session'
 const AUTH_REQUEST_TIMEOUT_MS = 8_000
 
+type JsonXhrResult<T> = { status: number; data: T }
+
 export function hasOperationalAccess(profile: Profile | null): boolean {
   return profile?.active === true && APP_ROLES.includes(profile.role)
 }
@@ -69,6 +71,32 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
+async function requestJsonWithXhr<T>(input: string, init: { method?: string; headers?: Record<string, string>; body?: string }): Promise<JsonXhrResult<T>> {
+  return await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(init.method ?? 'GET', input, true)
+    xhr.timeout = AUTH_REQUEST_TIMEOUT_MS
+    Object.entries(init.headers ?? {}).forEach(([name, value]) => xhr.setRequestHeader(name, value))
+    xhr.responseType = 'text'
+    xhr.onload = () => {
+      try {
+        const data = xhr.responseText ? JSON.parse(xhr.responseText) as T : {} as T
+        resolve({ status: xhr.status, data })
+      } catch (error) {
+        reject(new Error('Authentication response could not be parsed', { cause: error }))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Authentication network request failed'))
+    xhr.ontimeout = () => reject(new Error('Authentication request timed out'))
+    xhr.onabort = () => reject(new Error('Authentication request aborted'))
+    try {
+      xhr.send(init.body)
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
@@ -84,42 +112,25 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
   }
 }
 
-async function fetchJsonWithTimeout<T>(input: RequestInfo | URL, init: RequestInit): Promise<{ response: Response; data: T }> {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetch(input, { ...init, signal: controller.signal })
-    const data = await response.json() as T
-    return { response, data }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('Authentication response timed out', { cause: error })
-    }
-    throw error
-  } finally {
-    window.clearTimeout(timeout)
-  }
-}
-
 async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
-  const { response, data } = await fetchJsonWithTimeout<T>(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
+  const result = await requestJsonWithXhr<T>(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
     method: 'POST',
     headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) {
-    const payload = data as { msg?: string; error_description?: string; message?: string }
+  if (result.status < 200 || result.status >= 300) {
+    const payload = result.data as { msg?: string; error_description?: string; message?: string }
     throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
   }
-  return data
+  return result.data
 }
 
 async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
-  const { response, data } = await fetchJsonWithTimeout<Profile[]>(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
+  const result = await requestJsonWithXhr<Profile[]>(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
     headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
   })
-  if (!response.ok) throw new Error('Unable to load the authenticated profile')
-  const profile = data[0]
+  if (result.status < 200 || result.status >= 300) throw new Error('Unable to load the authenticated profile')
+  const profile = result.data[0]
   if (!profile || !profile.active) throw new Error('This account does not have an active operations profile')
   return profile
 }
