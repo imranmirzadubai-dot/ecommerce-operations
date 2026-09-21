@@ -74,43 +74,52 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   try {
     return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Authentication request timed out', { cause: error })
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+async function fetchJsonWithTimeout<T>(input: RequestInfo | URL, init: RequestInit): Promise<{ response: Response; data: T }> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal })
+    const data = await response.json() as T
+    return { response, data }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Authentication response timed out', { cause: error })
+    }
+    throw error
   } finally {
     window.clearTimeout(timeout)
   }
 }
 
 async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
-  let response: Response
-  try {
-    response = await fetchWithTimeout(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
-      method: 'POST',
-      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
-    throw error
-  }
+  const { response, data } = await fetchJsonWithTimeout<T>(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
+    method: 'POST',
+    headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
+    const payload = data as { msg?: string; error_description?: string; message?: string }
     throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
   }
-  return response.json() as Promise<T>
+  return data
 }
 
 async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
-  let response: Response
-  try {
-    response = await fetchWithTimeout(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
-      headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
-    throw error
-  }
+  const { response, data } = await fetchJsonWithTimeout<Profile[]>(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
+    headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
+  })
   if (!response.ok) throw new Error('Unable to load the authenticated profile')
-  const rows = (await response.json()) as Profile[]
-  const profile = rows[0]
+  const profile = data[0]
   if (!profile || !profile.active) throw new Error('This account does not have an active operations profile')
   return profile
 }
@@ -141,7 +150,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
       body: JSON.stringify({ email, redirect_to: redirectTo }),
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Password reset request timed out', { cause: error })
+    if (error instanceof Error && error.message === 'Authentication request timed out') {
+      throw new Error('Password reset request timed out', { cause: error })
+    }
     throw error
   }
   if (!response.ok) {
