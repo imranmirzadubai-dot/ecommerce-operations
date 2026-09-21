@@ -38,7 +38,7 @@ async function updatePassword(accessToken: string, password: string): Promise<vo
 }
 
 export function PasswordRecovery() {
-  const token = useMemo(getRecoveryToken, [])
+  const token = useMemo(() => getRecoveryToken(), [])
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
