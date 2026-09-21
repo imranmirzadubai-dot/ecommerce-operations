@@ -6,6 +6,7 @@ import { getRecoveryToken } from './lib/passwordRecovery'
 import { getLoginRedirect, isProtectedPath } from './lib/routes'
 
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 10_000
 
 export function RouteGuard() {
   const passwordRecovery = getRecoveryToken() !== null
@@ -20,9 +21,19 @@ export function RouteGuard() {
     if (!isProtectedPath(pathname)) return
 
     let cancelled = false
+    let settled = false
+    const timeout = window.setTimeout(() => {
+      if (cancelled || settled) return
+      settled = true
+      setAuth(signedOutState)
+      setChecking(false)
+      window.location.replace(getLoginRedirect(pathname, window.location.search))
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS)
+
     restoreSession()
       .then((session) => {
-        if (cancelled) return
+        if (cancelled || settled) return
+        settled = true
         setAuth(session)
         if (session.authenticated) {
           setAllowed(true)
@@ -31,15 +42,22 @@ export function RouteGuard() {
         }
       })
       .catch(() => {
-        if (cancelled) return
+        if (cancelled || settled) return
+        settled = true
         setAuth(signedOutState)
         window.location.replace(getLoginRedirect(pathname, window.location.search))
       })
       .finally(() => {
-        if (!cancelled) setChecking(false)
+        if (!cancelled) {
+          window.clearTimeout(timeout)
+          setChecking(false)
+        }
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
   }, [passwordRecovery])
 
   if (passwordRecovery) return <PasswordRecovery />
