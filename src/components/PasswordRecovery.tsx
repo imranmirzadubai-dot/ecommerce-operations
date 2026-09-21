@@ -46,6 +46,7 @@ export function PasswordRecovery() {
   const [success, setSuccess] = useState(false)
 
   if (!token) return null
+  const accessToken = token
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -61,7 +62,7 @@ export function PasswordRecovery() {
 
     setSaving(true)
     try {
-      await updatePassword(token, password)
+      await updatePassword(accessToken, password)
       window.history.replaceState({}, '', '/login')
       setSuccess(true)
       setPassword('')
