@@ -112,7 +112,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
   }
 }
 
-async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
+async function authRequest<T>(_config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
   const result = await requestJsonWithXhr<T>(`${window.location.origin}/api/auth/token?grant_type=${grantType}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
