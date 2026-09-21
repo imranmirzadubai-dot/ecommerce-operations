@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { getAuthConfig } from '../lib/auth'
 
 const RECOVERY_TIMEOUT_MS = 8_000
@@ -55,7 +56,7 @@ export function PasswordRecovery() {
 
   if (!token) return null
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
     if (password.length < 8) {
