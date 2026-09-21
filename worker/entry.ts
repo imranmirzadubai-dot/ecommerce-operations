@@ -1,5 +1,7 @@
 type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string }
 
+const UPSTREAM_AUTH_TIMEOUT_MS = 7_000
+
 function json(data: unknown, status = 200, headers?: HeadersInit): Response {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } })
 }
@@ -19,9 +21,13 @@ function getBearerToken(request: Request): string | null {
 async function forwardAuth(env: WorkerEnv, target: string, init: RequestInit): Promise<Response> {
   const config = getSupabaseConfig(env)
   if (!config) return json({ error: "server_not_configured" }, 503)
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_AUTH_TIMEOUT_MS)
   try {
     const response = await fetch(`${config.url}${target}`, {
       ...init,
+      signal: controller.signal,
       headers: { apikey: config.key, Accept: "application/json", ...(init.headers ?? {}) },
     })
     const body = await response.text()
@@ -29,8 +35,11 @@ async function forwardAuth(env: WorkerEnv, target: string, init: RequestInit): P
       status: response.status,
       headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store" },
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return json({ error: "upstream_request_timed_out" }, 504)
     return json({ error: "upstream_request_failed" }, 502)
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
