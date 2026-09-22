@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { restoreSession, signIn as authenticate, signOut as terminateSession, type AuthState } from './auth'
 
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [startOperation])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const op = startOperation()
     void restoreSession(op.signal).then((next) => {
       if (op.isCurrent()) setAuth(next)
