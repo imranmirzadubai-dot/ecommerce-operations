@@ -3,37 +3,31 @@ import { test, expect } from '@playwright/test'
 const sessionKey = 'ecommerce-operations.auth.session'
 const accessToken = 'e2e-access-token'
 const userId = 'e2e-user-id'
-const authOrigin = 'http://127.0.0.1:4173'
 
 async function mockAuthApi(page) {
   let refreshCount = 0
   let ordersRequestCount = 0
   let ordersAuthorization = null
 
-  await page.route(`${authOrigin}/auth/v1/**`, async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-
-    if (url.pathname === '/auth/v1/token') {
-      const grantType = url.searchParams.get('grant_type')
-      if (grantType === 'refresh_token') {
-        refreshCount += 1
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
-        return
-      }
-      if (grantType === 'password') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
-        return
-      }
+  await page.route(/\/auth\/v1\/token(?:\?.*)?$/, async (route) => {
+    const url = new URL(route.request().url())
+    const grantType = url.searchParams.get('grant_type')
+    if (grantType === 'refresh_token') {
+      refreshCount += 1
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
+      return
     }
-    if (url.pathname === '/auth/v1/logout') {
-      await route.fulfill({ status: 204, body: '' })
+    if (grantType === 'password') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
       return
     }
     await route.continue()
   })
-  await page.route(`${authOrigin}/rest/v1/profiles*`, async (route) => {
+  await page.route(/\/rest\/v1\/profiles(?:\?.*)?$/, async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
+  })
+  await page.route(/\/auth\/v1\/logout(?:\?.*)?$/, async (route) => {
+    await route.fulfill({ status: 204, body: '' })
   })
   await page.route('**/api/orders*', async (route) => {
     ordersRequestCount += 1
