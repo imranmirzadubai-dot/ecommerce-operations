@@ -33,17 +33,17 @@ jobs:
 
       - name: Create isolated Playwright runner
         run: |
-          mkdir -p .e2e-runner/tests/e2e
-          cp playwright.config.mjs .e2e-runner/playwright.config.mjs
-          cp tests/e2e/auth-bootstrap.spec.mjs .e2e-runner/tests/e2e/auth-bootstrap.spec.mjs
-          cd .e2e-runner
-          npm init -y --name=e2e-runner
+          mkdir -p e2e-runner/tests/e2e
+          cp playwright.config.mjs e2e-runner/playwright.config.mjs
+          cp tests/e2e/auth-bootstrap.spec.mjs e2e-runner/tests/e2e/auth-bootstrap.spec.mjs
+          cd e2e-runner
+          npm init -y
           npm install --no-save --no-package-lock @playwright/test@1.55.0
 
       - name: Install Chromium
-        working-directory: .e2e-runner
+        working-directory: e2e-runner
         run: npx playwright install --with-deps chromium
 
       - name: Run browser E2E
-        working-directory: .e2e-runner
+        working-directory: e2e-runner
         run: npx playwright test
