@@ -114,19 +114,6 @@ test.describe('authentication bootstrap', () => {
   })
 
   test('stale restoreSession cannot clobber a fresh signIn', async ({ page }) => {
-    let firstProfileCall = true
-    await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
-      if (firstProfileCall) {
-        firstProfileCall = false
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]),
-      })
-    })
-
     await page.addInitScript(({ key, token, uid }) => {
       localStorage.setItem(key, JSON.stringify({
         accessToken: token,
@@ -141,6 +128,18 @@ test.describe('authentication bootstrap', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
+      })
+    })
+
+    await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
+      const authorization = route.request().headers().authorization ?? ''
+      if (authorization === 'Bearer stale-restore-token') {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]),
       })
     })
 
