@@ -60,10 +60,6 @@ async function login(page) {
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-async function captureAuthTrace(page) {
-  return page.evaluate(() => window.__e2eAuthTrace ?? [])
-}
-
 test.describe('authentication bootstrap', () => {
   test('public login route boots and remains responsive', async ({ page }) => {
     const started = Date.now()
@@ -79,6 +75,11 @@ test.describe('authentication bootstrap', () => {
   })
 
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
+    const providerMounts = []
+    page.on('console', (message) => {
+      const match = message.text().match(/\[AUTH_EVENT\] provider_mount (\S+)/)
+      if (match) providerMounts.push(match[1])
+    })
     const mock = await mockAuthApi(page)
     await page.addInitScript(() => {
       window.__e2eAuthTrace = []
@@ -103,6 +104,7 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: 'Sign-in did not retain its session' }).toBeTruthy()
     expect(browserErrors).toEqual([])
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
+    expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
     await expect.poll(() => mock.getOrdersRequestCount()).toBeGreaterThan(0)
