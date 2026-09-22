@@ -113,7 +113,7 @@ test.describe('authentication bootstrap', () => {
     await expect(page.evaluate((key) => localStorage.getItem(key), sessionKey)).toBeNull()
   })
 
-  test('stale restoreSession cannot clobber a fresh signIn', async ({ page }) => {
+  test('signIn wins over a slower concurrent restoreSession', async ({ page }) => {
     await page.addInitScript(({ key, token, uid }) => {
       localStorage.setItem(key, JSON.stringify({
         accessToken: token,
@@ -123,18 +123,36 @@ test.describe('authentication bootstrap', () => {
       }))
     }, { key: sessionKey, token: 'stale-restore-token', uid: userId })
 
+    let profileCallCount = 0
+    let staleRestoreFinished = false
+
     await page.route(`${appOrigin}/auth/v1/token**`, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
-      })
+      const grantType = new URL(route.request().url()).searchParams.get('grant_type')
+      if (grantType === 'password') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
+        })
+        return
+      }
+      if (grantType === 'refresh_token') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ access_token: `${accessToken}-refresh`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }),
+        })
+        return
+      }
+      await route.continue()
     })
 
     await page.route(`${appOrigin}/rest/v1/profiles**`, async (route) => {
+      profileCallCount += 1
       const authorization = route.request().headers().authorization ?? ''
       if (authorization === 'Bearer stale-restore-token') {
         await new Promise((resolve) => setTimeout(resolve, 500))
+        staleRestoreFinished = true
       }
       await route.fulfill({
         status: 200,
@@ -148,11 +166,13 @@ test.describe('authentication bootstrap', () => {
     })
 
     await page.goto('/login?returnTo=%2Fapp', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
     await login(page)
+
     await expect(page).toHaveURL(`${appOrigin}/app`)
     await expect(page.getByText('E2E Test User')).toBeVisible()
-
-    await page.waitForTimeout(700)
+    await expect.poll(() => profileCallCount).toBeGreaterThanOrEqual(2)
+    await expect.poll(() => staleRestoreFinished, { timeout: 2_000 }).toBe(true)
     await expect(page).toHaveURL(`${appOrigin}/app`)
     await expect(page.getByText('Authenticated')).toBeVisible()
     await expect(page.evaluate((key) => JSON.parse(localStorage.getItem(key)).accessToken, sessionKey)).toBe(accessToken)
