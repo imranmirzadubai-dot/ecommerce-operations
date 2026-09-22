@@ -2,12 +2,6 @@ name: Deploy Staging
 
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Git ref to deploy to staging
-        required: true
-        default: main
-        type: string
 
 concurrency:
   group: deploy-staging
@@ -29,10 +23,10 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
-      - name: Checkout requested ref
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: main
           fetch-depth: 1
 
       - name: Setup Node
