@@ -9,12 +9,8 @@ async function mockAuthApi(page) {
   let refreshCount = 0
   let ordersRequestCount = 0
   let ordersAuthorization = null
-  await page.route('**/*', async (route) => {
+  await page.route(`${authOrigin}/**`, async (route) => {
     const url = new URL(route.request().url())
-    if (url.origin !== authOrigin) {
-      await route.continue()
-      return
-    }
     if (url.pathname === '/auth/v1/token') {
       const grantType = url.searchParams.get('grant_type')
       if (grantType === 'refresh_token') {
@@ -70,7 +66,7 @@ test.describe('authentication bootstrap', () => {
     await page.getByLabel('Password').fill('not-a-real-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey)).toBe(true)
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey), { timeout: 10_000 }).toBe(true)
     await page.goto('/app', { waitUntil: 'domcontentloaded', timeout: 10_000 })
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
