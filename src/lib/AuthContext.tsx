@@ -20,6 +20,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
   const refreshTimer = useRef<number | null>(null)
+  const generationRef = useRef(0)
+  const controllerRef = useRef<AbortController | null>(null)
+
+  const startOperation = useCallback(() => {
+    generationRef.current += 1
+    const myGen = generationRef.current
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    return { myGen, signal: controller.signal, isCurrent: () => generationRef.current === myGen }
+  }, [])
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current !== null) {
@@ -29,23 +40,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refresh = useCallback(async (): Promise<AuthState> => {
-    const next = await restoreSession()
-    setAuth(next)
-    return next
-  }, [])
+    const op = startOperation()
+    try {
+      const next = await restoreSession(op.signal)
+      if (!op.isCurrent()) return next
+      setAuth(next)
+      return next
+    } catch (error) {
+      if (op.signal.aborted || !op.isCurrent()) return signedOutState
+      setAuth(signedOutState)
+      throw error
+    }
+  }, [startOperation])
 
   useEffect(() => {
-    let cancelled = false
-    void restoreSession().then((next) => {
-      if (!cancelled) setAuth(next)
+    const op = startOperation()
+    void restoreSession(op.signal).then((next) => {
+      if (op.isCurrent()) setAuth(next)
+    }).catch((error: unknown) => {
+      if (!op.signal.aborted && op.isCurrent()) setAuth(signedOutState)
+      if (!op.signal.aborted) console.error(error)
     }).finally(() => {
-      if (!cancelled) setLoading(false)
+      if (op.isCurrent()) setLoading(false)
     })
     return () => {
-      cancelled = true
+      op.signal.aborted || op.signal.dispatchEvent(new Event('abort'))
       clearRefreshTimer()
     }
-  }, [clearRefreshTimer])
+  }, [clearRefreshTimer, startOperation])
 
   useEffect(() => {
     clearRefreshTimer()
@@ -68,16 +90,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth.authenticated, auth.accessToken, clearRefreshTimer, refresh])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const next = await authenticate(email, password)
-    setAuth(next)
-    return next
-  }, [])
+    const op = startOperation()
+    try {
+      const next = await authenticate(email, password, op.signal)
+      if (!op.isCurrent()) return next
+      setAuth(next)
+      return next
+    } catch (error) {
+      if (op.signal.aborted || !op.isCurrent()) return signedOutState
+      setAuth(signedOutState)
+      throw error
+    }
+  }, [startOperation])
 
   const signOut = useCallback(async () => {
     clearRefreshTimer()
-    await terminateSession()
-    setAuth(signedOutState)
-  }, [clearRefreshTimer])
+    const op = startOperation()
+    await terminateSession(op.signal)
+    if (op.isCurrent()) setAuth(signedOutState)
+  }, [clearRefreshTimer, startOperation])
 
   const value = useMemo<AuthContextValue>(() => ({
     ...auth,
