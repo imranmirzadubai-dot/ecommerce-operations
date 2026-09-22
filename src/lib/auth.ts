@@ -49,7 +49,7 @@ const AUTH_REQUEST_TIMEOUT_MS = 8_000
 const E2E = import.meta.env.VITE_APP_ENVIRONMENT === 'e2e'
 
 function authTrace(event: string, details: Record<string, unknown> = {}): void {
-  if (E2E) console.info('[AUTH-E2E]', event, details)
+  if (E2E) console.info('[AUTH-E2E]', event, JSON.stringify(details))
 }
 
 export function hasOperationalAccess(profile: Profile | null): boolean {
@@ -93,6 +93,10 @@ function clearStoredSessionIfCurrent(expectedAccessToken: string): void {
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
+  if (signal?.aborted) {
+    authTrace('fetch-aborted-before-start')
+    throw new DOMException('The operation was aborted', 'AbortError')
+  }
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   const abort = () => controller.abort()
