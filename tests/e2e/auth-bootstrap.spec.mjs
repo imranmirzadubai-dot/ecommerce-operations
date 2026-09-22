@@ -146,6 +146,7 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: async () => `Session missing after token/profile lifecycle; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBeTruthy()
     expect(browserErrors).toEqual([])
+    await expect.poll(() => page.locator('[data-auth-state]').getAttribute('data-auth-state'), { timeout: 10_000, message: async () => `Authenticated render state not reached; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('authenticated')
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
