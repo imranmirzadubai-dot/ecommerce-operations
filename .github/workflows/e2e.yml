@@ -28,11 +28,17 @@ jobs:
       - name: Install application dependencies
         run: npm ci
 
+      - name: Capture build timestamp
+        id: timestamp
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build application
         env:
           VITE_APP_ENVIRONMENT: e2e
           VITE_SUPABASE_URL: http://127.0.0.1:4173
           VITE_SUPABASE_PUBLISHABLE_KEY: e2e-test-publishable-key
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_TIME: ${{ steps.timestamp.outputs.value }}
         run: npm run build
 
       - name: Create isolated Playwright runner
