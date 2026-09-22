@@ -1,29 +1,22 @@
 import { useEffect, useState } from 'react'
 import App from './App.tsx'
-import { restoreSession } from './lib/auth'
+import { useAuth } from './lib/AuthContext'
 import { getLoginRedirect, isProtectedPath } from './lib/routes'
 
 export function RouteGuard() {
-  const [checking, setChecking] = useState(() => isProtectedPath(window.location.pathname))
-  const [allowed, setAllowed] = useState(() => !isProtectedPath(window.location.pathname))
+  const { authenticated, loading } = useAuth()
+  const protectedPath = isProtectedPath(window.location.pathname)
+  const [allowed, setAllowed] = useState(() => !protectedPath)
 
   useEffect(() => {
-    const pathname = window.location.pathname
-    if (!isProtectedPath(pathname)) return
+    if (!protectedPath || loading) return
+    if (authenticated) {
+      setAllowed(true)
+      return
+    }
+    window.location.replace(getLoginRedirect(window.location.pathname, window.location.search))
+  }, [authenticated, loading, protectedPath])
 
-    let cancelled = false
-    restoreSession().then((session) => {
-      if (cancelled) return
-      if (session.authenticated) {
-        setAllowed(true)
-      } else {
-        window.location.replace(getLoginRedirect(pathname, window.location.search))
-      }
-      setChecking(false)
-    })
-    return () => { cancelled = true }
-  }, [])
-
-  if (checking) return <div aria-label="Authentication check" />
-  return allowed ? <App /> : null
+  if (protectedPath && (loading || !allowed)) return <div aria-label="Authentication check" />
+  return <App />
 }
