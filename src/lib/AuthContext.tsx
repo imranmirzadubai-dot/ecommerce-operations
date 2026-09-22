@@ -30,7 +30,7 @@ function authStateTrace(event: string, auth: AuthState, details: Record<string, 
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const instanceId = useRef(crypto.randomUUID()).current
+  const [instanceId] = useState(() => crypto.randomUUID())
   console.log('[AUTH_EVENT] provider_mount', instanceId)
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
