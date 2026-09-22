@@ -29,6 +29,10 @@ jobs:
         run: npm ci
 
       - name: Build application
+        env:
+          VITE_APP_ENVIRONMENT: e2e
+          VITE_SUPABASE_URL: https://e2e.invalid
+          VITE_SUPABASE_PUBLISHABLE_KEY: e2e-test-publishable-key
         run: npm run build
 
       - name: Create isolated Playwright runner
