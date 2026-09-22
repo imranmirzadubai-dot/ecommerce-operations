@@ -24,6 +24,8 @@ type AuthOperation = {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const instanceId = useRef(crypto.randomUUID()).current
+  console.log('[AUTH_EVENT] provider_mount', instanceId)
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
   const refreshTimer = useRef<number | null>(null)
