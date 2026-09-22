@@ -9,15 +9,16 @@ async function mockAuthApi(page) {
   let refreshCount = 0
   let ordersRequestCount = 0
   let ordersAuthorization = null
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': authOrigin,
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'apikey,authorization,content-type,x-client-info',
-  }
 
   await page.route(`${authOrigin}/**`, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
+    const requestOrigin = request.headers().origin ?? 'http://127.0.0.1:4173'
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': requestOrigin,
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'apikey,authorization,content-type,x-client-info',
+    }
 
     if (request.method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: corsHeaders, body: '' })
