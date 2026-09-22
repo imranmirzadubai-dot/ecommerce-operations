@@ -20,7 +20,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: 17075bc25305c27192e086ada673751b
       VITE_APP_ENVIRONMENT: staging
       VITE_SUPABASE_URL: https://mijbpvgxrxjaalimyqgm.supabase.co
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
       - name: Checkout main
@@ -40,13 +39,15 @@ jobs:
 
       - name: Verify staging environment contract
         shell: bash
+        env:
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
 
           test "$CLOUDFLARE_ENV" = "staging"
           test "$VITE_APP_ENVIRONMENT" = "staging"
           test "$VITE_SUPABASE_URL" = "https://mijbpvgxrxjaalimyqgm.supabase.co"
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$STAGING_SUPABASE_PUBLISHABLE_KEY"
 
           # The staging environment must deploy only the isolated Worker.
           grep -q '"staging"' wrangler.jsonc
@@ -67,6 +68,8 @@ jobs:
           npm test
 
       - name: Build staging
+        env:
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
       - name: Deploy isolated staging Worker
