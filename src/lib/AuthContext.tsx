@@ -133,11 +133,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!op.isCurrent()) return next
       authStateTrace('set-auth', next, { generation: op.myGen, current: op.isCurrent() })
       setAuth(next)
+      setLoading(false)
       return next
     } catch (error) {
       if (op.signal.aborted || !op.isCurrent()) return signedOutState
       authStateTrace('sign-in-error-set-signed-out', signedOutState, { generation: op.myGen, error: error instanceof Error ? error.message : String(error) })
       setAuth(signedOutState)
+      setLoading(false)
       throw error
     }
   }, [startOperation, auth])
