@@ -60,6 +60,10 @@ async function login(page) {
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
+async function captureAuthTrace(page) {
+  return page.evaluate(() => window.__e2eAuthTrace ?? [])
+}
+
 test.describe('authentication bootstrap', () => {
   test('public login route boots and remains responsive', async ({ page }) => {
     const started = Date.now()
@@ -76,6 +80,14 @@ test.describe('authentication bootstrap', () => {
 
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
     const mock = await mockAuthApi(page)
+    await page.addInitScript(() => {
+      window.__e2eAuthTrace = []
+      const originalInfo = console.info
+      console.info = (...args) => {
+        if (args[0] === '[AUTH-E2E]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        originalInfo(...args)
+      }
+    })
     const browserErrors = []
     page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`))
     page.on('console', (message) => {
@@ -115,12 +127,13 @@ test.describe('authentication bootstrap', () => {
 
   test('signIn wins over a slower concurrent restoreSession', async ({ page }) => {
     await page.addInitScript(({ key, token, uid }) => {
-      localStorage.setItem(key, JSON.stringify({
-        accessToken: token,
-        refreshToken: 'e2e-refresh-token',
-        expiresAt: Date.now() + 3600_000,
-        userId: uid,
-      }))
+      localStorage.setItem(key, JSON.stringify({ accessToken: token, refreshToken: 'e2e-refresh-token', expiresAt: Date.now() + 3600_000, userId: uid }))
+      window.__e2eAuthTrace = []
+      const originalInfo = console.info
+      console.info = (...args) => {
+        if (args[0] === '[AUTH-E2E]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        originalInfo(...args)
+      }
     }, { key: sessionKey, token: 'stale-restore-token', uid: userId })
 
     let profileCallCount = 0
@@ -129,19 +142,11 @@ test.describe('authentication bootstrap', () => {
     await page.route(`${appOrigin}/auth/v1/token**`, async (route) => {
       const grantType = new URL(route.request().url()).searchParams.get('grant_type')
       if (grantType === 'password') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
-        })
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
         return
       }
       if (grantType === 'refresh_token') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ access_token: `${accessToken}-refresh`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }),
-        })
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-refresh`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
         return
       }
       await route.continue()
@@ -154,11 +159,7 @@ test.describe('authentication bootstrap', () => {
         await new Promise((resolve) => setTimeout(resolve, 500))
         staleRestoreFinished = true
       }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]),
-      })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
     })
 
     await page.route(`${appOrigin}/api/orders**`, async (route) => {
