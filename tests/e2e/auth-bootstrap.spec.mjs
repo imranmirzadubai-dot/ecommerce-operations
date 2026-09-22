@@ -61,9 +61,17 @@ async function login(page) {
 }
 
 test.describe('authentication bootstrap', () => {
+  test.beforeEach(async ({ page }) => {
+    page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`))
+    page.on('pageerror', (error) => console.log(`[browser:pageerror] ${error.message}`))
+  })
+
   test('public login route boots and remains responsive', async ({ page }) => {
     const started = Date.now()
     await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    const buildStamp = await page.evaluate(() => window.__buildStamp)
+    console.log('BUILD UNDER TEST:', JSON.stringify(buildStamp))
+    expect(buildStamp?.sha).toBe(process.env.GITHUB_SHA)
     await expect(page.locator('body')).toContainText(/authentication|sign in|login|email/i)
     expect(Date.now() - started).toBeLessThan(10_000)
   })
@@ -101,9 +109,9 @@ test.describe('authentication bootstrap', () => {
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: 'Session missing after token/profile lifecycle' }).toBeTruthy()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: async () => `Session missing after token/profile lifecycle; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; trace=${JSON.stringify(await page.evaluate(() => window.__e2eAuthTrace ?? []))}; mounts=${providerMounts.join(',') || 'none'}` }).toBeTruthy()
     expect(browserErrors).toEqual([])
-    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; trace=${JSON.stringify(await page.evaluate(() => window.__e2eAuthTrace ?? []))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
