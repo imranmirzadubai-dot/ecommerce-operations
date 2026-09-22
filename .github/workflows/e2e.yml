@@ -31,7 +31,7 @@ jobs:
       - name: Build application
         env:
           VITE_APP_ENVIRONMENT: e2e
-          VITE_SUPABASE_URL: https://e2e.invalid
+          VITE_SUPABASE_URL: http://127.0.0.1:4173
           VITE_SUPABASE_PUBLISHABLE_KEY: e2e-test-publishable-key
         run: npm run build
 
