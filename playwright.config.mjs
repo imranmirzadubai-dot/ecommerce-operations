@@ -17,9 +17,9 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: '../node_modules/.bin/vite preview ../dist/client --host 127.0.0.1',
+    command: 'node ../tests/e2e-server.mjs',
     url: 'http://127.0.0.1:4173/login',
     reuseExistingServer: false,
-    timeout: 60_000,
+    timeout: 15_000,
   },
 })
