@@ -37,8 +37,6 @@ type TokenResponse = {
 const SESSION_KEY = 'ecommerce-operations.auth.session'
 const AUTH_REQUEST_TIMEOUT_MS = 8_000
 
-type JsonXhrResult<T> = { status: number; data: T }
-
 export function hasOperationalAccess(profile: Profile | null): boolean {
   return profile?.active === true && APP_ROLES.includes(profile.role)
 }
@@ -71,66 +69,48 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
-async function requestJsonWithXhr<T>(input: string, init: { method?: string; headers?: Record<string, string>; body?: string }): Promise<JsonXhrResult<T>> {
-  return await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open(init.method ?? 'GET', input, true)
-    xhr.timeout = AUTH_REQUEST_TIMEOUT_MS
-    Object.entries(init.headers ?? {}).forEach(([name, value]) => xhr.setRequestHeader(name, value))
-    xhr.responseType = 'text'
-    xhr.onload = () => {
-      try {
-        const data = xhr.responseText ? JSON.parse(xhr.responseText) as T : {} as T
-        resolve({ status: xhr.status, data })
-      } catch (error) {
-        reject(new Error('Authentication response could not be parsed', { cause: error }))
-      }
-    }
-    xhr.onerror = () => reject(new Error('Authentication network request failed'))
-    xhr.ontimeout = () => reject(new Error('Authentication request timed out'))
-    xhr.onabort = () => reject(new Error('Authentication request aborted'))
-    try {
-      xhr.send(init.body)
-    } catch (error) {
-      reject(error)
-    }
-  })
-}
-
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   try {
     return await fetch(input, { ...init, signal: controller.signal })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('Authentication request timed out', { cause: error })
-    }
-    throw error
   } finally {
     window.clearTimeout(timeout)
   }
 }
 
-async function authRequest<T>(_config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
-  const result = await requestJsonWithXhr<T>(`${window.location.origin}/api/auth/token?grant_type=${grantType}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (result.status < 200 || result.status >= 300) {
-    const payload = result.data as { msg?: string; error_description?: string; message?: string; error?: string }
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? payload?.error ?? 'Authentication request failed')
+async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
+  let response: Response
+  try {
+    response = await fetchWithTimeout(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
+    throw error
   }
-  return result.data
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
+    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
+  }
+  return response.json() as Promise<T>
 }
 
-async function loadProfile(_config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
-  const result = await requestJsonWithXhr<Profile[]>(`${window.location.origin}/api/auth/profile?user_id=${encodeURIComponent(userId)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (result.status < 200 || result.status >= 300) throw new Error('Unable to load the authenticated profile')
-  const profile = result.data[0]
+async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
+  let response: Response
+  try {
+    response = await fetchWithTimeout(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
+    throw error
+  }
+  if (!response.ok) throw new Error('Unable to load the authenticated profile')
+  const rows = (await response.json()) as Profile[]
+  const profile = rows[0]
   if (!profile || !profile.active) throw new Error('This account does not have an active operations profile')
   return profile
 }
@@ -146,28 +126,6 @@ export async function signIn(email: string, password: string): Promise<AuthState
   } catch (error) {
     clearStoredSession()
     throw error
-  }
-}
-
-export async function requestPasswordReset(email: string): Promise<void> {
-  const config = getAuthConfig()
-  if (!config) throw new Error('Supabase authentication is not configured for this environment')
-  let response: Response
-  try {
-    response = await fetchWithTimeout(`${window.location.origin}/api/auth/recover`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-  } catch (error) {
-    if (error instanceof Error && error.message === 'Authentication request timed out') {
-      throw new Error('Password reset request timed out', { cause: error })
-    }
-    throw error
-  }
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string; error?: string } | null
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? payload?.error ?? 'Unable to send password reset email')
   }
 }
 
@@ -201,8 +159,8 @@ export async function signOut(): Promise<void> {
   const stored = readStoredSession()
   clearStoredSession()
   if (!config || !stored) return
-  await fetchWithTimeout(`${window.location.origin}/api/auth/logout`, {
+  await fetchWithTimeout(`${config.url}/auth/v1/logout`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${stored.accessToken}` },
+    headers: { apikey: config.publishableKey, Authorization: `Bearer ${stored.accessToken}` },
   }).catch(() => undefined)
 }
