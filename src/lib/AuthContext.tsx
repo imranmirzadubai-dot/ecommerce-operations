@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { restoreSession, signIn as authenticate, signOut as terminateSession, type AuthState } from './auth'
 
@@ -7,6 +7,7 @@ const REFRESH_LEAD_MS = 60_000
 const MIN_REFRESH_DELAY_MS = 5_000
 
 type AuthContextValue = AuthState & {
+  auth: AuthState
   loading: boolean
   signIn: (email: string, password: string) => Promise<AuthState>
   signOut: () => Promise<void>
@@ -20,18 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const refreshTimer = useRef<number | null>(null)
 
-  const clearRefreshTimer = () => {
+  const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current)
       refreshTimer.current = null
     }
-  }
+  }, [])
 
-  const refresh = async (): Promise<AuthState> => {
+  const refresh = useCallback(async (): Promise<AuthState> => {
     const next = await restoreSession()
     setAuth(next)
     return next
-  }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
       clearRefreshTimer()
     }
-  }, [])
+  }, [clearRefreshTimer])
 
   useEffect(() => {
     clearRefreshTimer()
@@ -64,23 +65,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return clearRefreshTimer
-  }, [auth.authenticated, auth.accessToken])
+  }, [auth.authenticated, auth.accessToken, clearRefreshTimer, refresh])
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const next = await authenticate(email, password)
+    setAuth(next)
+    return next
+  }, [])
+
+  const signOut = useCallback(async () => {
+    clearRefreshTimer()
+    await terminateSession()
+    setAuth(signedOutState)
+  }, [clearRefreshTimer])
 
   const value = useMemo<AuthContextValue>(() => ({
     ...auth,
+    auth,
     loading,
-    signIn: async (email, password) => {
-      const next = await authenticate(email, password)
-      setAuth(next)
-      return next
-    },
-    signOut: async () => {
-      clearRefreshTimer()
-      await terminateSession()
-      setAuth(signedOutState)
-    },
+    signIn,
+    signOut,
     refresh,
-  }), [auth, loading])
+  }), [auth, loading, refresh, signIn, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
