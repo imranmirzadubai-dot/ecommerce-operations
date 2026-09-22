@@ -54,6 +54,39 @@ async function mockAuthApi(page) {
   }
 }
 
+async function installStorageDiagnostics(page) {
+  await page.addInitScript(({ key }) => {
+    window.__storageDiagnostics = []
+    const record = (event) => {
+      window.__storageDiagnostics.push({ ...event, stack: new Error().stack ?? '' })
+    }
+    const originalRemoveItem = Storage.prototype.removeItem
+    const originalClear = Storage.prototype.clear
+    const originalSetItem = Storage.prototype.setItem
+    Storage.prototype.removeItem = function (storageKey) {
+      if (this === localStorage && storageKey === key) record({ operation: 'removeItem', key: storageKey })
+      return originalRemoveItem.call(this, storageKey)
+    }
+    Storage.prototype.clear = function () {
+      if (this === localStorage) record({ operation: 'clear' })
+      return originalClear.call(this)
+    }
+    Storage.prototype.setItem = function (storageKey, value) {
+      if (this === localStorage && storageKey === key) record({ operation: 'setItem', key: storageKey, value })
+      return originalSetItem.call(this, storageKey, value)
+    }
+  }, { key: sessionKey })
+}
+
+async function diagnostics(page) {
+  return page.evaluate((key) => ({
+    url: location.href,
+    session: localStorage.getItem(key),
+    storageEvents: window.__storageDiagnostics ?? [],
+    trace: window.__e2eAuthTrace ?? [],
+  }), sessionKey)
+}
+
 async function login(page) {
   await page.getByLabel('Email').fill('e2e@example.invalid')
   await page.getByLabel('Password').fill('not-a-real-password')
@@ -64,6 +97,8 @@ test.describe('authentication bootstrap', () => {
   test.beforeEach(async ({ page }) => {
     page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`))
     page.on('pageerror', (error) => console.log(`[browser:pageerror] ${error.message}`))
+    page.on('framenavigated', (frame) => console.log(`[NAVIGATION] ${frame.url()}`))
+    await installStorageDiagnostics(page)
   })
 
   test('public login route boots and remains responsive', async ({ page }) => {
@@ -109,9 +144,9 @@ test.describe('authentication bootstrap', () => {
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: async () => `Session missing after token/profile lifecycle; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; trace=${JSON.stringify(await page.evaluate(() => window.__e2eAuthTrace ?? []))}; mounts=${providerMounts.join(',') || 'none'}` }).toBeTruthy()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: async () => `Session missing after token/profile lifecycle; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBeTruthy()
     expect(browserErrors).toEqual([])
-    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; trace=${JSON.stringify(await page.evaluate(() => window.__e2eAuthTrace ?? []))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
