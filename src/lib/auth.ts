@@ -79,6 +79,7 @@ function readStoredSession(): StoredSession | null {
 function storeSession(session: StoredSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
   authTrace('store-session', { token: session.accessToken, userId: session.userId })
+  authTrace('session-after-write', { stored: localStorage.getItem(SESSION_KEY), origin: window.location.origin })
 }
 
 export function clearStoredSession(): void {
