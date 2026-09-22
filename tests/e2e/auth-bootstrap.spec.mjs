@@ -100,8 +100,9 @@ test.describe('authentication bootstrap', () => {
     await login(page)
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 2_000, message: 'Token response did not persist its session' }).toBeTruthy()
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: 'Sign-in did not retain its session' }).toBeTruthy()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: `Session disappeared after profile/auth lifecycle. providerMounts=${providerMounts.join(',') || 'none'} trace=${JSON.stringify(window.__e2eAuthTrace ?? [])}` }).toBeTruthy()
     expect(browserErrors).toEqual([])
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
