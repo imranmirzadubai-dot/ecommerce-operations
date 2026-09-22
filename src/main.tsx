@@ -2,6 +2,7 @@ import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { RouteGuard } from './RouteGuard.tsx'
+import { AuthProvider } from './lib/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { installGlobalErrorReporting } from './lib/errorReporting'
 
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <ErrorReportingBootstrap />
-      <RouteGuard />
+      <AuthProvider>
+        <RouteGuard />
+      </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

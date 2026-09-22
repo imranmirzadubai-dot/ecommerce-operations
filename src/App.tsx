@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
-import { canAdministerUsers, getAuthConfig, hasOperationalAccess, restoreSession, signIn, signOut, type AuthState } from './lib/auth'
+import { canAdministerUsers, getAuthConfig, hasOperationalAccess } from './lib/auth'
+import { useAuth } from './lib/AuthContext'
 import { getPostLoginPath } from './lib/routes'
 import { createOrder, resolveCustomerByPhone } from './lib/commands'
 import { OrdersWorkspace } from './components/OrdersWorkspace'
@@ -14,13 +15,11 @@ import { AdminUserControls } from './components/AdminUserControls'
 import { normalizeAedAmount } from './lib/money'
 
 const navigation = ['Dashboard', 'Customers', 'Orders', 'Parcels', 'Dispatch', 'Delivery / NDR', 'COD & Finance', 'Invoices', 'Reports']
-const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 type OrderItem = { description: string; quantity: string }
 const environmentLabel = (import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'unknown').toUpperCase()
 
 function App() {
-  const [auth, setAuth] = useState<AuthState>(signedOutState)
-  const [loading, setLoading] = useState(true)
+  const { auth, loading, signIn, signOut } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -37,9 +36,8 @@ function App() {
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
 
-  useEffect(() => { restoreSession().then(setAuth).finally(() => setLoading(false)) }, [])
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); setLoading(true); try { setAuth(await signIn(email.trim(), password)); setPassword(''); window.location.replace(getPostLoginPath(window.location.search)) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } finally { setLoading(false) } }
-  async function handleSignOut() { await signOut(); setAuth(signedOutState); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); window.location.replace(getPostLoginPath(window.location.search)) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
+  async function handleSignOut() { await signOut(); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
   function navigateTo(item: string) { if (item === 'Reports') document.getElementById('reports-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   async function lookupCustomer() { if (!auth.accessToken || !phone.trim()) return; setCustomerMessage('Looking up customer…'); try { const rows = await resolveCustomerByPhone(auth.accessToken, phone.trim()); const customer = rows[0]; if (!customer) { setCustomerMessage('No existing customer found. A new customer will be created with the order.'); return } setCustomerName(customer.name); setAddress(customer.address ?? ''); setCity(customer.city ?? ''); setCustomerMessage(`Existing customer found: ${customer.customer_code}`) } catch (lookupError) { setCustomerMessage(lookupError instanceof Error ? lookupError.message : 'Customer lookup failed') } }
   function updateItem(index: number, field: keyof OrderItem, value: string) { setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item)) }
