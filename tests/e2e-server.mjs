@@ -2,9 +2,9 @@ import { createReadStream, existsSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { createServer } from 'node:http'
 
-const root = resolve(process.cwd(), 'dist/client')
+const root = resolve(process.cwd(), process.env.E2E_DIST_DIR ?? 'dist/client')
 const host = '127.0.0.1'
-const port = 4173
+const port = Number(process.env.E2E_PORT ?? 4173)
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
