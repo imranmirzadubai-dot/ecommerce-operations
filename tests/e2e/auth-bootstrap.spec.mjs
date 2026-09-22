@@ -9,26 +9,39 @@ async function mockAuthApi(page) {
   let refreshCount = 0
   let ordersRequestCount = 0
   let ordersAuthorization = null
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': authOrigin,
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'apikey,authorization,content-type,x-client-info',
+  }
+
   await page.route(`${authOrigin}/**`, async (route) => {
-    const url = new URL(route.request().url())
+    const request = route.request()
+    const url = new URL(request.url())
+
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders, body: '' })
+      return
+    }
+
     if (url.pathname === '/auth/v1/token') {
       const grantType = url.searchParams.get('grant_type')
       if (grantType === 'refresh_token') {
         refreshCount += 1
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
+        await route.fulfill({ status: 200, contentType: 'application/json', headers: corsHeaders, body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
         return
       }
       if (grantType === 'password') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
+        await route.fulfill({ status: 200, contentType: 'application/json', headers: corsHeaders, body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
         return
       }
     }
     if (url.pathname === '/rest/v1/profiles') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: corsHeaders, body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
       return
     }
     if (url.pathname === '/auth/v1/logout') {
-      await route.fulfill({ status: 204, body: '' })
+      await route.fulfill({ status: 204, headers: corsHeaders, body: '' })
       return
     }
     await route.continue()
