@@ -69,6 +69,11 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
+function clearStoredSessionIfCurrent(expectedAccessToken: string): void {
+  const current = readStoredSession()
+  if (current?.accessToken === expectedAccessToken) clearStoredSession()
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
@@ -119,12 +124,13 @@ export async function signIn(email: string, password: string): Promise<AuthState
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase authentication is not configured for this environment')
   const token = await authRequest<TokenResponse>(config, 'password', { email, password })
-  storeSession({ accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id })
+  const session: StoredSession = { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id }
+  storeSession(session)
   try {
     const profile = await loadProfile(config, token.access_token, token.user.id)
     return { authenticated: true, userId: token.user.id, profile, accessToken: token.access_token }
   } catch (error) {
-    clearStoredSession()
+    clearStoredSessionIfCurrent(session.accessToken)
     throw error
   }
 }
@@ -133,6 +139,7 @@ export async function restoreSession(): Promise<AuthState> {
   const config = getAuthConfig()
   let session = readStoredSession()
   if (!config || !session) return { authenticated: false, userId: null, profile: null, accessToken: null }
+  const operationAccessToken = session.accessToken
 
   if (session.expiresAt <= Date.now() + 30_000) {
     try {
@@ -140,7 +147,7 @@ export async function restoreSession(): Promise<AuthState> {
       session = { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id }
       storeSession(session)
     } catch {
-      clearStoredSession()
+      clearStoredSessionIfCurrent(operationAccessToken)
       return { authenticated: false, userId: null, profile: null, accessToken: null }
     }
   }
@@ -149,7 +156,7 @@ export async function restoreSession(): Promise<AuthState> {
     const profile = await loadProfile(config, session.accessToken, session.userId)
     return { authenticated: true, userId: session.userId, profile, accessToken: session.accessToken }
   } catch {
-    clearStoredSession()
+    clearStoredSessionIfCurrent(session.accessToken)
     return { authenticated: false, userId: null, profile: null, accessToken: null }
   }
 }
