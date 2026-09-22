@@ -67,7 +67,7 @@ test.describe('authentication bootstrap', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
 
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey), { timeout: 10_000 }).toBe(true)
-    await page.goto('/app', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
     await expect.poll(() => mock.getOrdersRequestCount()).toBeGreaterThan(0)
