@@ -13,7 +13,7 @@ async function mockAuthApi(page) {
   let ordersRequestCount = 0
   let ordersAuthorization = null
 
-  await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/token', async (route) => {
+  await page.route(`${appOrigin}/auth/v1/token**`, async (route) => {
     tokenRequestCount += 1
     const grantType = new URL(route.request().url()).searchParams.get('grant_type')
     if (grantType === 'refresh_token') {
@@ -28,17 +28,17 @@ async function mockAuthApi(page) {
     await route.continue()
   })
 
-  await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
+  await page.route(`${appOrigin}/rest/v1/profiles**`, async (route) => {
     profileRequestCount += 1
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
   })
 
-  await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/logout', async (route) => {
+  await page.route(`${appOrigin}/auth/v1/logout**`, async (route) => {
     logoutRequestCount += 1
     await route.fulfill({ status: 204, body: '' })
   })
 
-  await page.route((url) => url.origin === appOrigin && url.pathname === '/api/orders', async (route) => {
+  await page.route(`${appOrigin}/api/orders**`, async (route) => {
     ordersRequestCount += 1
     ordersAuthorization = route.request().headers().authorization ?? null
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
@@ -88,7 +88,10 @@ test.describe('authentication bootstrap', () => {
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000 }).toEqual(expect.any(String))
+    await expect.poll(async () => ({
+      session: await page.evaluate((key) => localStorage.getItem(key), sessionKey),
+      error: await page.getByRole('alert').allTextContents(),
+    }), { timeout: 10_000, message: 'Sign-in did not retain its session' }).toSatisfy(({ session }) => typeof session === 'string')
     expect(browserErrors).toEqual([])
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
@@ -123,7 +126,7 @@ test.describe('authentication bootstrap', () => {
       }))
     }, { key: sessionKey, token: 'stale-restore-token', uid: userId })
 
-    await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/token', async (route) => {
+    await page.route(`${appOrigin}/auth/v1/token**`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -131,7 +134,7 @@ test.describe('authentication bootstrap', () => {
       })
     })
 
-    await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
+    await page.route(`${appOrigin}/rest/v1/profiles**`, async (route) => {
       const authorization = route.request().headers().authorization ?? ''
       if (authorization === 'Bearer stale-restore-token') {
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -143,7 +146,7 @@ test.describe('authentication bootstrap', () => {
       })
     })
 
-    await page.route((url) => url.origin === appOrigin && url.pathname === '/api/orders', async (route) => {
+    await page.route(`${appOrigin}/api/orders**`, async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
     })
 
