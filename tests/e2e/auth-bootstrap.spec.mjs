@@ -13,9 +13,7 @@ async function mockAuthApi(page) {
   let ordersRequestCount = 0
   let ordersAuthorization = null
 
-  await page.route((url) => {
-    return url.origin === appOrigin && url.pathname === '/auth/v1/token'
-  }, async (route) => {
+  await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/token', async (route) => {
     tokenRequestCount += 1
     const grantType = new URL(route.request().url()).searchParams.get('grant_type')
     if (grantType === 'refresh_token') {
@@ -30,23 +28,17 @@ async function mockAuthApi(page) {
     await route.continue()
   })
 
-  await page.route((url) => {
-    return url.origin === appOrigin && url.pathname === '/rest/v1/profiles'
-  }, async (route) => {
+  await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
     profileRequestCount += 1
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
   })
 
-  await page.route((url) => {
-    return url.origin === appOrigin && url.pathname === '/auth/v1/logout'
-  }, async (route) => {
+  await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/logout', async (route) => {
     logoutRequestCount += 1
     await route.fulfill({ status: 204, body: '' })
   })
 
-  await page.route((url) => {
-    return url.origin === appOrigin && url.pathname === '/api/orders'
-  }, async (route) => {
+  await page.route((url) => url.origin === appOrigin && url.pathname === '/api/orders', async (route) => {
     ordersRequestCount += 1
     ordersAuthorization = route.request().headers().authorization ?? null
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
@@ -78,6 +70,13 @@ test.describe('authentication bootstrap', () => {
 
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
     const mock = await mockAuthApi(page)
+    const browserErrors = []
+    page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`))
+    page.on('console', (message) => {
+      if (message.type() === 'error') browserErrors.push(`console: ${message.text()}`)
+    })
+    page.on('requestfailed', (request) => browserErrors.push(`requestfailed: ${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown'}`))
+
     await page.goto('/login?returnTo=%2Fapp', { waitUntil: 'domcontentloaded', timeout: 10_000 })
     await page.getByLabel('Email').fill('e2e@example.invalid')
     await page.getByLabel('Password').fill('not-a-real-password')
@@ -85,7 +84,11 @@ test.describe('authentication bootstrap', () => {
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey), { timeout: 10_000 }).toBe(true)
+    await expect.poll(async () => ({
+      session: await page.evaluate((key) => localStorage.getItem(key), sessionKey),
+      url: page.url(),
+      errors: browserErrors,
+    }), { timeout: 10_000 }).toEqual(expect.objectContaining({ session: expect.any(String) }))
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
