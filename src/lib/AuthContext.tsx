@@ -5,6 +5,7 @@ import { restoreSession, signIn as authenticate, signOut as terminateSession, ty
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 const REFRESH_LEAD_MS = 60_000
 const MIN_REFRESH_DELAY_MS = 5_000
+const E2E = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e'
 
 type AuthContextValue = AuthState & {
   auth: AuthState
@@ -23,6 +24,11 @@ type AuthOperation = {
   isCurrent: () => boolean
 }
 
+function authStateTrace(event: string, auth: AuthState, details: Record<string, unknown> = {}): void {
+  if (!E2E) return
+  console.info('[AUTH-STATE]', event, JSON.stringify({ authenticated: auth.authenticated, userId: auth.userId, hasProfile: Boolean(auth.profile), role: auth.profile?.role ?? null, active: auth.profile?.active ?? null, hasAccessToken: Boolean(auth.accessToken), ...details }))
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const instanceId = useRef(crypto.randomUUID()).current
   console.log('[AUTH_EVENT] provider_mount', instanceId)
@@ -31,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTimer = useRef<number | null>(null)
   const generationRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    authStateTrace('commit', auth, { loading })
+  }, [auth, loading])
 
   const startOperation = useCallback((): AuthOperation => {
     generationRef.current += 1
@@ -58,10 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const next = await restoreSession(op.signal)
       if (!op.isCurrent()) return next
+      authStateTrace('refresh-set-auth', next, { generation: op.myGen })
       setAuth(next)
       return next
     } catch (error) {
       if (op.signal.aborted || !op.isCurrent()) return signedOutState
+      authStateTrace('refresh-error-set-signed-out', signedOutState, { generation: op.myGen, error: error instanceof Error ? error.message : String(error) })
       setAuth(signedOutState)
       throw error
     }
@@ -69,10 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     const op = startOperation()
+    authStateTrace('restore-start', signedOutState, { generation: op.myGen })
     void restoreSession(op.signal).then((next) => {
-      if (op.isCurrent()) setAuth(next)
+      if (op.isCurrent()) {
+        authStateTrace('restore-set-auth', next, { generation: op.myGen })
+        setAuth(next)
+      } else {
+        authStateTrace('restore-stale-result', next, { generation: op.myGen })
+      }
     }).catch((error: unknown) => {
-      if (!op.signal.aborted && op.isCurrent()) setAuth(signedOutState)
+      if (!op.signal.aborted && op.isCurrent()) {
+        authStateTrace('restore-error-set-signed-out', signedOutState, { generation: op.myGen, error: error instanceof Error ? error.message : String(error) })
+        setAuth(signedOutState)
+      }
       if (!op.signal.aborted) console.error(error)
     }).finally(() => {
       if (op.isCurrent()) setLoading(false)
@@ -105,24 +126,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const op = startOperation()
+    authStateTrace('sign-in-start', auth, { generation: op.myGen })
     try {
       const next = await authenticate(email, password, op.signal)
+      authStateTrace('sign-in-returned', next, { generation: op.myGen, current: op.isCurrent(), storedSession: localStorage.getItem('ecommerce-operations.auth.session') })
       if (!op.isCurrent()) return next
+      authStateTrace('set-auth', next, { generation: op.myGen, current: op.isCurrent() })
       setAuth(next)
       return next
     } catch (error) {
       if (op.signal.aborted || !op.isCurrent()) return signedOutState
+      authStateTrace('sign-in-error-set-signed-out', signedOutState, { generation: op.myGen, error: error instanceof Error ? error.message : String(error) })
       setAuth(signedOutState)
       throw error
     }
-  }, [startOperation])
+  }, [startOperation, auth])
 
   const signOut = useCallback(async () => {
     clearRefreshTimer()
     const op = startOperation()
+    authStateTrace('sign-out-start', auth, { generation: op.myGen })
     await terminateSession(op.signal)
-    if (op.isCurrent()) setAuth(signedOutState)
-  }, [clearRefreshTimer, startOperation])
+    if (op.isCurrent()) {
+      authStateTrace('set-auth-signed-out', signedOutState, { generation: op.myGen })
+      setAuth(signedOutState)
+    }
+  }, [auth, clearRefreshTimer, startOperation])
 
   const value = useMemo<AuthContextValue>(() => ({
     ...auth,
