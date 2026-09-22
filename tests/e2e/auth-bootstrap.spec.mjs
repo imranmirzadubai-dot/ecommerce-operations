@@ -84,11 +84,8 @@ test.describe('authentication bootstrap', () => {
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
-    await expect.poll(async () => ({
-      session: await page.evaluate((key) => localStorage.getItem(key), sessionKey),
-      url: page.url(),
-      errors: browserErrors,
-    }), { timeout: 10_000 }).toEqual(expect.objectContaining({ session: expect.any(String) }))
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000 }).toEqual(expect.any(String))
+    expect(browserErrors).toEqual([])
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
