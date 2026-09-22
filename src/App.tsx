@@ -36,7 +36,7 @@ function App() {
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
 
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); window.location.replace(getPostLoginPath(window.location.search)) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); window.location.href = getPostLoginPath(window.location.search) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
   async function handleSignOut() { await signOut(); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
   function navigateTo(item: string) { if (item === 'Reports') document.getElementById('reports-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   async function lookupCustomer() { if (!auth.accessToken || !phone.trim()) return; setCustomerMessage('Looking up customer…'); try { const rows = await resolveCustomerByPhone(auth.accessToken, phone.trim()); const customer = rows[0]; if (!customer) { setCustomerMessage('No existing customer found. A new customer will be created with the order.'); return } setCustomerName(customer.name); setAddress(customer.address ?? ''); setCity(customer.city ?? ''); setCustomerMessage(`Existing customer found: ${customer.customer_code}`) } catch (lookupError) { setCustomerMessage(lookupError instanceof Error ? lookupError.message : 'Customer lookup failed') } }
