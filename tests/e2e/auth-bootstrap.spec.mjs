@@ -6,32 +6,25 @@ const userId = 'e2e-user-id'
 
 async function mockAuthApi(page) {
   let refreshCount = 0
+  let ordersRequestCount = 0
   await page.route('**/auth/v1/token?grant_type=password', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
-    })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }) })
   })
   await page.route('**/auth/v1/token?grant_type=refresh_token', async (route) => {
     refreshCount += 1
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }),
-    })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
   })
   await page.route('**/rest/v1/profiles?id=eq.e2e-user-id*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]),
-    })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
+  })
+  await page.route('**/api/orders*', async (route) => {
+    ordersRequestCount += 1
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
   })
   await page.route('**/auth/v1/logout', async (route) => {
     await route.fulfill({ status: 204, body: '' })
   })
-  return { getRefreshCount: () => refreshCount }
+  return { getRefreshCount: () => refreshCount, getOrdersRequestCount: () => ordersRequestCount }
 }
 
 test.describe('authentication bootstrap', () => {
@@ -48,7 +41,7 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/app')
   })
 
-  test('login, API session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
+  test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
     const mock = await mockAuthApi(page)
     await page.goto('/login?returnTo=%2Fapp', { waitUntil: 'domcontentloaded', timeout: 10_000 })
     await page.getByLabel('Email').fill('e2e@example.invalid')
@@ -58,6 +51,7 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => new URL(page.url()).pathname).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
+    await expect.poll(() => mock.getOrdersRequestCount()).toBeGreaterThan(0)
 
     await page.evaluate((key) => {
       const raw = localStorage.getItem(key)
