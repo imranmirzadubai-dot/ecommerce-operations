@@ -46,7 +46,7 @@ export class HttpError extends Error {
 
 const SESSION_KEY = 'ecommerce-operations.auth.session'
 const AUTH_REQUEST_TIMEOUT_MS = 8_000
-const E2E = import.meta.env.VITE_APP_ENVIRONMENT === 'e2e'
+const E2E = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e'
 
 function authTrace(event: string, details: Record<string, unknown> = {}): void {
   if (E2E) console.info('[AUTH-E2E]', event, JSON.stringify(details))
