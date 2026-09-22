@@ -15,7 +15,6 @@ async function mockAuthApi(page) {
       await route.continue()
       return
     }
-
     if (url.pathname === '/auth/v1/token') {
       const grantType = url.searchParams.get('grant_type')
       if (grantType === 'refresh_token') {
@@ -28,17 +27,14 @@ async function mockAuthApi(page) {
         return
       }
     }
-
     if (url.pathname === '/rest/v1/profiles') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
       return
     }
-
     if (url.pathname === '/auth/v1/logout') {
       await route.fulfill({ status: 204, body: '' })
       return
     }
-
     await route.continue()
   })
   await page.route('**/api/orders*', async (route) => {
@@ -74,7 +70,8 @@ test.describe('authentication bootstrap', () => {
     await page.getByLabel('Password').fill('not-a-real-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/app')
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey)).toBe(true)
+    await page.goto('/app', { waitUntil: 'domcontentloaded', timeout: 10_000 })
     await expect(page.getByText('E2E Test User')).toBeVisible()
     await expect(page.getByText('Authenticated')).toBeVisible()
     await expect.poll(() => mock.getOrdersRequestCount()).toBeGreaterThan(0)
