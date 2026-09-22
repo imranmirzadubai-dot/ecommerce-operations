@@ -46,4 +46,6 @@ jobs:
 
       - name: Run browser E2E
         working-directory: e2e-runner
+        env:
+          E2E_DIST_DIR: ../dist/client
         run: npx playwright test
