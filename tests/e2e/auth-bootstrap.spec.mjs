@@ -3,15 +3,21 @@ import { test, expect } from '@playwright/test'
 const sessionKey = 'ecommerce-operations.auth.session'
 const accessToken = 'e2e-access-token'
 const userId = 'e2e-user-id'
+const appOrigin = 'http://127.0.0.1:4173'
 
 async function mockAuthApi(page) {
   let refreshCount = 0
+  let tokenRequestCount = 0
+  let profileRequestCount = 0
+  let logoutRequestCount = 0
   let ordersRequestCount = 0
   let ordersAuthorization = null
 
-  await page.route('**/auth/v1/token*', async (route) => {
-    const url = new URL(route.request().url())
-    const grantType = url.searchParams.get('grant_type')
+  await page.route((url) => {
+    return url.origin === appOrigin && url.pathname === '/auth/v1/token'
+  }, async (route) => {
+    tokenRequestCount += 1
+    const grantType = new URL(route.request().url()).searchParams.get('grant_type')
     if (grantType === 'refresh_token') {
       refreshCount += 1
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `${accessToken}-${refreshCount}`, refresh_token: 'e2e-refresh-token-2', expires_in: 3600, user: { id: userId } }) })
@@ -23,19 +29,34 @@ async function mockAuthApi(page) {
     }
     await route.continue()
   })
-  await page.route('**/rest/v1/profiles*', async (route) => {
+
+  await page.route((url) => {
+    return url.origin === appOrigin && url.pathname === '/rest/v1/profiles'
+  }, async (route) => {
+    profileRequestCount += 1
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]) })
   })
-  await page.route('**/auth/v1/logout*', async (route) => {
+
+  await page.route((url) => {
+    return url.origin === appOrigin && url.pathname === '/auth/v1/logout'
+  }, async (route) => {
+    logoutRequestCount += 1
     await route.fulfill({ status: 204, body: '' })
   })
-  await page.route('**/api/orders*', async (route) => {
+
+  await page.route((url) => {
+    return url.origin === appOrigin && url.pathname === '/api/orders'
+  }, async (route) => {
     ordersRequestCount += 1
     ordersAuthorization = route.request().headers().authorization ?? null
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
   })
+
   return {
     getRefreshCount: () => refreshCount,
+    getTokenRequestCount: () => tokenRequestCount,
+    getProfileRequestCount: () => profileRequestCount,
+    getLogoutRequestCount: () => logoutRequestCount,
     getOrdersRequestCount: () => ordersRequestCount,
     getOrdersAuthorization: () => ordersAuthorization,
   }
@@ -62,6 +83,8 @@ test.describe('authentication bootstrap', () => {
     await page.getByLabel('Password').fill('not-a-real-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
+    await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
+    await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) !== null, sessionKey), { timeout: 10_000 }).toBe(true)
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/app')
     await expect(page.getByText('E2E Test User')).toBeVisible()
@@ -81,6 +104,7 @@ test.describe('authentication bootstrap', () => {
     await expect(page.getByText('E2E Test User')).toBeVisible()
 
     await page.getByRole('button', { name: 'Sign out' }).click()
+    await expect.poll(() => mock.getLogoutRequestCount()).toBe(1)
     await expect.poll(() => new URL(page.url()).pathname).toBe('/login')
     await expect(page.evaluate((key) => localStorage.getItem(key), sessionKey)).toBeNull()
   })
