@@ -54,6 +54,12 @@ async function mockAuthApi(page) {
   }
 }
 
+async function login(page) {
+  await page.getByLabel('Email').fill('e2e@example.invalid')
+  await page.getByLabel('Password').fill('not-a-real-password')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+}
+
 test.describe('authentication bootstrap', () => {
   test('public login route boots and remains responsive', async ({ page }) => {
     const started = Date.now()
@@ -78,9 +84,7 @@ test.describe('authentication bootstrap', () => {
     page.on('requestfailed', (request) => browserErrors.push(`requestfailed: ${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown'}`))
 
     await page.goto('/login?returnTo=%2Fapp', { waitUntil: 'domcontentloaded', timeout: 10_000 })
-    await page.getByLabel('Email').fill('e2e@example.invalid')
-    await page.getByLabel('Password').fill('not-a-real-password')
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await login(page)
 
     await expect.poll(() => mock.getTokenRequestCount(), { timeout: 10_000 }).toBe(1)
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
@@ -107,5 +111,51 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => mock.getLogoutRequestCount()).toBe(1)
     await expect.poll(() => new URL(page.url()).pathname).toBe('/login')
     await expect(page.evaluate((key) => localStorage.getItem(key), sessionKey)).toBeNull()
+  })
+
+  test('stale restoreSession cannot clobber a fresh signIn', async ({ page }) => {
+    let firstProfileCall = true
+    await page.route((url) => url.origin === appOrigin && url.pathname === '/rest/v1/profiles', async (route) => {
+      if (firstProfileCall) {
+        firstProfileCall = false
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: userId, name: 'E2E Test User', email: 'e2e@example.invalid', role: 'admin', active: true }]),
+      })
+    })
+
+    await page.addInitScript(({ key, token, uid }) => {
+      localStorage.setItem(key, JSON.stringify({
+        accessToken: token,
+        refreshToken: 'e2e-refresh-token',
+        expiresAt: Date.now() + 3600_000,
+        userId: uid,
+      }))
+    }, { key: sessionKey, token: 'stale-restore-token', uid: userId })
+
+    await page.route((url) => url.origin === appOrigin && url.pathname === '/auth/v1/token', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ access_token: accessToken, refresh_token: 'e2e-refresh-token', expires_in: 3600, user: { id: userId } }),
+      })
+    })
+
+    await page.route((url) => url.origin === appOrigin && url.pathname === '/api/orders', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'X-Has-More': 'false' }, body: JSON.stringify([]) })
+    })
+
+    await page.goto('/login?returnTo=%2Fapp', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await login(page)
+    await expect(page).toHaveURL(`${appOrigin}/app`)
+    await expect(page.getByText('E2E Test User')).toBeVisible()
+
+    await page.waitForTimeout(700)
+    await expect(page).toHaveURL(`${appOrigin}/app`)
+    await expect(page.getByText('Authenticated')).toBeVisible()
+    await expect(page.evaluate((key) => JSON.parse(localStorage.getItem(key)).accessToken, sessionKey)).toBe(accessToken)
   })
 })
