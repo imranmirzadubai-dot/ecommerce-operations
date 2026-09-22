@@ -16,6 +16,13 @@ type AuthContextValue = AuthState & {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+type AuthOperation = {
+  myGen: number
+  signal: AbortSignal
+  abort: () => void
+  isCurrent: () => boolean
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
@@ -23,13 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const generationRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
 
-  const startOperation = useCallback(() => {
+  const startOperation = useCallback((): AuthOperation => {
     generationRef.current += 1
     const myGen = generationRef.current
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
-    return { myGen, signal: controller.signal, isCurrent: () => generationRef.current === myGen }
+    return {
+      myGen,
+      signal: controller.signal,
+      abort: () => controller.abort(),
+      isCurrent: () => generationRef.current === myGen,
+    }
   }, [])
 
   const clearRefreshTimer = useCallback(() => {
@@ -64,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (op.isCurrent()) setLoading(false)
     })
     return () => {
-      op.signal.aborted || op.signal.dispatchEvent(new Event('abort'))
+      op.abort()
       clearRefreshTimer()
     }
   }, [clearRefreshTimer, startOperation])
