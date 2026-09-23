@@ -10,6 +10,7 @@ jobs:
   diagnostic:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment: staging
     env:
       CLOUDFLARE_ENV: staging
       CLOUDFLARE_ACCOUNT_ID: 17075bc25305c27192e086ada673751b
@@ -29,7 +30,7 @@ jobs:
         run: npm run lint && npm run typecheck
       - name: Build staging experiment
         env:
-          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Deploy isolated staging experiment
         env:
