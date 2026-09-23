@@ -1,0 +1,88 @@
+name: T227-002 Minimal Auth Shell
+
+on:
+  push:
+    branches:
+      - fix/T227-002-minimal-auth-shell
+  workflow_dispatch:
+
+concurrency:
+  group: t227-002-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy-and-browser-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    permissions:
+      contents: read
+    env:
+      CLOUDFLARE_ENV: staging
+      CLOUDFLARE_ACCOUNT_ID: 17075bc25305c27192e086ada673751b
+      VITE_APP_ENVIRONMENT: staging
+      VITE_SUPABASE_URL: https://mijbpvgxrxjaalimyqgm.supabase.co
+      E2E_BASE_URL: https://ecommerce-operations-staging.imranmirzadubai.workers.dev
+
+    steps:
+      - name: Checkout T227-002 experiment
+        uses: actions/checkout@v4
+        with:
+          ref: fix/T227-002-minimal-auth-shell
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify staging contract
+        shell: bash
+        env:
+          STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          test "$CLOUDFLARE_ENV" = "staging"
+          test "$VITE_APP_ENVIRONMENT" = "staging"
+          test "$VITE_SUPABASE_URL" = "https://mijbpvgxrxjaalimyqgm.supabase.co"
+          test -n "$STAGING_SUPABASE_PUBLISHABLE_KEY"
+          grep -q '"name": "ecommerce-operations-staging"' wrangler.jsonc
+          grep -q '"ENVIRONMENT": "staging"' wrangler.jsonc
+
+      # Diagnostic branch: production unit assertions intentionally do not run here.
+      - name: Diagnostic quality gate
+        run: |
+          npm run lint
+          npm run typecheck
+
+      - name: Build staging experiment
+        env:
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - name: Deploy isolated staging experiment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: npx wrangler deploy --env staging --var SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY
+
+      - name: Install Playwright package
+        run: npm install --no-save --package-lock=false playwright
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run T227-002 browser control
+        run: node tests/e2e/T227-002-minimal-auth-shell.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T227-002-browser-evidence
+          path: artifacts/
+          if-no-files-found: ignore
