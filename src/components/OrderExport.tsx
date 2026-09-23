@@ -11,7 +11,8 @@ function readVisibleRows(): ExportRow[] {
   }).filter((row) => row.order)
 }
 
-export function OrderExport({ selectedOrderIds }: Props) {
+export function OrderExport({ selectedOrderIds, accessToken }: Props) {
+  void accessToken
   const [visibleCount, setVisibleCount] = useState(0)
   useEffect(() => {
     const sync = () => setVisibleCount(document.querySelectorAll('.orders-table tbody tr').length)
