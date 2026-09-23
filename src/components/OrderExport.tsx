@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { downloadExcelWorkbook } from '../lib/excel'
 
-type Props = { selectedOrderIds: string[]; accessToken: string }
+type Props = { selectedOrderIds: string[] }
 type ExportRow = { order: string; customer: string; phone: string; state: string; amount: string; date: string }
 
 function readVisibleRows(): ExportRow[] {
@@ -11,7 +11,7 @@ function readVisibleRows(): ExportRow[] {
   }).filter((row) => row.order)
 }
 
-export function OrderExport({ selectedOrderIds, accessToken }: Props) {
+export function OrderExport({ selectedOrderIds }: Props) {
   const [visibleCount, setVisibleCount] = useState(0)
   useEffect(() => {
     const sync = () => setVisibleCount(document.querySelectorAll('.orders-table tbody tr').length)
