@@ -36,6 +36,9 @@ jobs:
         env:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
+      - name: Verify diagnostic bundle
+        run: |
+          grep -R "T227-007-DIAGNOSTIC-TOKEN" dist/client/assets
       - name: Deploy isolated staging experiment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
