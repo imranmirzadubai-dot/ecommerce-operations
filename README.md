@@ -52,3 +52,6 @@ This repository is the source of truth for application code, database migrations
 ## CI Baseline
 
 Every feature-branch push and pull request runs lint, TypeScript typecheck, unit tests, build, and isolated local Supabase database tests before the foundation CI gate can be considered verified.
+
+
+<!-- T227-007 diagnostic trigger: controlled Orders initial-effect isolation. -->
