@@ -1,8 +1,8 @@
-name: T227-007 StrictMode Layout-Effect Comparison
+name: T227-007 Orders Effect Isolation
 on:
   push:
     branches:
-      - fix/T227-007-strictmode-layout-effect-comparison
+      - fix/T227-007-orders-effect-isolation
   workflow_dispatch:
 concurrency:
   group: t227-007-staging
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout T227-007 experiment
         uses: actions/checkout@v4
         with:
-          ref: fix/T227-007-strictmode-layout-effect-comparison
+          ref: fix/T227-007-orders-effect-isolation
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -46,7 +46,7 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.55.0
           npx playwright install --with-deps chromium
       - name: Run T227-007 comparison
-        run: node tests/e2e/T227-007-strictmode-layout-effect-comparison.mjs
+        run: node tests/e2e/T227-007-orders-effect-isolation.mjs
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
