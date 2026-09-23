@@ -14,7 +14,8 @@ export function RouteGuard() {
   const diagnosticOrdersControl = params.get('t227004') === '1'
   const diagnosticStrictModeControl = params.get('t227006') === '1'
   const diagnosticOrdersEffectControl = params.get('t227007') === '1'
-  const diagnosticAppComposition = params.get('t227008') === '1' || params.get('t227009') === '1'
+  const diagnosticAppComposition = params.get('t227008') === '1'
+  const diagnosticAuthenticatedApp = params.get('t227009') === '1'
   const diagnosticAppSkipEffect = params.get('effect') === 'off'
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function RouteGuard() {
   if (diagnosticStrictModeControl) return <T227006StrictModeControl />
   if (diagnosticOrdersEffectControl) return <T227007OrdersEffectControl />
   if (diagnosticOrdersControl) return <T227004OrdersStartupControl />
+  if (diagnosticAuthenticatedApp) return <App diagnosticSkipOrdersEffect={diagnosticAppSkipEffect} diagnosticAuthenticated />
   if (diagnosticAppComposition) return <App diagnosticSkipOrdersEffect={diagnosticAppSkipEffect} diagnosticOrdersOnly />
   return <App />
 }
