@@ -5,7 +5,7 @@ import { restoreSession, signIn as authenticate, signOut as terminateSession, ty
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 const REFRESH_LEAD_MS = 60_000
 const MIN_REFRESH_DELAY_MS = 5_000
-const DIAGNOSTIC_AUTH = typeof window !== 'undefined' && new URLSearchParams(window.location.search).['t227010','t227011'].includes(new URLSearchParams(window.location.search).get('t227010') === '1' ? 't227010' : new URLSearchParams(window.location.search).get('t227011') === '1' ? 't227011' : '')
+const DIAGNOSTIC_AUTH = typeof window !== 'undefined' && (() => { const params = new URLSearchParams(window.location.search); return params.get('t227010') === '1' || params.get('t227011') === '1' })()
 const diagnosticAuthState: AuthState = {
   authenticated: true,
   userId: '00000000-0000-4000-8000-000000000010',
