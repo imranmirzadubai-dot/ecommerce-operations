@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { confirmOrder, getOrderTimeline, listOrders, updateOrder, type OrderItemRow, type OrderListRow, type OrderTimelineEvent } from '../lib/commands'
 import { normalizeAedAmount } from '../lib/money'
 
-type Props = { accessToken: string }
+type Props = { accessToken: string; skipInitialLoad?: boolean }
 type EditableItem = Pick<OrderItemRow, 'description' | 'quantity'>
 const PAGE_SIZE = 25
 const LIFECYCLE_OPTIONS = ['', 'Draft', 'Confirmed', 'Active', 'Completed', 'Cancelled']
@@ -47,7 +47,7 @@ function downloadOrdersCsv(orders: OrderListRow[]) {
   URL.revokeObjectURL(url)
 }
 
-export function OrdersWorkspace({ accessToken }: Props) {
+export function OrdersWorkspace({ accessToken, skipInitialLoad = false }: Props) {
   const [orders, setOrders] = useState<OrderListRow[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -134,6 +134,7 @@ export function OrdersWorkspace({ accessToken }: Props) {
     finally { setTimelineLoading(false) }
   }
   useEffect(() => {
+    if (skipInitialLoad) { setLoading(false); return }
     let cancelled = false
     const load = async () => {
       try {
@@ -143,7 +144,7 @@ export function OrdersWorkspace({ accessToken }: Props) {
       finally { if (!cancelled) setLoading(false) }
     }
     void load(); return () => { cancelled = true }
-  }, [accessToken])
+  }, [accessToken, skipInitialLoad])
 
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
