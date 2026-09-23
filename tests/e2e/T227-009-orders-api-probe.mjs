@@ -10,6 +10,7 @@ let browser
 try {
   browser = await chromium.launch({ headless: true, timeout: 5000, args: ['--no-sandbox', '--disable-dev-shm-usage'] })
   const page = await browser.newPage()
+  await page.goto(new URL('/?t227009=1', baseUrl).toString(), { waitUntil: 'domcontentloaded', timeout: 5000 })
   page.on('console', m => { if (m.type() === 'error') result.browserErrors.push(m.text()) })
   page.on('pageerror', e => result.browserErrors.push(String(e)))
   const started = Date.now()
