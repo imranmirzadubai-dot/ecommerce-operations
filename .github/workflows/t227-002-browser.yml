@@ -53,6 +53,7 @@ jobs:
           grep -q '"name": "ecommerce-operations-staging"' wrangler.jsonc
           grep -q '"ENVIRONMENT": "staging"' wrangler.jsonc
 
+      # Diagnostic branch: production unit assertions intentionally do not run here.
       - name: Diagnostic quality gate
         run: |
           npm run lint
