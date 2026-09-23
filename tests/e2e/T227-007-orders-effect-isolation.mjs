@@ -9,7 +9,7 @@ const specs = [['/?t227007=1&effect=off', 'effect-off'], ['/?t227007=1&effect=on
 
 function runCase(path, name) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['tests/e2e/T227-007-strictmode-case.mjs', baseUrl, path, name], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, ['tests/e2e/T227-007-orders-effect-case.mjs', baseUrl, path, name], { stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = '', stderr = '', settled = false
     const finish = result => { if (settled) return; settled = true; clearTimeout(timer); resolve(result) }
     child.stdout.on('data', c => { stdout += c.toString() }); child.stderr.on('data', c => { stderr += c.toString() })
@@ -31,11 +31,11 @@ const evidence = {
   browser: 'Chromium',
   cases,
   interpretation: {
-    effectOffRenders: off?.markers?.strict === 'off' && (off?.bodyText?.length ?? 0) > 0,
-    effectOnRenders: on?.markers?.strict === 'on' && (on?.bodyText?.length ?? 0) > 0,
+    effectOffRenders: off?.markers?.effect === 'off' && (off?.bodyText?.length ?? 0) > 0,
+    effectOnRenders: on?.markers?.effect === 'on' && (on?.bodyText?.length ?? 0) > 0,
     effectOffTimedOut: off?.timeout === true || Boolean(off?.operationTimeout),
     effectOnTimedOut: on?.timeout === true || Boolean(on?.operationTimeout),
-    differentialFailure: off?.markers?.strict === 'off' && (off?.bodyText?.length ?? 0) > 0 && !(on?.markers?.strict === 'on' && (on?.bodyText?.length ?? 0) > 0),
+    differentialFailure: off?.markers?.effect === 'off' && (off?.bodyText?.length ?? 0) > 0 && !(on?.markers?.effect === 'on' && (on?.bodyText?.length ?? 0) > 0),
   },
 }
 await writeFile('artifacts/T227-007-evidence.json', JSON.stringify(evidence, null, 2))
