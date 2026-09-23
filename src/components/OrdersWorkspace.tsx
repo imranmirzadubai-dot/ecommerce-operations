@@ -59,7 +59,7 @@ export function OrdersWorkspace({ accessToken, skipInitialLoad = false }: Props)
   const [dateView, setDateView] = useState<DateView>('All dates')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!skipInitialLoad)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<OrderListRow | null>(null)
   const [draft, setDraft] = useState<ReturnType<typeof toEditorState> | null>(null)
@@ -134,7 +134,7 @@ export function OrdersWorkspace({ accessToken, skipInitialLoad = false }: Props)
     finally { setTimelineLoading(false) }
   }
   useEffect(() => {
-    if (skipInitialLoad) { setLoading(false); return }
+    if (skipInitialLoad) return
     let cancelled = false
     const load = async () => {
       try {
