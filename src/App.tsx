@@ -37,7 +37,7 @@ function App() {
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
   const loginPath = window.location.pathname === '/login'
-  const e2eShell = E2E && new URLSearchParams(window.location.search).get('e2eShell') === '1' && window.location.pathname === '/app'
+  const e2eShell = E2E && new URLSearchParams(window.location.search).get('e2eShell') === '1' && authenticated
 
   useEffect(() => {
     if (!E2E) return
