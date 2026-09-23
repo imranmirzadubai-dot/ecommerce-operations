@@ -13,11 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout clean main
+      - name: Checkout diagnostic harness
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: fix/T227-001-browser-diagnostics
           fetch-depth: 1
+
+      - name: Verify app baseline is clean-main
+        run: |
+          test "$(git rev-parse HEAD^3 2>/dev/null || true)" != ""
+          git log --oneline -5
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -28,8 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright package
+        run: npm install --no-save --package-lock=false playwright
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Prepare evidence directory
+        run: mkdir -p artifacts
 
       - name: Run T227-001 reproduction
         env:
