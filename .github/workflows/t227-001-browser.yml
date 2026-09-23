@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/T227-001-browser-diagnostics
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       base_url:
