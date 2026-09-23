@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { downloadExcelWorkbook } from '../lib/excel'
 
-type Props = { selectedOrderIds: string[] }
+type Props = { selectedOrderIds: string[]; accessToken: string }
 type ExportRow = { order: string; customer: string; phone: string; state: string; amount: string; date: string }
 
 function readVisibleRows(): ExportRow[] {
