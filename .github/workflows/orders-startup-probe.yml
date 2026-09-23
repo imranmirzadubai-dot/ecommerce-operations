@@ -2,6 +2,9 @@ name: T227 Orders Startup Probe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - debug/t227-orders-startup-probe
 
 jobs:
   orders-startup-probe:
