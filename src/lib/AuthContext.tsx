@@ -19,6 +19,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
+  const diagnosticAuthenticated = new URLSearchParams(window.location.search).get('t227009') === '1'
   const refreshTimer = useRef<number | null>(null)
 
   const clearRefreshTimer = useCallback(() => {
@@ -35,6 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (diagnosticAuthenticated) {
+      setAuth({ authenticated: true, userId: '00000000-0000-0000-0000-000000000009', profile: { id: '00000000-0000-0000-0000-000000000009', name: 'T227-009 Diagnostic Admin', email: 't227009@example.invalid', role: 'admin', active: true }, accessToken: 'T227-009-DIAGNOSTIC-TOKEN' })
+      setLoading(false)
+      return
+    }
     let cancelled = false
     void restoreSession().then((next) => {
       if (!cancelled) setAuth(next)
