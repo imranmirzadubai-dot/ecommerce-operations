@@ -26,6 +26,6 @@ export function RouteGuard() {
   if (diagnosticStrictModeControl) return <T227006StrictModeControl />
   if (diagnosticOrdersEffectControl) return <T227007OrdersEffectControl />
   if (diagnosticOrdersControl) return <T227004OrdersStartupControl />
-  if (diagnosticAppComposition) return <App diagnosticSkipOrdersEffect={diagnosticAppSkipEffect} />
+  if (diagnosticAppComposition) return <App diagnosticSkipOrdersEffect={diagnosticAppSkipEffect} diagnosticOrdersOnly />
   return <App />
 }
