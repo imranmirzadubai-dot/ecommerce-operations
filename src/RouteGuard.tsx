@@ -7,7 +7,10 @@ export function RouteGuard() {
   const { authenticated, loading, auth } = useAuth()
   const protectedPath = isProtectedPath(window.location.pathname)
   const allowed = !protectedPath || authenticated
-  const e2eShell = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e' && new URLSearchParams(window.location.search).get('e2eShell') === '1'
+  const searchParams = new URLSearchParams(window.location.search)
+  const returnTo = searchParams.get('returnTo') ?? ''
+  const returnToParams = returnTo ? new URL(returnTo, window.location.origin).searchParams : null
+  const e2eShell = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e' && (searchParams.get('e2eShell') === '1' || returnToParams?.get('e2eShell') === '1')
 
   useEffect(() => {
     if (!protectedPath || loading || authenticated) return
