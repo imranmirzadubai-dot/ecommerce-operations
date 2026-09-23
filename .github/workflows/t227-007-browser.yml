@@ -1,0 +1,56 @@
+name: T227-007 StrictMode Layout-Effect Comparison
+on:
+  push:
+    branches:
+      - fix/T227-007-strictmode-layout-effect-comparison
+  workflow_dispatch:
+concurrency:
+  group: t227-007-staging
+  cancel-in-progress: true
+env:
+  CLOUDFLARE_ENV: staging
+  CLOUDFLARE_ACCOUNT_ID: 17075bc25305c27192e086ada673751b
+  VITE_APP_ENVIRONMENT: staging
+  VITE_SUPABASE_URL: https://mijbpvgxrxjaalimyqgm.supabase.co
+  E2E_BASE_URL: https://ecommerce-operations-staging.imranmirzadubai.workers.dev
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging
+    steps:
+      - name: Checkout T227-007 experiment
+        uses: actions/checkout@v4
+        with:
+          ref: fix/T227-007-strictmode-layout-effect-comparison
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Quality gate
+        run: |
+          npm run lint
+          npm run typecheck
+      - name: Build staging experiment
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+      - name: Deploy isolated staging experiment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+        run: npx wrangler deploy --env staging --var SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run T227-007 comparison
+        run: node tests/e2e/T227-007-strictmode-layout-effect-comparison.mjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T227-007-browser-evidence
+          path: artifacts/
+          if-no-files-found: error
