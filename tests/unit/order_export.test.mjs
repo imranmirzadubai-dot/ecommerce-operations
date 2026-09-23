@@ -21,11 +21,17 @@ test('P6-T110 limits selected export to the current visible page', () => {
   assert.match(exporter, /selected\.size \? rows\.filter\(\(row\) => selected\.has\(row\.order\)\) : rows/)
 })
 
-test('P13-T204 mounts authenticated order export and reports in the active app shell', () => {
+test('P13-T204 mounts authenticated order export and reports independently in the active app shell', () => {
   assert.match(app, /import \{ OrderExport \} from '\.\/components\/OrderExport'/)
+  assert.match(app, /import \{ ReportWorkspace \} from '\.\/components\/ReportWorkspace'/)
   assert.match(app, /<OrderExport selectedOrderIds=\{\[\]\} accessToken=\{auth\.accessToken\} \/>/)
+  assert.match(app, /<ReportWorkspace accessToken=\{auth\.accessToken\} \/>/)
   assert.match(app, /id="reports-title"/)
   assert.match(app, /onClick=\{\(\) => navigateTo\(item\)\}/)
+})
+
+test('P13-T204 keeps OrderExport free of ReportWorkspace coupling', () => {
+  assert.doesNotMatch(exporter, /ReportWorkspace/)
 })
 
 test('P13-T204 exposes authenticated report views and Excel export', () => {
