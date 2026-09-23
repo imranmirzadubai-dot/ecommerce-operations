@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { downloadExcelWorkbook } from '../lib/excel'
-import { ReportWorkspace } from './ReportWorkspace'
 
 type Props = { selectedOrderIds: string[]; accessToken: string }
 type ExportRow = { order: string; customer: string; phone: string; state: string; amount: string; date: string }
@@ -34,6 +33,5 @@ export function OrderExport({ selectedOrderIds, accessToken }: Props) {
   const label = selectedCount ? `Export ${selectedCount} selected` : 'Export visible orders'
   return <>
     <button className="secondary-button" type="button" onClick={exportOrders} disabled={!visibleCount || (selectedCount > 0 && !selectedOrderIds.length)} aria-label="Export orders to Excel">{label} to Excel</button>
-    <ReportWorkspace accessToken={accessToken} />
   </>
 }
