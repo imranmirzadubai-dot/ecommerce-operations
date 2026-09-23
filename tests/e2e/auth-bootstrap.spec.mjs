@@ -4,6 +4,15 @@ const sessionKey = 'ecommerce-operations.auth.session'
 const accessToken = 'e2e-access-token'
 const userId = 'e2e-user-id'
 const appOrigin = 'http://127.0.0.1:4173'
+const isolatedComponents = [
+  'OrdersWorkspace',
+  'InvoicePrintWorkspace',
+  'DispatchScanWorkspace',
+  'RtoScanWorkspace',
+  'CustomerHistoryWorkspace',
+  'AdminUserControls',
+  'OrderExport',
+]
 
 async function mockAuthApi(page) {
   let refreshCount = 0
@@ -87,18 +96,34 @@ async function diagnostics(page) {
   }), sessionKey)
 }
 
+async function heartbeat(page, label) {
+  const result = await page.evaluate((name) => ({
+    label: name,
+    alive: true,
+    pathname: location.pathname,
+    href: location.href,
+    time: Date.now(),
+  }), label)
+  console.log(`[HEARTBEAT] ${JSON.stringify(result)}`)
+  return result
+}
+
 async function login(page) {
   await page.getByLabel('Email').fill('e2e@example.invalid')
   await page.getByLabel('Password').fill('not-a-real-password')
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
+async function preparePage(page) {
+  page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`))
+  page.on('pageerror', (error) => console.log(`[browser:pageerror] ${error.message}`))
+  page.on('framenavigated', (frame) => console.log(`[NAVIGATION] ${frame.url()}`))
+  await installStorageDiagnostics(page)
+}
+
 test.describe('authentication bootstrap', () => {
   test.beforeEach(async ({ page }) => {
-    page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`))
-    page.on('pageerror', (error) => console.log(`[browser:pageerror] ${error.message}`))
-    page.on('framenavigated', (frame) => console.log(`[NAVIGATION] ${frame.url()}`))
-    await installStorageDiagnostics(page)
+    await preparePage(page)
   })
 
   test('public login route boots and remains responsive', async ({ page }) => {
@@ -117,23 +142,26 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/app')
   })
 
-  test('isolated authenticated shell commits and navigates after sign-in', async ({ page }) => {
+  test('isolated authenticated shell commits and independently navigates after sign-in', async ({ page }) => {
     await mockAuthApi(page)
     await page.addInitScript(() => {
       window.__e2eAuthTrace = []
       const originalInfo = console.info
       console.info = (...args) => {
-        if (args[0] === '[AUTH-E2E]' || args[0] === '[E2E-SHELL-NAV-EFFECT]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        if (args[0] === '[AUTH-E2E]' || args[0] === '[E2E-SHELL-NAV-EFFECT]' || args[0] === '[APP-EFFECT-TEST]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
         originalInfo(...args)
       }
     })
 
-    await page.goto('/login?returnTo=%2Fapp&e2eShell=1', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await page.goto('/login?returnTo=%2Fapp%3Fe2eShell%3D1', { waitUntil: 'domcontentloaded', timeout: 10_000 })
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+    await heartbeat(page, 'before-sign-in')
     await login(page)
 
     await expect.poll(() => page.locator('[data-e2e-shell]').getAttribute('data-auth-state'), { timeout: 10_000, message: async () => `Isolated shell did not authenticate; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('authenticated')
+    await heartbeat(page, 'after-shell-auth')
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Isolated shell did not navigate; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('/app')
+    await heartbeat(page, 'after-shell-navigation')
   })
 
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
@@ -147,7 +175,7 @@ test.describe('authentication bootstrap', () => {
       window.__e2eAuthTrace = []
       const originalInfo = console.info
       console.info = (...args) => {
-        if (args[0] === '[AUTH-E2E]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        if (args[0] === '[AUTH-E2E]' || args[0] === '[APP-EFFECT-TEST]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
         originalInfo(...args)
       }
     })
@@ -165,7 +193,9 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => mock.getProfileRequestCount(), { timeout: 10_000 }).toBeGreaterThan(0)
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey), { timeout: 10_000, message: async () => `Session missing after token/profile lifecycle; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBeTruthy()
     expect(browserErrors).toEqual([])
+    await heartbeat(page, 'full-app-before-authenticated-state')
     await expect.poll(() => page.locator('[data-auth-state]').getAttribute('data-auth-state'), { timeout: 10_000, message: async () => `Authenticated render state not reached; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('authenticated')
+    await heartbeat(page, 'full-app-after-authenticated-state')
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
@@ -190,13 +220,50 @@ test.describe('authentication bootstrap', () => {
     await expect(page.evaluate((key) => localStorage.getItem(key), sessionKey)).toBeNull()
   })
 
+  for (const component of isolatedComponents) {
+    test(`isolates authenticated component: ${component}`, async ({ page }) => {
+      const browserErrors = []
+      page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`))
+      page.on('console', (message) => {
+        if (message.type() === 'error') browserErrors.push(`console: ${message.text()}`)
+      })
+      page.on('console', (message) => {
+        if (message.type() === 'warn') console.log(`[browser:warn] ${message.text()}`)
+      })
+      page.on('requestfailed', (request) => browserErrors.push(`requestfailed: ${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown'}`))
+
+      await mockAuthApi(page)
+      await page.addInitScript(() => {
+        window.__e2eAuthTrace = []
+        const originalInfo = console.info
+        console.info = (...args) => {
+          if (args[0] === '[AUTH-E2E]' || args[0] === '[APP-EFFECT-TEST]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+          originalInfo(...args)
+        }
+      })
+
+      const returnTo = `/app?e2eComponent=${encodeURIComponent(component)}`
+      console.log(`[COMPONENT-TEST] component=${component} enabled=${component}`)
+      await page.goto(`/login?returnTo=${encodeURIComponent(returnTo)}`, { waitUntil: 'domcontentloaded', timeout: 10_000 })
+      await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+      await heartbeat(page, `${component}:before-sign-in`)
+      await login(page)
+      await heartbeat(page, `${component}:after-sign-in`)
+
+      await expect.poll(() => page.locator(`[data-e2e-component="${component}"]`).count(), { timeout: 10_000, message: async () => `Component did not mount; component=${component}; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe(1)
+      await heartbeat(page, `${component}:after-component-mount`)
+      console.log(`[COMPONENT-RESULT] ${JSON.stringify({ component, finalUrl: page.url(), authRender: true, appEffect: (await diagnostics(page)).trace.some((entry) => entry.includes('[APP-EFFECT-TEST]')), browserErrors })}`)
+      expect(browserErrors).toEqual([])
+    })
+  }
+
   test('signIn wins over a slower concurrent restoreSession', async ({ page }) => {
     await page.addInitScript(({ key, token, uid }) => {
       localStorage.setItem(key, JSON.stringify({ accessToken: token, refreshToken: 'e2e-refresh-token', expiresAt: Date.now() + 3600_000, userId: uid }))
       window.__e2eAuthTrace = []
       const originalInfo = console.info
       console.info = (...args) => {
-        if (args[0] === '[AUTH-E2E]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        if (args[0] === '[AUTH-E2E]' || args[0] === '[APP-EFFECT-TEST]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
         originalInfo(...args)
       }
     }, { key: sessionKey, token: 'stale-restore-token', uid: userId })
