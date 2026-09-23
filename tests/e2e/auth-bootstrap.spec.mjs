@@ -117,6 +117,25 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/app')
   })
 
+  test('isolated authenticated shell commits and navigates after sign-in', async ({ page }) => {
+    await mockAuthApi(page)
+    await page.addInitScript(() => {
+      window.__e2eAuthTrace = []
+      const originalInfo = console.info
+      console.info = (...args) => {
+        if (args[0] === '[AUTH-E2E]' || args[0] === '[E2E-SHELL-NAV-EFFECT]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        originalInfo(...args)
+      }
+    })
+
+    await page.goto('/login?returnTo=%2Fapp&e2eShell=1', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+    await login(page)
+
+    await expect.poll(() => page.locator('[data-e2e-shell]').getAttribute('data-auth-state'), { timeout: 10_000, message: async () => `Isolated shell did not authenticate; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('authenticated')
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Isolated shell did not navigate; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('/app')
+  })
+
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
     const providerMounts = []
     page.on('console', (message) => {
