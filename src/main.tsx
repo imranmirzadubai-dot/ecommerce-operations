@@ -11,6 +11,7 @@ import { installGlobalErrorReporting } from './lib/errorReporting'
 // eslint-disable-next-line react-refresh/only-export-components
 const ordersGridDiagnostic = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('t227011') === '1'
 
+// eslint-disable-next-line react-refresh/only-export-components
 function ErrorReportingBootstrap() {
   useEffect(() => installGlobalErrorReporting(), [])
   return null
