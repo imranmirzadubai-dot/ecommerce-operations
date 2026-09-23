@@ -133,17 +133,25 @@ export function OrdersWorkspace({ accessToken }: Props) {
     catch (requestError) { setTimelineError(requestError instanceof Error ? requestError.message : 'Unable to load order timeline') }
     finally { setTimelineLoading(false) }
   }
+  const e2eOrdersNoStartup = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e' && new URLSearchParams(window.location.search).get('e2eOrdersNoStartup') === '1'
+
   useEffect(() => {
+    if (e2eOrdersNoStartup) {
+      console.info('[ORDERS-STARTUP-EFFECT-SUPPRESSED]')
+      setLoading(false)
+      return
+    }
     let cancelled = false
     const load = async () => {
       try {
+        console.info('[ORDERS-STARTUP-EFFECT-START]')
         const result = await listOrders(accessToken, { page: 1, pageSize: PAGE_SIZE, search: '', lifecycleState: '', parcelState: '', codState: '', dateFrom: '', dateTo: '' })
         if (!cancelled) { setOrders(result.orders); setPage(result.page); setHasMore(result.hasMore); setSearch(result.search); setSearchInput(''); setLifecycleState(''); setParcelState(''); setCodState(''); setDateView('All dates'); setDateFrom(''); setDateTo(''); setError('') }
       } catch (requestError) { if (!cancelled) setError(requestError instanceof Error ? requestError.message : 'Unable to load orders') }
       finally { if (!cancelled) setLoading(false) }
     }
     void load(); return () => { cancelled = true }
-  }, [accessToken])
+  }, [accessToken, e2eOrdersNoStartup])
 
   return (
     <section className="card orders-workspace" aria-labelledby="orders-title">
