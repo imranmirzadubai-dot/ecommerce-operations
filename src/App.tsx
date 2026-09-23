@@ -19,6 +19,7 @@ type OrderItem = { description: string; quantity: string }
 const environmentLabel = (import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'unknown').toUpperCase()
 
 function App() {
+  const diagnosticOrdersEnabled = new URLSearchParams(window.location.search).get('t227010') !== '1' || new URLSearchParams(window.location.search).get('orders') !== 'off'
   const { auth, loading, signIn, signOut } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
