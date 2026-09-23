@@ -38,8 +38,10 @@ function App() {
   const authenticated = hasOperationalAccess(auth.profile)
   const loginPath = window.location.pathname === '/login'
   const searchParams = new URLSearchParams(window.location.search)
-  const e2eShell = E2E && searchParams.get('e2eShell') === '1' && authenticated
-  const e2eComponent = E2E && searchParams.get('e2eComponent')
+  const returnTo = searchParams.get('returnTo') ?? ''
+  const returnToParams = returnTo ? new URL(returnTo, window.location.origin).searchParams : null
+  const e2eShell = E2E && (searchParams.get('e2eShell') === '1' || returnToParams?.get('e2eShell') === '1') && authenticated
+  const e2eComponent = E2E ? (searchParams.get('e2eComponent') ?? returnToParams?.get('e2eComponent') ?? null) : null
 
   useEffect(() => {
     if (!E2E) return
