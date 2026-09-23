@@ -13,13 +13,19 @@ function ErrorReportingBootstrap() {
   return null
 }
 
+const diagnosticParams = new URLSearchParams(window.location.search)
+const strictModeDiagnostic = diagnosticParams.get('t227006') === '1'
+const strictModeEnabled = diagnosticParams.get('strict') !== 'off'
+
+const bootstrap = (
+  <ErrorBoundary>
+    <ErrorReportingBootstrap />
+    <AuthProvider>
+      <RouteGuard />
+    </AuthProvider>
+  </ErrorBoundary>
+)
+
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <ErrorReportingBootstrap />
-      <AuthProvider>
-        <RouteGuard />
-      </AuthProvider>
-    </ErrorBoundary>
-  </StrictMode>,
+  strictModeDiagnostic && !strictModeEnabled ? bootstrap : <StrictMode>{bootstrap}</StrictMode>,
 )
