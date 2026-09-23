@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/T227-003-workspace-isolation-matrix
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
