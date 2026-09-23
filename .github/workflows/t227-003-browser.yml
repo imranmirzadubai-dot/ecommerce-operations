@@ -44,6 +44,7 @@ jobs:
           test "${CLOUDFLARE_ENV}" = "staging"
           test "${E2E_BASE_URL}" = "https://ecommerce-operations-staging.imranmirzadubai.workers.dev"
 
+      # T227-003 diagnostic workflow retrigger: browser matrix is the verification gate.
       - name: Diagnostic quality gate
         run: |
           npm run lint
