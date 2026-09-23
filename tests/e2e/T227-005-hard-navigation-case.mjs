@@ -62,9 +62,6 @@ try {
 
   logStage('navigation-started')
   try {
-    // `commit` deliberately stops at the network commit boundary. We do not
-    // wait for DOMContentLoaded because the suspected Orders defect may block
-    // the renderer before that lifecycle event can be observed.
     await withTimeout(
       page.goto(result.url, { waitUntil: 'commit', timeout: 5000 }),
       7000,
@@ -76,25 +73,37 @@ try {
     logStage('navigation-error')
   }
 
-  const snapshot = async () => page.evaluate(() => ({
-    bodyText: document.body?.innerText ?? '',
-    orders: document.querySelector('[data-t227004-orders]')?.getAttribute('data-t227004-orders') ?? null,
-    auth: document.querySelectorAll('[aria-label="Authentication check"]').length,
-    readyState: document.readyState,
-  }))
-
-  logStage('dom-snapshot-started')
-  try {
-    const value = await withTimeout(snapshot(), 2500, 'dom-snapshot')
-    result.bodyText = value.bodyText
-    result.markers.orders = value.orders
-    result.markers.auth = value.auth
-    result.readyState = value.readyState
-    logStage('dom-snapshot-complete')
-  } catch (error) {
-    result.operationTimeout = error instanceof Error ? error.message : String(error)
-    logStage('dom-snapshot-timeout')
+  // Commit only proves that the document response arrived. React may still
+  // need a short bounded interval to mount. The previous revision sampled
+  // immediately and falsely classified an otherwise healthy page as blank.
+  logStage('bounded-render-wait-started')
+  const renderDeadline = Date.now() + 6000
+  let renderObserved = false
+  while (Date.now() < renderDeadline) {
+    try {
+      const snapshot = await withTimeout(page.evaluate(() => ({
+        bodyText: document.body?.innerText ?? '',
+        orders: document.querySelector('[data-t227004-orders]')?.getAttribute('data-t227004-orders') ?? null,
+        auth: document.querySelectorAll('[aria-label="Authentication check"]').length,
+        readyState: document.readyState,
+      })), 1200, 'dom-snapshot')
+      result.bodyText = snapshot.bodyText
+      result.markers.orders = snapshot.orders
+      result.markers.auth = snapshot.auth
+      result.readyState = snapshot.readyState
+      if (snapshot.bodyText.length > 0 || snapshot.orders !== null || snapshot.auth > 0) {
+        renderObserved = true
+        break
+      }
+    } catch (error) {
+      result.operationTimeout = error instanceof Error ? error.message : String(error)
+      break
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250))
   }
+
+  if (renderObserved) logStage('render-observed')
+  else logStage('render-not-observed')
 
   await mkdir('artifacts', { recursive: true })
   await writeFile(`artifacts/T227-005-${name}.json`, JSON.stringify(result, null, 2))
@@ -103,8 +112,8 @@ try {
   // Screenshot is secondary evidence. Never allow it to block the diagnostic.
   try {
     await withTimeout(
-      page.screenshot({ path: `artifacts/T227-005-${name}.png`, fullPage: false, timeout: 2000 }),
-      2500,
+      page.screenshot({ path: `artifacts/T227-005-${name}.png`, fullPage: false, timeout: 1500 }),
+      2000,
       'screenshot',
     )
   } catch (error) {
@@ -117,9 +126,7 @@ try {
   await writeFile(`artifacts/T227-005-${name}.json`, JSON.stringify(result, null, 2))
   logStage('fatal-diagnostic-error')
 } finally {
-  // Cleanup is deliberately best-effort. The parent process already enforces
-  // a hard case deadline; never let browser shutdown hide the evidence.
-  try { await withTimeout(browser?.close() ?? Promise.resolve(), 2000, 'browser.close') } catch {}
+  try { await withTimeout(browser?.close() ?? Promise.resolve(), 1500, 'browser.close') } catch {}
 }
 
 process.exit(0)
