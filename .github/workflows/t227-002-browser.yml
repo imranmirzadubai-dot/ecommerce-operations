@@ -1,0 +1,51 @@
+name: T227-002 Minimal Auth Shell
+
+on:
+  push:
+    branches:
+      - fix/T227-002-minimal-auth-shell
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed T227-002 staging URL'
+        required: false
+        type: string
+
+jobs:
+  browser-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout T227-002 experiment
+        uses: actions/checkout@v4
+        with:
+          ref: fix/T227-002-minimal-auth-shell
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright package
+        run: npm install --no-save --package-lock=false playwright
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run T227-002 browser control
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url || 'https://ecommerce-operations-staging.imranmirzadubai.workers.dev' }}
+        run: node tests/e2e/T227-002-minimal-auth-shell.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T227-002-browser-evidence
+          path: artifacts/
+          if-no-files-found: ignore
