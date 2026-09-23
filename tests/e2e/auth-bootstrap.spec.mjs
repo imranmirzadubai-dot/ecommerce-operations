@@ -117,6 +117,26 @@ test.describe('authentication bootstrap', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/app')
   })
 
+  test('minimal authenticated shell isolates post-login navigation', async ({ page }) => {
+    await mockAuthApi(page)
+    await page.addInitScript(() => {
+      window.__e2eAuthTrace = []
+      const originalInfo = console.info
+      console.info = (...args) => {
+        if (args[0] === '[AUTH-E2E]') window.__e2eAuthTrace.push(args.slice(1).join(' '))
+        originalInfo(...args)
+      }
+    })
+
+    await page.goto('/login?returnTo=%2Fapp%3Fe2eShell%3D1', { waitUntil: 'domcontentloaded', timeout: 10_000 })
+    await login(page)
+
+    await expect.poll(() => page.locator('[data-auth-state]').getAttribute('data-auth-state'), { timeout: 10_000, message: async () => `Authenticated render state not reached; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('authenticated')
+    await expect(page.getByTestId('minimal-auth-shell')).toHaveText('Authenticated test shell')
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Minimal shell did not navigate; diagnostics=${JSON.stringify(await diagnostics(page))}` }).toBe('/app')
+    await expect(page).toHaveURL(`${appOrigin}/app?e2eShell=1`)
+  })
+
   test('login, authenticated API, session refresh, and logout lifecycle works without real credentials', async ({ page }) => {
     const providerMounts = []
     page.on('console', (message) => {
@@ -150,7 +170,6 @@ test.describe('authentication bootstrap', () => {
     const heartbeat = await page.evaluate(() => ({ alive: true, pathname: window.location.pathname, timestamp: Date.now() }))
     console.log('[BROWSER-HEARTBEAT]', JSON.stringify(heartbeat))
     expect(heartbeat.alive).toBe(true)
-    await expect(page.getByTestId('minimal-auth-shell')).toHaveText('Authenticated test shell')
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000, message: async () => `Unexpected URL; diagnostics=${JSON.stringify(await diagnostics(page))}; stamp=${JSON.stringify(await page.evaluate(() => window.__buildStamp))}; mounts=${providerMounts.join(',') || 'none'}` }).toBe('/app')
     expect(new Set(providerMounts).size).toBe(1)
     await expect(page.getByText('E2E Test User')).toBeVisible()
