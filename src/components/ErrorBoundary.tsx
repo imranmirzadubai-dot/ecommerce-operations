@@ -3,6 +3,7 @@ import { reportError } from '../lib/errorReporting'
 
 type Props = { children: ReactNode }
 type State = { hasError: boolean }
+const E2E = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e'
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false }
@@ -12,6 +13,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
+    if (E2E) console.info('[AUTH-ERROR-BOUNDARY]', JSON.stringify({ error: error instanceof Error ? error.message : String(error), componentStack: info.componentStack ?? '' }))
     reportError(error, { source: 'react.error-boundary', componentStack: info.componentStack })
   }
 
