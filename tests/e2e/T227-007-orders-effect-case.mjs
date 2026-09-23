@@ -1,7 +1,9 @@
 import { chromium } from 'playwright'
 import { mkdir, writeFile } from 'node:fs/promises'
 const [baseUrl, path, name] = process.argv.slice(2)
-const result = { path, url: baseUrl + path, stage: 'starting', markers: { effect: null }, locationHref: null, locationSearch: null, scriptUrls: [], bundleHasDiagnosticMarker: null, readyState: null, navigationError: null, consoleErrors: [], pageErrors: [], failedRequests: [], bodyText: '', operationTimeout: null }
+const requestUrl = new URL(path, baseUrl)
+requestUrl.searchParams.set('t227007cb', process.env.GITHUB_SHA ?? Date.now().toString())
+const result = { path, url: requestUrl.toString(), stage: 'starting', markers: { effect: null }, locationHref: null, locationSearch: null, scriptUrls: [], bundleHasDiagnosticMarker: null, readyState: null, navigationError: null, consoleErrors: [], pageErrors: [], failedRequests: [], bodyText: '', operationTimeout: null }
 const logStage = stage => { result.stage = stage; process.stdout.write(`[T227-007 ${name}] ${stage}\n`) }
 const withTimeout = async (promise, ms, label) => { let timer; try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms) })]) } finally { clearTimeout(timer) } }
 let browser
