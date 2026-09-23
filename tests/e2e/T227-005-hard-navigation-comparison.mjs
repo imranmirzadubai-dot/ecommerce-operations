@@ -5,38 +5,62 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const baseUrl = process.env.E2E_BASE_URL
 assert.ok(baseUrl, 'E2E_BASE_URL is required')
 
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({ headless: true, timeout: 10000 })
 const cases = []
 await mkdir('artifacts', { recursive: true })
 
-try {
-  for (const path of ['/', '/?t227004=1&orders=off', '/?t227004=1&orders=on']) {
-    const page = await browser.newPage()
-    const consoleErrors = []
-    const pageErrors = []
-    const failedRequests = []
-    page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
-    page.on('pageerror', (error) => pageErrors.push(String(error)))
-    page.on('requestfailed', (request) => failedRequests.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }))
+async function captureCase(path, name) {
+  const page = await browser.newPage()
+  const consoleErrors = []
+  const pageErrors = []
+  const failedRequests = []
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+  page.on('pageerror', (error) => pageErrors.push(String(error)))
+  page.on('requestfailed', (request) => failedRequests.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }))
 
-    let navigationError = null
-    try {
-      await page.goto(`${baseUrl}${path}`, { waitUntil: 'domcontentloaded', timeout: 10000 })
-    } catch (error) {
-      navigationError = error instanceof Error ? error.message : String(error)
-    }
-
-    const bodyText = await page.locator('body').innerText().catch(() => '')
-    const markers = {
-      orders: await page.locator('[data-t227004-orders]').getAttribute('data-t227004-orders').catch(() => null),
-      auth: await page.locator('[aria-label="Authentication check"]').count().catch(() => 0),
-    }
-    cases.push({ path, url: `${baseUrl}${path}`, markers, navigationError, consoleErrors, pageErrors, failedRequests, bodyText })
-    await page.screenshot({ path: `artifacts/T227-005-${path === '/' ? 'root' : path.includes('orders=off') ? 'orders-off' : 'orders-on'}.png`, fullPage: true }).catch(() => {})
-    await page.close()
+  let navigationError = null
+  try {
+    await page.goto(`${baseUrl}${path}`, { waitUntil: 'domcontentloaded', timeout: 10000 })
+  } catch (error) {
+    navigationError = error instanceof Error ? error.message : String(error)
   }
+
+  // Do not use locator auto-waiting here: a blank-page diagnostic must itself
+  // remain bounded and must always produce evidence for the next investigation.
+  const snapshot = await page.evaluate(() => ({
+    bodyText: document.body?.innerText ?? '',
+    orders: document.querySelector('[data-t227004-orders]')?.getAttribute('data-t227004-orders') ?? null,
+    auth: document.querySelectorAll('[aria-label="Authentication check"]').length,
+    readyState: document.readyState,
+  })).catch((error) => ({
+    bodyText: '',
+    orders: null,
+    auth: 0,
+    readyState: `evaluation-error: ${error instanceof Error ? error.message : String(error)}`,
+  }))
+
+  const screenshotPath = `artifacts/T227-005-${name}.png`
+  await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 5000 }).catch(() => {})
+  cases.push({
+    path,
+    url: `${baseUrl}${path}`,
+    markers: { orders: snapshot.orders, auth: snapshot.auth },
+    readyState: snapshot.readyState,
+    navigationError,
+    consoleErrors,
+    pageErrors,
+    failedRequests,
+    bodyText: snapshot.bodyText,
+  })
+  await page.close({ runBeforeUnload: false }).catch(() => {})
+}
+
+try {
+  await captureCase('/', 'root')
+  await captureCase('/?t227004=1&orders=off', 'orders-off')
+  await captureCase('/?t227004=1&orders=on', 'orders-on')
 } finally {
-  await browser.close()
+  await browser.close().catch(() => {})
 }
 
 const root = cases[0]
