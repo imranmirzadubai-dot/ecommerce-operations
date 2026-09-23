@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/T227-004-orders-startup-on-off
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
