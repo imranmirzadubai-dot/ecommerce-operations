@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useAuth } from '../lib/AuthContext'
+import type { AuthState } from '../lib/auth'
 import { OrdersWorkspace } from './OrdersWorkspace'
 import { InvoicePrintWorkspace } from './InvoicePrintWorkspace'
 import { DispatchScanWorkspace } from './DispatchScanWorkspace'
@@ -19,8 +20,9 @@ const components = [
 ] as const
 
 type ComponentName = (typeof components)[number]
+type Profile = NonNullable<AuthState['profile']>
 
-function renderComponent(name: ComponentName, accessToken: string, profile: Record<string, unknown> | null) {
+function renderComponent(name: ComponentName, accessToken: string, profile: Profile | null) {
   const props = { accessToken }
   switch (name) {
     case 'OrdersWorkspace': return <OrdersWorkspace {...props} />
@@ -40,7 +42,7 @@ export function E2ECompositionProbe() {
   const names = requested.split(',').filter((name): name is ComponentName => components.includes(name as ComponentName))
 
   useEffect(() => {
-    if (!import.meta.env?.VITE_APP_ENVIRONMENT || import.meta.env.VITE_APP_ENVIRONMENT !== 'e2e') return
+    if (import.meta.env?.VITE_APP_ENVIRONMENT !== 'e2e') return
     console.info('[E2E-COMPOSITION-AUTH]', JSON.stringify({ authenticated, loading, hasToken: Boolean(auth.accessToken), names }))
   }, [authenticated, loading, auth.accessToken, names.join(',')])
 
@@ -54,7 +56,7 @@ export function E2ECompositionProbe() {
       {names.map((name) => (
         <section data-e2e-component={name} key={name}>
           <h2>{name}</h2>
-          {renderComponent(name, auth.accessToken!, auth.profile as Record<string, unknown> | null)}
+          {renderComponent(name, auth.accessToken!, auth.profile)}
         </section>
       ))}
     </main>
