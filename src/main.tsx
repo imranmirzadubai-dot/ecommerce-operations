@@ -4,13 +4,26 @@ import './index.css'
 import { RouteGuard } from './RouteGuard.tsx'
 import { AuthProvider } from './lib/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import { E2ECompositionProbe } from './components/E2ECompositionProbe.tsx'
 import { installGlobalErrorReporting } from './lib/errorReporting'
 
-// This entry-point intentionally owns the bootstrap component; Fast Refresh is not used here.
-// eslint-disable-next-line react-refresh/only-export-components
+const buildStamp = {
+  sha: import.meta.env.VITE_GIT_SHA ?? 'unset',
+  builtAt: import.meta.env.VITE_BUILD_TIME ?? 'unset',
+}
+;(window as typeof window & { __buildStamp?: typeof buildStamp }).__buildStamp = buildStamp
+console.log('[BUILD_STAMP]', buildStamp)
+
 function ErrorReportingBootstrap() {
   useEffect(() => installGlobalErrorReporting(), [])
   return null
+}
+
+function BootstrapRouter() {
+  const isCompositionProbe = import.meta.env?.VITE_APP_ENVIRONMENT === 'e2e'
+    && window.location.pathname === '/app'
+    && new URLSearchParams(window.location.search).has('e2eComposition')
+  return isCompositionProbe ? <E2ECompositionProbe /> : <RouteGuard />
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -18,7 +31,7 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <ErrorReportingBootstrap />
       <AuthProvider>
-        <RouteGuard />
+        <BootstrapRouter />
       </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,
