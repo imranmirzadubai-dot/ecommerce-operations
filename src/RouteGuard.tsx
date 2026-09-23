@@ -21,8 +21,9 @@ export function RouteGuard() {
   }, [authenticated, auth.profile, e2eShell, loading])
 
   if (protectedPath && (loading || !allowed)) return <div aria-label="Authentication check" />
-  if (e2eShell) {
-    return <main data-e2e-shell="authenticated" data-auth-state={authenticated ? 'authenticated' : 'unauthenticated'}>{authenticated ? <h1>E2E authenticated shell</h1> : <h1>E2E unauthenticated shell</h1>}</main>
+  if (e2eShell && authenticated && !loading) {
+    console.info('[E2E-SHELL-COMMIT]', JSON.stringify({ pathname: window.location.pathname, authenticated, loading }))
+    return <main data-e2e-shell="authenticated" data-auth-state="authenticated"><h1>E2E authenticated shell</h1></main>
   }
   return <App />
 }
