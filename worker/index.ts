@@ -5,7 +5,7 @@ const ALLOWED_COMMANDS = new Set([
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
 ]);
 
-type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
+type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };\ntype AuthTokenResponse = { access_token: string; refresh_token: string; expires_in: number; user: { id: string } };
 
 function json(data: unknown, status = 200, headers?: HeadersInit): Response { return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } }); }
 function getBearerToken(request: Request): string | null { const authorization = request.headers.get("Authorization"); if (!authorization) return null; const match = authorization.match(/^Bearer\s+(.+)$/i); return match?.[1] ?? null; }
@@ -46,7 +46,7 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
         if (tokenResponse.ok) {
-          const token = await tokenResponse.json() as TokenResponse;
+          const token = await tokenResponse.json() as AuthTokenResponse;
           await fetch(`${config.url}/auth/v1/logout`, {
             method: "POST",
             headers: { apikey: config.key, Authorization: `Bearer ${token.access_token}` },
@@ -80,7 +80,7 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
   }
 
   if (!tokenResponse.ok) return json({ error: "authentication_failed" }, tokenResponse.status, { "Set-Cookie": clearAuthCookie() });
-  const token = await tokenResponse.json() as TokenResponse;
+  const token = await tokenResponse.json() as AuthTokenResponse;
   return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token) });
 }
 
