@@ -69,24 +69,28 @@ export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
-async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
   const controller = new AbortController()
+  const abort = () => controller.abort(signal?.reason)
+  if (signal?.aborted) abort()
+  else signal?.addEventListener('abort', abort, { once: true })
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   try {
     return await fetch(input, { ...init, signal: controller.signal })
   } finally {
     window.clearTimeout(timeout)
+    signal?.removeEventListener('abort', abort)
   }
 }
 
-async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>): Promise<T> {
+async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>, signal?: AbortSignal): Promise<T> {
   let response: Response
   try {
     response = await fetchWithTimeout(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
       method: 'POST',
       headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    })
+    }, signal)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
     throw error
@@ -98,12 +102,12 @@ async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refre
   return response.json() as Promise<T>
 }
 
-async function loadProfile(config: AuthConfig, accessToken: string, userId: string): Promise<Profile> {
+async function loadProfile(config: AuthConfig, accessToken: string, userId: string, signal?: AbortSignal): Promise<Profile> {
   let response: Response
   try {
     response = await fetchWithTimeout(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
       headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
-    })
+    }, signal)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
     throw error
@@ -115,13 +119,13 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
   return profile
 }
 
-export async function signIn(email: string, password: string): Promise<AuthState> {
+export async function signIn(email: string, password: string, signal?: AbortSignal): Promise<AuthState> {
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase authentication is not configured for this environment')
-  const token = await authRequest<TokenResponse>(config, 'password', { email, password })
+  const token = await authRequest<TokenResponse>(config, 'password', { email, password }, signal)
   storeSession({ accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id })
   try {
-    const profile = await loadProfile(config, token.access_token, token.user.id)
+    const profile = await loadProfile(config, token.access_token, token.user.id, signal)
     return { authenticated: true, userId: token.user.id, profile, accessToken: token.access_token }
   } catch (error) {
     clearStoredSession()
@@ -129,14 +133,14 @@ export async function signIn(email: string, password: string): Promise<AuthState
   }
 }
 
-export async function restoreSession(): Promise<AuthState> {
+export async function restoreSession(signal?: AbortSignal): Promise<AuthState> {
   const config = getAuthConfig()
   let session = readStoredSession()
   if (!config || !session) return { authenticated: false, userId: null, profile: null, accessToken: null }
 
   if (session.expiresAt <= Date.now() + 30_000) {
     try {
-      const token = await authRequest<TokenResponse>(config, 'refresh_token', { refresh_token: session.refreshToken })
+      const token = await authRequest<TokenResponse>(config, 'refresh_token', { refresh_token: session.refreshToken }, signal)
       session = { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id }
       storeSession(session)
     } catch {
@@ -146,7 +150,7 @@ export async function restoreSession(): Promise<AuthState> {
   }
 
   try {
-    const profile = await loadProfile(config, session.accessToken, session.userId)
+    const profile = await loadProfile(config, session.accessToken, session.userId, signal)
     return { authenticated: true, userId: session.userId, profile, accessToken: session.accessToken }
   } catch {
     clearStoredSession()
@@ -154,7 +158,7 @@ export async function restoreSession(): Promise<AuthState> {
   }
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(signal?: AbortSignal): Promise<void> {
   const config = getAuthConfig()
   const stored = readStoredSession()
   clearStoredSession()
@@ -162,5 +166,5 @@ export async function signOut(): Promise<void> {
   await fetchWithTimeout(`${config.url}/auth/v1/logout`, {
     method: 'POST',
     headers: { apikey: config.publishableKey, Authorization: `Bearer ${stored.accessToken}` },
-  }).catch(() => undefined)
+  }, signal).catch(() => undefined)
 }
