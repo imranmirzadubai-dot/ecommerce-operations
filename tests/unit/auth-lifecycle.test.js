@@ -9,7 +9,7 @@ const context = await readFile(new URL('../../src/lib/AuthContext.tsx', import.m
 
 test('auth bootstrap has one owner', () => {
   assert.match(context, /export function AuthProvider/)
-  assert.match(context, /restoreSession\(\)/)
+  assert.match(context, /restoreSession\(controller\.signal\)/)
   assert.doesNotMatch(app, /restoreSession\(\)/)
   assert.doesNotMatch(routeGuard, /restoreSession\(\)/)
 })
@@ -23,5 +23,5 @@ test('auth lifecycle schedules refresh before session expiry', () => {
 
 test('sign-out clears the refresh lifecycle', () => {
   assert.match(context, /clearRefreshTimer\(\)/)
-  assert.match(context, /await terminateSession\(\)/)
+  assert.match(context, /await terminateSession\(controller\.signal\)/)
 })
