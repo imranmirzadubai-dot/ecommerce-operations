@@ -98,6 +98,11 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      VITE_APP_ENVIRONMENT: ci
+      VITE_E2E_DIAGNOSTIC: t227-002
+      VITE_SUPABASE_URL: https://t227-002.invalid
+      VITE_SUPABASE_PUBLISHABLE_KEY: t227-002-test-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,16 +112,10 @@ jobs:
       - run: npm ci
       - name: Build T227-002 diagnostic artifact
         run: npm run build
-        env:
-          VITE_APP_ENVIRONMENT: ci
-          VITE_E2E_DIAGNOSTIC: t227-002
-          VITE_SUPABASE_URL: https://t227-002.invalid
-          VITE_SUPABASE_PUBLISHABLE_KEY: t227-002-test-key
       - run: npm run e2e:install
       - run: npm run e2e
         env:
           GITHUB_SHA: ${{ github.sha }}
-          VITE_APP_ENVIRONMENT: ci
       - name: Upload Playwright evidence
         if: always()
         uses: actions/upload-artifact@v4
