@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { confirmOrder, getOrderTimeline, listOrders, updateOrder, type OrderItemRow, type OrderListRow, type OrderTimelineEvent } from '../lib/commands'
 import { normalizeAedAmount } from '../lib/money'
 
-type Props = { accessToken: string }
+type Props = { accessToken: string; onOrdersChange?: (orders: OrderListRow[]) => void }
 type EditableItem = Pick<OrderItemRow, 'description' | 'quantity'>
 const PAGE_SIZE = 25
 const LIFECYCLE_OPTIONS = ['', 'Draft', 'Confirmed', 'Active', 'Completed', 'Cancelled']
@@ -47,7 +47,7 @@ function downloadOrdersCsv(orders: OrderListRow[]) {
   URL.revokeObjectURL(url)
 }
 
-export function OrdersWorkspace({ accessToken }: Props) {
+export function OrdersWorkspace({ accessToken, onOrdersChange }: Props) {
   const [orders, setOrders] = useState<OrderListRow[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -72,6 +72,10 @@ export function OrdersWorkspace({ accessToken }: Props) {
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([])
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
+
+  useEffect(() => {
+    onOrdersChange?.(orders)
+  }, [onOrdersChange, orders])
 
   async function refresh(targetPage = page, targetSearch = search, targetLifecycle = lifecycleState, targetParcel = parcelState, targetCod = codState, targetDateFrom = dateFrom, targetDateTo = dateTo) {
     setLoading(true); setError('')
