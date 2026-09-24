@@ -12,10 +12,22 @@ test('AUTH-004 removes browser storage of authentication sessions', () => {
   assert.doesNotMatch(authSource, /localStorage\.(getItem|setItem)\([^)]*auth\.session/)
   assert.match(authSource, /localStorage\.removeItem\(LEGACY_SESSION_KEY\)/)
   assert.match(authSource, /clearStoredSession\(\)/)
-  assert.match(authSource, /credentials: 'include'/)
+  assert.match(authSource, /credentials: RequestCredentials = 'include'/)
   assert.match(authSource, /\/api\/auth\/session/)
   assert.match(authSource, /\/api\/auth\/sign-in/)
   assert.match(authSource, /\/api\/auth\/sign-out/)
+})
+
+test('AUTH-004 uses credentialed requests only for same-origin auth endpoints', () => {
+  assert.match(authSource, /async function fetchWithTimeout\([^)]*credentials: RequestCredentials = 'include'\)/)
+  assert.match(authSource, /fetch\(input, \{ \.\.\.init, signal: controller\.signal, credentials \}\)/)
+  assert.match(authSource, /\/api\/auth\/sign-in/)
+  assert.match(authSource, /\/api\/auth\/session/)
+  assert.match(authSource, /\/api\/auth\/sign-out/)
+})
+
+test('AUTH-004 omits browser credentials on cross-origin Supabase profile fetch', () => {
+  assert.match(authSource, /\/rest\/v1\/profiles\?id=eq\.\$\{encodeURIComponent\(userId\)[\s\S]*\}, signal, 'omit'\)/)
 })
 
 test('AUTH-004 keeps the refresh token in an HttpOnly Secure cookie', () => {
