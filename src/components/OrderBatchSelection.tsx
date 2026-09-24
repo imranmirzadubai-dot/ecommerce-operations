@@ -8,21 +8,13 @@ type Props = { accessToken: string }
 
 export function OrderBatchSelection({ accessToken }: Props) {
   const [selected, setSelected] = useState<string[]>([])
-  const [visibleOrders, setVisibleOrders] = useState<string[]>([])
   const [visibleOrderRows, setVisibleOrderRows] = useState<OrderListRow[]>([])
 
+  const visibleOrders = useMemo(() => visibleOrderRows.map((order) => order.order_number), [visibleOrderRows])
+
   useEffect(() => {
-    const sync = () => {
-      const ids = Array.from(document.querySelectorAll<HTMLElement>('.orders-table tbody tr')).map((row) => row.querySelector('td strong')?.textContent?.trim() ?? '').filter(Boolean)
-      setVisibleOrders(ids)
-      setSelected((current) => current.filter((id) => ids.includes(id)))
-    }
-    sync()
-    const observer = new MutationObserver(sync)
-    const table = document.querySelector('.orders-workspace')
-    if (table) observer.observe(table, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [])
+    setSelected((current) => current.filter((id) => visibleOrders.includes(id)))
+  }, [visibleOrders])
 
   const handleOrdersChange = useCallback((orders: OrderListRow[]) => {
     setVisibleOrderRows(orders)
