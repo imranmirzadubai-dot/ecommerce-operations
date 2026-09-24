@@ -47,8 +47,7 @@ test('T227-002 authenticated shell isolates navigation from operational tree', a
 
   await page.goto('/login?returnTo=%2F%3Ft227%3D002', { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Secure access is required')).toBeVisible()
-  await expect(page.getByLabel('Email')).toBeVisible()
-  await expect(page.getByLabel('Password')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
   await page.getByLabel('Email').fill('t227-002@example.test')
   await page.getByLabel('Password').fill('diagnostic-password')
   await page.getByRole('button', { name: 'Sign in' }).click()
