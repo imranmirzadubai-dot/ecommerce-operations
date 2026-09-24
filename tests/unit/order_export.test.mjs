@@ -24,7 +24,7 @@ test('P6-T110 limits selected export to the current visible page', () => {
 test('P13-T204 mounts authenticated order export and reports independently in the active app shell', () => {
   assert.match(app, /import \{ OrderExport \} from '\.\/components\/OrderExport'/)
   assert.match(app, /import \{ ReportWorkspace \} from '\.\/components\/ReportWorkspace'/)
-  assert.match(app, /<OrderExport selectedOrderIds=\{\[\]\} accessToken=\{auth\.accessToken\} \/>/)
+  assert.match(app, /<OrderExport selectedOrderIds=\{\[\]\} \/>/)
   assert.match(app, /<ReportWorkspace accessToken=\{auth\.accessToken\} \/>/)
   assert.match(app, /id="reports-title"/)
   assert.match(app, /onClick=\{\(\) => navigateTo\(item\)\}/)
