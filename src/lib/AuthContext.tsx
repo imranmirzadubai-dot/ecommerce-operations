@@ -52,6 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authChannel.current?.postMessage(SESSION_CHANGED_MESSAGE)
   }, [])
 
+  const getAccessTokenExpiry = useCallback((accessToken: string): number | null => {
+    try {
+      const payload = accessToken.split('.')[1]
+      if (!payload) return null
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number }
+      return typeof decoded.exp === 'number' ? decoded.exp * 1000 : null
+    } catch {
+      return null
+    }
+  }, [])
+
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current)
@@ -82,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (operationController.current === controller) operationController.current = null
       clearRefreshTimer()
     }
-  }, [beginUserOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
+  }, [beginOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
 
   const syncExternalSession = useCallback(() => {
     const stored = localStorage.getItem('ecommerce-operations.auth.session')
@@ -126,21 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearRefreshTimer()
     if (!auth.authenticated || !auth.accessToken) return
 
-    const raw = localStorage.getItem('ecommerce-operations.auth.session')
-    if (!raw) return
-    try {
-      const session = JSON.parse(raw) as { expiresAt?: number }
-      if (typeof session.expiresAt !== 'number') return
-      const delay = Math.max(MIN_REFRESH_DELAY_MS, session.expiresAt - Date.now() - REFRESH_LEAD_MS)
-      refreshTimer.current = window.setTimeout(() => {
-        void refresh()
-      }, delay)
-    } catch {
-      // Invalid storage is handled by restoreSession; no timer is scheduled.
-    }
+    const expiresAt = getAccessTokenExpiry(auth.accessToken)
+    if (!expiresAt) return
+    const delay = Math.max(MIN_REFRESH_DELAY_MS, expiresAt - Date.now() - REFRESH_LEAD_MS)
+    refreshTimer.current = window.setTimeout(() => {
+      void refresh()
+    }, delay)
 
     return clearRefreshTimer
-  }, [auth.authenticated, auth.accessToken, clearRefreshTimer, refresh])
+  }, [auth.authenticated, auth.accessToken, clearRefreshTimer, getAccessTokenExpiry, refresh])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { controller, generation } = beginUserOperation()
