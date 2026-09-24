@@ -63,10 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { controller, generation } = beginUserOperation()
     try {
       const next = await restoreSession(controller.signal)
-      if (isCurrentOperation(generation, controller)) {
-        setAuth(next)
-        announceSessionChange()
-      }
+      if (isCurrentOperation(generation, controller)) setAuth(next)
       return next
     } finally {
       finishOperation(generation, controller)
@@ -149,12 +146,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { controller, generation } = beginUserOperation()
     try {
       const next = await authenticate(email, password, controller.signal)
-      if (isCurrentOperation(generation, controller)) setAuth(next)
+      if (isCurrentOperation(generation, controller)) {
+        setAuth(next)
+        announceSessionChange()
+      }
       return next
     } finally {
       finishOperation(generation, controller)
     }
-  }, [beginUserOperation, finishOperation, isCurrentOperation])
+  }, [announceSessionChange, beginUserOperation, finishOperation, isCurrentOperation])
 
   const signOut = useCallback(async () => {
     clearRefreshTimer()
