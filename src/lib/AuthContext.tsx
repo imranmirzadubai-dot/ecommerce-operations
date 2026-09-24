@@ -5,6 +5,8 @@ import { restoreSession, signIn as authenticate, signOut as terminateSession, ty
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 const REFRESH_LEAD_MS = 60_000
 const MIN_REFRESH_DELAY_MS = 5_000
+const AUTH_CHANNEL_NAME = 'ecommerce-operations.auth'
+const SESSION_CHANGED_MESSAGE = 'session-changed'
 
 type AuthContextValue = AuthState & {
   auth: AuthState
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTimer = useRef<number | null>(null)
   const operationGeneration = useRef(0)
   const operationController = useRef<AbortController | null>(null)
+  const authChannel = useRef<BroadcastChannel | null>(null)
 
   const beginOperation = useCallback(() => {
     operationController.current?.abort()
@@ -45,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false)
   }, [isCurrentOperation])
 
+  const announceSessionChange = useCallback(() => {
+    authChannel.current?.postMessage(SESSION_CHANGED_MESSAGE)
+  }, [])
+
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current !== null) {
       window.clearTimeout(refreshTimer.current)
@@ -56,7 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { controller, generation } = beginUserOperation()
     try {
       const next = await restoreSession(controller.signal)
-      if (isCurrentOperation(generation, controller)) setAuth(next)
+      if (isCurrentOperation(generation, controller)) {
+        setAuth(next)
+        announceSessionChange()
+      }
       return next
     } finally {
       finishOperation(generation, controller)
@@ -76,6 +86,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearRefreshTimer()
     }
   }, [beginUserOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
+
+  const syncExternalSession = useCallback(() => {
+    const stored = localStorage.getItem('ecommerce-operations.auth.session')
+    if (!stored) {
+      beginOperation()
+      setAuth(signedOutState)
+      setLoading(false)
+      return
+    }
+
+    const { controller, generation } = beginUserOperation()
+    void restoreSession(controller.signal).then((next) => {
+      if (isCurrentOperation(generation, controller)) setAuth(next)
+    }).finally(() => {
+      finishOperation(generation, controller)
+    })
+  }, [beginOperation, beginUserOperation, finishOperation, isCurrentOperation])
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'ecommerce-operations.auth.session') syncExternalSession()
+    }
+    window.addEventListener('storage', handleStorage)
+
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel(AUTH_CHANNEL_NAME)
+      authChannel.current = channel
+      channel.onmessage = (event) => {
+        if (event.data === SESSION_CHANGED_MESSAGE) syncExternalSession()
+      }
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      authChannel.current?.close()
+      authChannel.current = null
+    }
+  }, [syncExternalSession])
 
   useEffect(() => {
     clearRefreshTimer()
@@ -113,11 +161,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { controller, generation } = beginUserOperation()
     try {
       await terminateSession(controller.signal)
-      if (isCurrentOperation(generation, controller)) setAuth(signedOutState)
+      if (isCurrentOperation(generation, controller)) {
+        setAuth(signedOutState)
+        announceSessionChange()
+      }
     } finally {
       finishOperation(generation, controller)
     }
-  }, [beginOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
+  }, [announceSessionChange, beginUserOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
 
   const value = useMemo<AuthContextValue>(() => ({
     ...auth,
