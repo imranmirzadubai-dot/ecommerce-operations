@@ -9,22 +9,24 @@ const reports = await readFile(new URL('../../src/components/ReportWorkspace.tsx
 const reportFilters = await readFile(new URL('../../src/lib/reportFilters.ts', import.meta.url), 'utf8')
 
 test('P6-T110 exports visible filtered orders as XLSX', () => {
-  assert.match(exporter, /readVisibleRows/)
+  assert.doesNotMatch(exporter, /readVisibleRows|querySelectorAll|MutationObserver/)
+  assert.match(exporter, /OrderListRow/)
   assert.match(exporter, /Order.*Customer.*Phone.*Lifecycle State.*Amount \(AED\).*Order Date/s)
   assert.match(exporter, /downloadExcelWorkbook/)
   assert.match(exporter, /orders-export-/)
   assert.match(exporter, /selectedOrderIds/)
-  assert.match(batch, /<OrderExport selectedOrderIds=\{selected\} \/>/)
+  assert.match(batch, /<OrderExport orders=\{visibleOrderRows\} selectedOrderIds=\{selected\} \/>/)
 })
 
 test('P6-T110 limits selected export to the current visible page', () => {
-  assert.match(exporter, /selected\.size \? rows\.filter\(\(row\) => selected\.has\(row\.order\)\) : rows/)
+  assert.match(exporter, /selected\.size \? orders\.filter\(\(order\) => selected\.has\(order\.order_number\)\) : orders/)
 })
 
 test('P13-T204 mounts authenticated order export and reports independently in the active app shell', () => {
   assert.match(app, /import \{ OrderExport \} from '\.\/components\/OrderExport'/)
   assert.match(app, /import \{ ReportWorkspace \} from '\.\/components\/ReportWorkspace'/)
-  assert.match(app, /<OrderExport selectedOrderIds=\{\[\]\} \/>/)
+  assert.match(app, /<OrderExport orders=\{exportOrders\} selectedOrderIds=\{\[\]\} \/>/)
+  assert.match(app, /onOrdersChange=\{handleOrdersChange\}/)
   assert.match(app, /<ReportWorkspace accessToken=\{auth\.accessToken\} \/>/)
   assert.match(app, /id="reports-title"/)
   assert.match(app, /onClick=\{\(\) => navigateTo\(item\)\}/)
