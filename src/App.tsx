@@ -42,8 +42,7 @@ function App() {
   const [items, setItems] = useState<OrderItem[]>([{ description: '', quantity: '1' }])
   const [exportOrders, setExportOrders] = useState<OrderListRow[]>([])
   const handleOrdersChange = useCallback((orders: OrderListRow[]) => setExportOrders(orders), [])
-  const [exportOrders, setExportOrders] = useState<OrderListRow[]>([])
-  const [activeWorkspace, setActiveWorkspace] = useState('Dashboard')
+etActiveWorkspace] = useState('Dashboard')
   const handleOrdersChange = useCallback((orders: OrderListRow[]) => setExportOrders(orders), [])
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
