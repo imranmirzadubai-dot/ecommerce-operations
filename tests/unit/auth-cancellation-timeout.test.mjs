@@ -9,10 +9,10 @@ const source = fs.readFileSync(path.join(root, 'src/lib/commands.ts'), 'utf8')
 
 test('AUTH-005 gives command requests an explicit caller cancellation boundary', () => {
   assert.match(source, /export const COMMAND_REQUEST_TIMEOUT_MS = 8_000/)
-  assert.match(source, /signal?: AbortSignal/)
-  assert.match(source, /signal?.addEventListener\('abort', abort, \{ once: true \}\)/)
+  assert.match(source, /signal\?: AbortSignal/)
+  assert.match(source, /signal\?\.addEventListener\('abort', abort, \{ once: true \}\)/)
   assert.match(source, /signal: controller\.signal/)
-  assert.match(source, /signal?\.removeEventListener\('abort', abort\)/)
+  assert.match(source, /signal\?\.removeEventListener\('abort', abort\)/)
 })
 
 test('AUTH-005 converts internal timeout aborts into a deterministic timeout error', () => {
@@ -34,7 +34,6 @@ test('AUTH-005 propagates cancellation through all cancellable data operations',
   ]) {
     assert.match(source, new RegExp(`export async function ${functionName}\\([\\s\\S]*?signal\\?: AbortSignal`))
   }
-  assert.match(source, /options: ListOrdersOptions/)
-  assert.match(source, /signal?: AbortSignal/)
+  assert.match(source, /type ListOrdersOptions = [^\n]*signal\?: AbortSignal/)
   assert.match(source, /options\.signal/)
 })
