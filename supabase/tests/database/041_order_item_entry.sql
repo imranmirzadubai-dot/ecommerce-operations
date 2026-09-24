@@ -13,7 +13,7 @@ select ok(
 );
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%coalesce(v_item->>''quantity'','''') !~ ''^\\\\d+$''%'
+  (select pg_get_functiondef(p.oid) like '%coalesce(v_item->>''quantity'','''') !~ ''^[0-9]+$''%'
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='create_order'),
   'create_order rejects non-integer quantity text'

@@ -121,7 +121,7 @@ begin
   for v_item in select value from jsonb_array_elements(p_items) loop
     v_line_no:=v_line_no+1;
     v_description:=nullif(btrim(coalesce(v_item->>'description','')),'');
-    if v_description is null or coalesce(v_item->>'quantity','') !~ '^\\d+$' then
+    if v_description is null or coalesce(v_item->>'quantity','') !~ '^[0-9]+$' then
       raise exception using errcode='22023',
         message=format('Invalid order item at line %s',v_line_no);
     end if;
