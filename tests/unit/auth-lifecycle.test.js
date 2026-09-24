@@ -25,3 +25,12 @@ test('sign-out clears the refresh lifecycle', () => {
   assert.match(context, /clearRefreshTimer\(\)/)
   assert.match(context, /await terminateSession\(controller\.signal\)/)
 })
+
+
+test('auth operations own loading state and stale operations cannot settle it', () => {
+  assert.match(context, /setLoading\(true\)/)
+  assert.match(context, /const finishOperation = useCallback/)
+  assert.match(context, /if \(!isCurrentOperation\(generation, controller\)\) return/)
+  assert.match(context, /setLoading\(false\)/)
+  assert.match(context, /finally \{\n      finishOperation\(generation, controller\)/)
+})
