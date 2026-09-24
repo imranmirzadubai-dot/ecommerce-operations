@@ -9,6 +9,7 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "node --test tests/unit/*.test.js tests/unit/*.test.mjs",
+    "check:source-graph": "node scripts/check-source-graph.mjs",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types"
