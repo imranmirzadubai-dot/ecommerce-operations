@@ -94,3 +94,29 @@ jobs:
             supabase/tests/database/087_order_cod_obligation.sql \
             supabase/tests/database/088_parcel_cod_allocation.sql \
             supabase/tests/database/096_financial_adjustment_command.sql
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run e2e:install
+      - run: npm run e2e
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          VITE_APP_ENVIRONMENT: ci
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t227-001-playwright-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
