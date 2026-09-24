@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(root, 'src/lib/AuthContext.tsx'), 'utf8
 
 test('AUTH-003 defines cross-tab storage synchronization', () => {
   assert.match(source, /window\.addEventListener\('storage'/)
-  assert.match(source, /event\.key === 'ecommerce-operations\.auth\.session'/)
+  assert.match(source, /event\.key === SESSION_EVENT_KEY/)
   assert.match(source, /window\.removeEventListener\('storage'/)
 })
 
