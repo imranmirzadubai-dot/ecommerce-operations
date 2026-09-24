@@ -23,14 +23,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const operationGeneration = useRef(0)
   const operationController = useRef<AbortController | null>(null)
 
-  const beginOperation = useCallback((showLoading = true) => {
+  const beginOperation = useCallback(() => {
     operationController.current?.abort()
     const controller = new AbortController()
     operationController.current = controller
     const generation = ++operationGeneration.current
-    if (showLoading) setLoading(true)
     return { controller, generation }
   }, [])
+
+  const beginUserOperation = useCallback(() => {
+    setLoading(true)
+    return beginOperation()
+  }, [beginOperation])
 
   const isCurrentOperation = useCallback((generation: number, controller: AbortController) => (
     generation === operationGeneration.current && operationController.current === controller && !controller.signal.aborted
@@ -49,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refresh = useCallback(async (): Promise<AuthState> => {
-    const { controller, generation } = beginOperation()
+    const { controller, generation } = beginUserOperation()
     try {
       const next = await restoreSession(controller.signal)
       if (isCurrentOperation(generation, controller)) setAuth(next)
@@ -57,10 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       finishOperation(generation, controller)
     }
-  }, [beginOperation, finishOperation, isCurrentOperation])
+  }, [beginUserOperation, finishOperation, isCurrentOperation])
 
   useEffect(() => {
-    const { controller, generation } = beginOperation(false)
+    const { controller, generation } = beginOperation()
     void restoreSession(controller.signal).then((next) => {
       if (isCurrentOperation(generation, controller)) setAuth(next)
     }).finally(() => {
