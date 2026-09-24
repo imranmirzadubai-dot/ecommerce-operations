@@ -35,8 +35,12 @@ function clearAuthCookie(): string {
 }
 
 async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | "session" | "sign-out"): Promise<Response> {
+  const requestId = getRequestId(request);
   const config = getSupabaseConfig(env);
-  if (!config) return json({ error: "server_not_configured" }, 503);
+  if (!config) {
+    logEvent("auth_request", { request_id: requestId, action, result: "server_error", status: 503, error: "server_not_configured" });
+    return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+  }
   if (action === "sign-out") {
     const refreshToken = cookieValue(request, AUTH_COOKIE);
     if (refreshToken) {
@@ -57,32 +61,47 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
         // Cookie is cleared even when upstream logout cannot be completed.
       }
     }
-    return json({ ok: true }, 200, { "Set-Cookie": clearAuthCookie() });
+    logEvent("auth_request", { request_id: requestId, action, result: "success", status: 200 });
+    return json({ ok: true }, 200, { "Set-Cookie": clearAuthCookie(), "X-Request-ID": requestId });
   }
 
   let tokenResponse: Response;
   if (action === "sign-in") {
-    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
     const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
-    if (!body?.email || !body.password) return json({ error: "credentials_required" }, 400);
-    tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: { apikey: config.key, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: body.email, password: body.password }),
-    });
+    if (!body?.email || !body.password) return json({ error: "credentials_required" }, 400, { "X-Request-ID": requestId });
+    try {
+      tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { apikey: config.key, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: body.email, password: body.password }),
+      });
+    } catch {
+      logEvent("auth_request", { request_id: requestId, action, result: "upstream_request_failed", status: 502, dependency: "supabase_auth" });
+      return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+    }
   } else {
     const refreshToken = cookieValue(request, AUTH_COOKIE);
     if (!refreshToken) return json({ error: "authentication_required" }, 401);
-    tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: { apikey: config.key, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
+    try {
+      tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { apikey: config.key, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+    } catch {
+      logEvent("auth_request", { request_id: requestId, action, result: "upstream_request_failed", status: 502, dependency: "supabase_auth" });
+      return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+    }
   }
 
-  if (!tokenResponse.ok) return json({ error: "authentication_failed" }, tokenResponse.status, { "Set-Cookie": clearAuthCookie() });
+  if (!tokenResponse.ok) {
+    logEvent("auth_request", { request_id: requestId, action, result: "authentication_failed", status: tokenResponse.status, dependency: "supabase_auth" });
+    return json({ error: "authentication_failed" }, tokenResponse.status, { "Set-Cookie": clearAuthCookie(), "X-Request-ID": requestId });
+  }
   const token = await tokenResponse.json() as AuthTokenResponse;
-  return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token) });
+  logEvent("auth_request", { request_id: requestId, action, result: "success", status: 200, dependency: "supabase_auth" });
+  return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token), "X-Request-ID": requestId });
 }
 
 async function handleRpc(request: Request, env: WorkerEnv, commandName: string, requestId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); if (!ALLOWED_COMMANDS.has(commandName)) return json({ error: "command_not_allowed" }, 404, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 503 }); return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); } let body: unknown; try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); } if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId }); let rpcResponse: Response; try { rpcResponse = await fetch(`${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`, { method: "POST", headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }); } catch { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const responseBody = await rpcResponse.text(); const result = rpcResponse.status >= 500 ? "server_error" : rpcResponse.status >= 400 ? "client_error" : "success"; logEvent("command_request", { request_id: requestId, command: commandName, result, status: rpcResponse.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(responseBody, { status: rpcResponse.status, headers: { "Content-Type": rpcResponse.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
