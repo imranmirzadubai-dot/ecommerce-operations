@@ -42,8 +42,14 @@ export function getAuthConfig(): AuthConfig | null {
   return { url: url.replace(/\/$/, ''), publishableKey }
 }
 
+const LEGACY_SESSION_KEY = 'ecommerce-operations.auth.session'
+
 export function clearStoredSession(): void {
-  // Legacy compatibility: session credentials are no longer stored in browser storage.
+  try {
+    localStorage.removeItem(LEGACY_SESSION_KEY)
+  } catch {
+    // Browser storage may be unavailable; authentication does not depend on it.
+  }
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
@@ -115,6 +121,7 @@ export async function signIn(email: string, password: string, signal?: AbortSign
 }
 
 export async function restoreSession(signal?: AbortSignal): Promise<AuthState> {
+  clearStoredSession()
   const config = getAuthConfig()
   if (!config) return { authenticated: false, userId: null, profile: null, accessToken: null }
 
