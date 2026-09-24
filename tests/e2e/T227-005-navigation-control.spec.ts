@@ -45,7 +45,7 @@ for (const navigation of ['hard', 'soft'] as const) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([AUTHENTICATED_PROFILE]) })
     })
 
-    await page.goto(`/login?returnTo=%2F%3Ft227%3D005%26navigation=${navigation}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`/login?returnTo=%2F%3Ft227%3D005%26navigation=${navigation}&navigation=${navigation}`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByText('Secure access is required')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
 
