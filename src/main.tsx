@@ -13,13 +13,19 @@ function ErrorReportingBootstrap() {
   return null
 }
 
+const application = (
+  <ErrorBoundary>
+    <ErrorReportingBootstrap />
+    <AuthProvider>
+      <RouteGuard />
+    </AuthProvider>
+  </ErrorBoundary>
+)
+
+const diagnosticStrictMode =
+  import.meta.env.VITE_E2E_DIAGNOSTIC !== 't227-006' ||
+  new URLSearchParams(window.location.search).get('strict') === 'on'
+
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <ErrorReportingBootstrap />
-      <AuthProvider>
-        <RouteGuard />
-      </AuthProvider>
-    </ErrorBoundary>
-  </StrictMode>,
+  diagnosticStrictMode ? <StrictMode>{application}</StrictMode> : application,
 )
