@@ -121,7 +121,92 @@ begin
   for v_item in select value from jsonb_array_elements(p_items) loop
     v_line_no:=v_line_no+1;
     v_description:=nullif(btrim(coalesce(v_item->>'description','')),'');
-    if v_description is null or coalesce(v_item->>'quantity','') !~ '^\\d+$' then
+    if v_description is null or coalesce(v_item->>'quantity','') !~ '^[0-9]+ then
+      raise exception using errcode='22023',
+        message=format('Invalid order item at line %s',v_line_no);
+    end if;
+    v_quantity:=(v_item->>'quantity')::integer;
+    if v_quantity<=0 then
+      raise exception using errcode='22023',
+        message=format('Invalid order item at line %s',v_line_no);
+    end if;
+    insert into public.order_items(order_id,line_no,description,quantity)
+    values(v_order_id,v_line_no,v_description,v_quantity);
+  end loop;
+
+  insert into public.order_events(order_id,event_type,performed_by,metadata)
+  values(v_order_id,'OrderCreated',auth.uid(),jsonb_build_object('lifecycle_state','Draft'));
+
+  insert into public.audit_logs(actor,action,entity_type,entity_id,after_data)
+  values(
+    auth.uid(),
+    'create_order',
+    'order',
+    v_order_id,
+    jsonb_build_object(
+      'order_number',v_order_number,
+      'customer_id',v_customer_id,
+      'original_amount',p_original_amount
+    )
+  );
+
+  v_result:=jsonb_build_object(
+    'order_id',v_order_id,
+    'order_number',v_order_number,
+    'customer_id',v_customer_id
+  );
+  perform public.complete_command_idempotency(
+    'create_order',btrim(p_idempotency_key),v_result
+  );
+
+  return query select v_order_id,v_order_number,v_customer_id;
+end;
+$$;
+
+revoke all on function public.create_order(text,text,text,text,numeric,jsonb,text,text) from public, anon;
+grant execute on function public.create_order(text,text,text,text,numeric,jsonb,text,text) to authenticated;
+
+create or replace function public.resolve_customer_by_phone(p_phone text)
+returns table(
+  customer_id uuid,
+  customer_code text,
+  name text,
+  phone text,
+  normalized_phone text,
+  address text,
+  city text
+)
+language plpgsql
+security definer
+set search_path=pg_catalog, public
+as $$
+declare
+  v_normalized_phone text;
+begin
+  if auth.uid() is null or public.app_role() is null then
+    raise exception using errcode='42501',message='Authentication required';
+  end if;
+  if btrim(coalesce(p_phone,''))='' then
+    raise exception using errcode='22023',message='Phone is required';
+  end if;
+
+  v_normalized_phone:=public.normalize_uae_phone(p_phone);
+  if v_normalized_phone is null then
+    raise exception using errcode='22023',message='Valid UAE phone is required';
+  end if;
+
+  return query
+    select c.id,c.customer_code,c.name,c.phone,c.normalized_phone,c.address,c.city
+    from public.customers c
+    where c.normalized_phone=v_normalized_phone;
+end;
+$$;
+
+revoke all on function public.resolve_customer_by_phone(text) from public, anon;
+grant execute on function public.resolve_customer_by_phone(text) to authenticated;
+
+commit;
+ then
       raise exception using errcode='22023',
         message=format('Invalid order item at line %s',v_line_no);
     end if;
