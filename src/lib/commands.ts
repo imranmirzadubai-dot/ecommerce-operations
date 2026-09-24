@@ -109,15 +109,41 @@ export type CustomerHistoryRow = {
 }
 
 type CommandError = { message?: string; error?: string; details?: string }
-type ListOrdersOptions = { page?: number; pageSize?: number; search?: string; lifecycleState?: string; parcelState?: string; codState?: string; dateFrom?: string; dateTo?: string }
+type ListOrdersOptions = { page?: number; pageSize?: number; search?: string; lifecycleState?: string; parcelState?: string; codState?: string; dateFrom?: string; dateTo?: string; signal?: AbortSignal }
 export type PaginatedOrders = { orders: OrderListRow[]; page: number; pageSize: number; hasMore: boolean; search: string; dateFrom: string; dateTo: string }
 
-export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
+export const COMMAND_REQUEST_TIMEOUT_MS = 8_000
+
+async function fetchCommand(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const controller = new AbortController()
+  const abort = () => controller.abort(signal?.reason)
+  if (signal?.aborted) abort()
+  else signal?.addEventListener('abort', abort, { once: true })
+  const timeout = window.setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), COMMAND_REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError' && signal?.aborted) throw error
+    if (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+      throw new Error('Request timed out', { cause: error })
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
+export async function runCommand<T>(command: string, accessToken: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+  const response = await fetchCommand(`/api/commands/${encodeURIComponent(command)}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
-  })
+  }, signal)
   const payload = (await response.json().catch(() => null)) as T | CommandError | null
   if (!response.ok) {
     const error = payload as CommandError | null
@@ -126,30 +152,30 @@ export async function runCommand<T>(command: string, accessToken: string, body: 
   return payload as T
 }
 
-export async function resolveCustomerByPhone(accessToken: string, phone: string) {
+export async function resolveCustomerByPhone(accessToken: string, phone: string, signal?: AbortSignal) {
   return runCommand<{ customer_id: string; customer_code: string; name: string; phone: string; address: string | null; city: string | null }[]>(
-    'resolve_customer_by_phone', accessToken, { p_phone: phone },
+    'resolve_customer_by_phone', accessToken, { p_phone: phone }, signal,
   )
 }
 
-export async function createOrder(accessToken: string, input: CreateOrderInput): Promise<CreateOrderResult[]> {
-  return runCommand<CreateOrderResult[]>('create_order', accessToken, input as unknown as Record<string, unknown>)
+export async function createOrder(accessToken: string, input: CreateOrderInput, signal?: AbortSignal): Promise<CreateOrderResult[]> {
+  return runCommand<CreateOrderResult[]>('create_order', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
-export async function updateOrder(accessToken: string, input: UpdateOrderInput): Promise<UpdateOrderResult[]> {
-  return runCommand<UpdateOrderResult[]>('update_order', accessToken, input as unknown as Record<string, unknown>)
+export async function updateOrder(accessToken: string, input: UpdateOrderInput, signal?: AbortSignal): Promise<UpdateOrderResult[]> {
+  return runCommand<UpdateOrderResult[]>('update_order', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
-export async function confirmOrder(accessToken: string, input: ConfirmOrderInput): Promise<ConfirmOrderResult[]> {
-  return runCommand<ConfirmOrderResult[]>('confirm_order', accessToken, input as unknown as Record<string, unknown>)
+export async function confirmOrder(accessToken: string, input: ConfirmOrderInput, signal?: AbortSignal): Promise<ConfirmOrderResult[]> {
+  return runCommand<ConfirmOrderResult[]>('confirm_order', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
-export async function createCodObligation(accessToken: string, input: CreateCodObligationInput): Promise<CreateCodObligationResult[]> {
-  return runCommand<CreateCodObligationResult[]>('create_cod_obligation', accessToken, input as unknown as Record<string, unknown>)
+export async function createCodObligation(accessToken: string, input: CreateCodObligationInput, signal?: AbortSignal): Promise<CreateCodObligationResult[]> {
+  return runCommand<CreateCodObligationResult[]>('create_cod_obligation', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
-export async function allocateCodObligationToParcel(accessToken: string, input: AllocateCodObligationToParcelInput): Promise<AllocateCodObligationToParcelResult[]> {
-  return runCommand<AllocateCodObligationToParcelResult[]>('allocate_cod_obligation_to_parcel', accessToken, input as unknown as Record<string, unknown>)
+export async function allocateCodObligationToParcel(accessToken: string, input: AllocateCodObligationToParcelInput, signal?: AbortSignal): Promise<AllocateCodObligationToParcelResult[]> {
+  return runCommand<AllocateCodObligationToParcelResult[]>('allocate_cod_obligation_to_parcel', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
 export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
@@ -165,9 +191,9 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
   if (options.codState) query.set('cod_state', options.codState)
   if (dateFrom) query.set('date_from', dateFrom)
   if (dateTo) query.set('date_to', dateTo)
-  const response = await fetch(`/api/orders?${query.toString()}`, {
+  const response = await fetchCommand(`/api/orders?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-  })
+  }, options.signal)
   const payload = (await response.json().catch(() => null)) as OrderListRow[] | CommandError | null
   if (!response.ok) {
     const error = payload as CommandError | null
@@ -184,10 +210,10 @@ export async function listOrders(accessToken: string, options: ListOrdersOptions
   }
 }
 
-export async function getOrderTimeline(accessToken: string, orderId: string): Promise<OrderTimelineEvent[]> {
-  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/timeline`, {
+export async function getOrderTimeline(accessToken: string, orderId: string, signal?: AbortSignal): Promise<OrderTimelineEvent[]> {
+  const response = await fetchCommand(`/api/orders/${encodeURIComponent(orderId)}/timeline`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-  })
+  }, signal)
   const payload = (await response.json().catch(() => null)) as OrderTimelineEvent[] | CommandError | null
   if (!response.ok) {
     const error = payload as CommandError | null
@@ -196,10 +222,10 @@ export async function getOrderTimeline(accessToken: string, orderId: string): Pr
   return (payload ?? []) as OrderTimelineEvent[]
 }
 
-export async function getCustomerHistory(accessToken: string, customerId: string): Promise<CustomerHistoryRow[]> {
-  const response = await fetch(`/api/customers/${encodeURIComponent(customerId)}/history`, {
+export async function getCustomerHistory(accessToken: string, customerId: string, signal?: AbortSignal): Promise<CustomerHistoryRow[]> {
+  const response = await fetchCommand(`/api/customers/${encodeURIComponent(customerId)}/history`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-  })
+  }, signal)
   const payload = (await response.json().catch(() => null)) as CustomerHistoryRow[] | CommandError | null
   if (!response.ok) {
     const error = payload as CommandError | null
