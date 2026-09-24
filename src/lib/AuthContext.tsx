@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       finishOperation(generation, controller)
     }
-  }, [beginOperation, isCurrentOperation])
+  }, [beginOperation, finishOperation, isCurrentOperation])
 
   const signOut = useCallback(async () => {
     clearRefreshTimer()
