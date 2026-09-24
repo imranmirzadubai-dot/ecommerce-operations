@@ -5,7 +5,8 @@ const ALLOWED_COMMANDS = new Set([
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
 ]);
 
-type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };\ntype AuthTokenResponse = { access_token: string; refresh_token: string; expires_in: number; user: { id: string } };
+type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
+type AuthTokenResponse = { access_token: string; refresh_token: string; expires_in: number; user: { id: string } };
 
 function json(data: unknown, status = 200, headers?: HeadersInit): Response { return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } }); }
 function getBearerToken(request: Request): string | null { const authorization = request.headers.get("Authorization"); if (!authorization) return null; const match = authorization.match(/^Bearer\s+(.+)$/i); return match?.[1] ?? null; }
