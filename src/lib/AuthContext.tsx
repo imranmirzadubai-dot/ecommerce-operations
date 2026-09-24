@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (operationController.current === controller) operationController.current = null
       clearRefreshTimer()
     }
-  }, [beginOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
+  }, [beginUserOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
 
   useEffect(() => {
     clearRefreshTimer()
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth.authenticated, auth.accessToken, clearRefreshTimer, refresh])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { controller, generation } = beginOperation()
+    const { controller, generation } = beginUserOperation()
     try {
       const next = await authenticate(email, password, controller.signal)
       if (isCurrentOperation(generation, controller)) setAuth(next)
@@ -106,11 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       finishOperation(generation, controller)
     }
-  }, [beginOperation, finishOperation, isCurrentOperation])
+  }, [beginUserOperation, finishOperation, isCurrentOperation])
 
   const signOut = useCallback(async () => {
     clearRefreshTimer()
-    const { controller, generation } = beginOperation()
+    const { controller, generation } = beginUserOperation()
     try {
       await terminateSession(controller.signal)
       if (isCurrentOperation(generation, controller)) setAuth(signedOutState)
