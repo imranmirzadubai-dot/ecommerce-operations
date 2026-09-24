@@ -12,12 +12,10 @@ export function OrderBatchSelection({ accessToken }: Props) {
 
   const visibleOrders = useMemo(() => visibleOrderRows.map((order) => order.order_number), [visibleOrderRows])
 
-  useEffect(() => {
-    setSelected((current) => current.filter((id) => visibleOrders.includes(id)))
-  }, [visibleOrders])
-
   const handleOrdersChange = useCallback((orders: OrderListRow[]) => {
     setVisibleOrderRows(orders)
+    const visibleIds = new Set(orders.map((order) => order.order_number))
+    setSelected((current) => current.filter((id) => visibleIds.has(id)))
   }, [])
 
   const allSelected = visibleOrders.length > 0 && visibleOrders.every((id) => selected.includes(id))
