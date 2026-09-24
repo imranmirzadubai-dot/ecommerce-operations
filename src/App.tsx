@@ -37,7 +37,7 @@ function App() {
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
   const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
-  const diagnosticGateEnabled = diagnosticEnvironment === 't227-003' || diagnosticEnvironment === 't227-004'
+  const diagnosticGateEnabled = diagnosticEnvironment === 't227-003' || diagnosticEnvironment === 't227-004' || diagnosticEnvironment === 't227-005'
   const diagnosticWorkspace = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
   const ordersStartupControl = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
 
