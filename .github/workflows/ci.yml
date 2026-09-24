@@ -21,12 +21,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run lint -- --format json > lint-report.json || true
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ui-003-lint-report
-          path: lint-report.json
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
