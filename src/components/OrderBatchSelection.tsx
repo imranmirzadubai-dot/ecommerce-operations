@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { OrdersWorkspace } from './OrdersWorkspace'
 import type { OrderListRow } from '../lib/commands'
 import { OperationalStatusIndicators } from './OperationalStatusIndicators'
