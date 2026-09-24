@@ -14,6 +14,8 @@ const AUTH_RESPONSE = {
 }
 
 test('T227-002 authenticated shell isolates navigation from operational tree', async ({ page }, testInfo) => {
+  let sessionAuthenticated = false
+
   const evidence = {
     task: 'T227-002',
     commit: process.env.GITHUB_SHA ?? 'local',
@@ -33,12 +35,18 @@ test('T227-002 authenticated shell isolates navigation from operational tree', a
   page.on('requestfailed', (request) => evidence.requestFailures.push({ url: request.url(), failure: request.failure()?.errorText ?? 'unknown' }))
 
   await page.route('**/api/auth/session', async (route) => {
+    if (sessionAuthenticated) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AUTH_RESPONSE) })
+      return
+    }
     await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'authentication_required' }) })
   })
   await page.route('**/api/auth/sign-in', async (route) => {
+    sessionAuthenticated = true
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(AUTH_RESPONSE) })
   })
   await page.route('**/api/auth/sign-out', async (route) => {
+    sessionAuthenticated = false
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) })
   })
   await page.route('**/rest/v1/profiles*', async (route) => {
