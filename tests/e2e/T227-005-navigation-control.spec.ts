@@ -19,6 +19,7 @@ for (const navigation of ['hard', 'soft'] as const) {
     const pageErrors: string[] = []
     const requestFailures: string[] = []
     let postLoginNavigations = 0
+    let postLoginDocumentRequests = 0
 
     page.on('pageerror', (error) => pageErrors.push(error.message))
     page.on('requestfailed', (request) => requestFailures.push(`${request.url()} :: ${request.failure()?.errorText ?? 'unknown'}`))
@@ -53,6 +54,11 @@ for (const navigation of ['hard', 'soft'] as const) {
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame() && trackingPostLogin) postLoginNavigations += 1
     })
+    page.on('request', (request) => {
+      if (trackingPostLogin && request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+        postLoginDocumentRequests += 1
+      }
+    })
 
     await page.getByLabel('Email').fill('t227-005@example.test')
     await page.getByLabel('Password').fill('diagnostic-password')
@@ -64,9 +70,9 @@ for (const navigation of ['hard', 'soft'] as const) {
     trackingPostLogin = false
 
     if (navigation === 'hard') {
-      expect(postLoginNavigations).toBeGreaterThanOrEqual(1)
+      expect(postLoginDocumentRequests).toBeGreaterThanOrEqual(1)
     } else {
-      expect(postLoginNavigations).toBe(0)
+      expect(postLoginDocumentRequests).toBe(0)
     }
 
     expect(pageErrors, `${navigation}: page errors`).toEqual([])
@@ -78,6 +84,7 @@ for (const navigation of ['hard', 'soft'] as const) {
         navigation,
         authenticated: true,
         postLoginNavigations,
+        postLoginDocumentRequests,
         pageErrors,
         requestFailures,
         browser: testInfo.project.name,
