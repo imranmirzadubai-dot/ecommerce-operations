@@ -8,7 +8,9 @@ const worker = await readFile(new URL('../../worker/index.ts', import.meta.url),
 const app = await readFile(new URL('../../src/App.tsx', import.meta.url), 'utf8')
 
 test('P6-T103 exposes the Orders workspace as the central authenticated workspace', () => {
-  assert.match(app, /<OrdersWorkspace accessToken=\{auth\.accessToken!\} \/>/)
+  assert.match(app, /lazy\(\(\) => import\('\.\/components\/OrdersWorkspace'\)/)
+  assert.match(app, /activeWorkspace === 'Orders'/)
+  assert.match(app, /<OrdersWorkspace accessToken=\{auth\.accessToken!\} onOrdersChange=\{handleOrdersChange\} \/>/)
   assert.match(workspace, /<span className="eyebrow">Orders Workspace<\/span>/)
   assert.match(workspace, /<h2 id="orders-title">Recent Orders<\/h2>/)
 })

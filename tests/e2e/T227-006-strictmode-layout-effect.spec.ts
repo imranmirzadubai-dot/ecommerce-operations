@@ -48,9 +48,9 @@ for (const strict of ['on', 'off'] as const) {
     await page.getByLabel('Password').fill('diagnostic-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
-    await expect(page).toHaveURL(/\?t227=006&strict=(on|off)$/)
+    await expect(page).toHaveURL(/\\?t227=006&strict=(on|off)$/)
     await expect(page.getByText('Operations Dashboard', { exact: true })).toBeVisible()
-    await expect(page.getByText('Recent Orders', { exact: true })).toBeVisible()
+    await expect(page.getByText('Customer / Order Core', { exact: true })).toBeVisible()
 
     expect(pageErrors, `${strict}: page errors`).toEqual([])
     expect(requestFailures, `${strict}: request failures`).toEqual([])
