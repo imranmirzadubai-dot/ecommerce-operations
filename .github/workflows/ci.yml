@@ -100,7 +100,7 @@ jobs:
     timeout-minutes: 10
     env:
       VITE_APP_ENVIRONMENT: ci
-      VITE_E2E_DIAGNOSTIC: t227-003
+      VITE_E2E_DIAGNOSTIC: t227-004
       VITE_SUPABASE_URL: https://t227-003.invalid
       VITE_SUPABASE_PUBLISHABLE_KEY: t227-003-test-key
     steps:
@@ -120,7 +120,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t227-003-playwright-evidence
+          name: t227-004-playwright-evidence
           path: |
             playwright-report/
             test-results/
