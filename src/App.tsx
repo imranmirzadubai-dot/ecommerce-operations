@@ -37,6 +37,7 @@ function App() {
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
   const diagnosticWorkspace = import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-003' && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
+  const ordersStartupControl = import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-003' && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); window.location.replace(getPostLoginPath(window.location.search)) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
   async function handleSignOut() { await signOut(); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
@@ -48,7 +49,7 @@ function App() {
   async function handleCreateOrder(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!auth.accessToken) return; setOrderLoading(true); setOrderMessage(''); try { const cleanItems = items.map((item) => ({ description: item.description.trim(), quantity: Number(item.quantity) })); if (!cleanItems.every((item) => item.description && Number.isInteger(item.quantity) && item.quantity > 0)) throw new Error('Enter a description and positive whole quantity for every item'); const normalizedAmount = normalizeAedAmount(amount); const result = await createOrder(auth.accessToken, { p_customer_name: customerName.trim(), p_phone: phone.trim(), p_address: address.trim() || null, p_city: city.trim() || null, p_original_amount: normalizedAmount, p_items: cleanItems, p_notes: notes.trim() || null, p_idempotency_key: crypto.randomUUID() }); const order = result[0]; if (!order) throw new Error('The command completed without returning an order'); setOrderMessage(`Order ${order.order_number} created as Draft.`); setAmount(''); setNotes(''); setItems([{ description: '', quantity: '1' }]) } catch (createError) { setOrderMessage(createError instanceof Error ? createError.message : 'Order creation failed') } finally { setOrderLoading(false) } }
 
   if (authenticated && diagnosticWorkspace) {
-    const workspace = diagnosticWorkspace === 'orders' ? <OrdersWorkspace accessToken={auth.accessToken!} />
+    const workspace = diagnosticWorkspace === 'orders' ? {ordersStartupControl !== 'off' && <OrdersWorkspace accessToken={auth.accessToken!} />}
       : diagnosticWorkspace === 'customers' ? <CustomerHistoryWorkspace accessToken={auth.accessToken!} />
       : diagnosticWorkspace === 'dispatch' ? <DispatchScanWorkspace accessToken={auth.accessToken!} />
       : diagnosticWorkspace === 'rto' ? <RtoScanWorkspace accessToken={auth.accessToken!} />
