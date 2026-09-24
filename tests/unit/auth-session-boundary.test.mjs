@@ -37,4 +37,3 @@ test('AUTH-004 cross-tab fallback uses only a non-secret event marker', () => {
   assert.match(contextSource, /localStorage\.setItem\(SESSION_EVENT_KEY, crypto\.randomUUID\(\)\)/)
   assert.doesNotMatch(contextSource, /localStorage\.getItem\('ecommerce-operations\.auth\.session'\)/)
 })
-})
