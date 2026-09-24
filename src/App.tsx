@@ -36,8 +36,10 @@ function App() {
   const [items, setItems] = useState<OrderItem[]>([{ description: '', quantity: '1' }])
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
-  const diagnosticWorkspace = import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-003' && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
-  const ordersStartupControl = import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-003' && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
+  const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
+  const diagnosticGateEnabled = diagnosticEnvironment === 't227-003' || diagnosticEnvironment === 't227-004'
+  const diagnosticWorkspace = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
+  const ordersStartupControl = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); window.location.replace(getPostLoginPath(window.location.search)) } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
   async function handleSignOut() { await signOut(); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
