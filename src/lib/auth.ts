@@ -52,14 +52,14 @@ export function clearStoredSession(): void {
   }
 }
 
-async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal, credentials: RequestCredentials = 'include'): Promise<Response> {
   const controller = new AbortController()
   const abort = () => controller.abort(signal?.reason)
   if (signal?.aborted) abort()
   else signal?.addEventListener('abort', abort, { once: true })
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   try {
-    return await fetch(input, { ...init, signal: controller.signal, credentials: 'include' })
+    return await fetch(input, { ...init, signal: controller.signal, credentials })
   } finally {
     window.clearTimeout(timeout)
     signal?.removeEventListener('abort', abort)
@@ -89,7 +89,7 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
   try {
     response = await fetchWithTimeout(`${config.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,name,email,role,active`, {
       headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
-    }, signal)
+    }, signal, 'omit')
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('Authenticated profile request timed out', { cause: error })
