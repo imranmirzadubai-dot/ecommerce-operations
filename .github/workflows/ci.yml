@@ -16,12 +16,17 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run lint -- --format json > lint-report.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-003-lint-report
+          path: lint-report.json
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -58,6 +63,7 @@ jobs:
             supabase/tests/database/051_parcel_number_generation.sql \
             supabase/tests/database/052_parcel_barcode_contract.sql \
             supabase/tests/database/053_parcel_allocation_command.sql \
+            supabase/tests/database/054_exact_integer_allocation_invariant.sql \
             supabase/tests/database/055_split_parcel_allocation.sql \
             supabase/tests/database/056_pre_dispatch_allocation_correction.sql \
             supabase/tests/database/057_cancel_prepared_parcel.sql \
