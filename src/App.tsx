@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import { canAdministerUsers, getAuthConfig, hasOperationalAccess } from './lib/auth'
@@ -40,7 +40,8 @@ function App() {
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<OrderItem[]>([{ description: '', quantity: '1' }])
-  const [exportOrders] = useState<OrderListRow[]>([])
+  const [exportOrders, setExportOrders] = useState<OrderListRow[]>([])
+  const handleOrdersChange = useCallback((orders: OrderListRow[]) => setExportOrders(orders), [])
   const [activeWorkspace, setActiveWorkspace] = useState('Dashboard')
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
