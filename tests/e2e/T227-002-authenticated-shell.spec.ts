@@ -52,7 +52,7 @@ test('T227-002 authenticated shell isolates navigation from operational tree', a
   await page.getByLabel('Password').fill('diagnostic-password')
   await page.getByRole('button', { name: 'Sign in' }).click()
 
-  await expect(page).toHaveURL(/\\/\\?t227=002$/)
+  await expect(page).toHaveURL(/\\?t227=002$/)
   await expect(page.getByTestId('minimal-auth-shell')).toBeVisible()
   await expect(page.getByTestId('minimal-auth-status')).toHaveText('authenticated=true')
   await expect(page.getByTestId('minimal-auth-operational')).toHaveText('operational-access=true')
