@@ -6,6 +6,7 @@ const ALLOWED_COMMANDS = new Set([
 ]);
 
 type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
+type AuthTokenResponse = { access_token: string; refresh_token: string; expires_in: number; user: { id: string } };
 
 function json(data: unknown, status = 200, headers?: HeadersInit): Response { return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } }); }
 function getBearerToken(request: Request): string | null { const authorization = request.headers.get("Authorization"); if (!authorization) return null; const match = authorization.match(/^Bearer\s+(.+)$/i); return match?.[1] ?? null; }
@@ -15,6 +16,74 @@ function logEvent(event: string, fields: Record<string, unknown>) { console.log(
 function escapeSearchTerm(value: string) { return value.replace(/[(),.*]/g, " ").replace(/%/g, " ").replace(/\s+/g, " ").trim().slice(0, 100); }
 function validFilter(value: string | null, allowed: readonly string[]) { return value === null || allowed.includes(value); }
 function validDate(value: string | null) { return value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
+
+const AUTH_COOKIE = "ecommerce_operations_refresh";
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+function cookieValue(request: Request, name: string): string | null {
+  const header = request.headers.get("Cookie") ?? "";
+  const match = header.split(";").map((part) => part.trim()).find((part) => part.startsWith(name + "="));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+function authCookie(refreshToken: string): string {
+  return `${AUTH_COOKIE}=${encodeURIComponent(refreshToken)}; Max-Age=${AUTH_COOKIE_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function clearAuthCookie(): string {
+  return `${AUTH_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | "session" | "sign-out"): Promise<Response> {
+  const config = getSupabaseConfig(env);
+  if (!config) return json({ error: "server_not_configured" }, 503);
+  if (action === "sign-out") {
+    const refreshToken = cookieValue(request, AUTH_COOKIE);
+    if (refreshToken) {
+      try {
+        const tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+          method: "POST",
+          headers: { apikey: config.key, "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (tokenResponse.ok) {
+          const token = await tokenResponse.json() as AuthTokenResponse;
+          await fetch(`${config.url}/auth/v1/logout`, {
+            method: "POST",
+            headers: { apikey: config.key, Authorization: `Bearer ${token.access_token}` },
+          }).catch(() => undefined);
+        }
+      } catch {
+        // Cookie is cleared even when upstream logout cannot be completed.
+      }
+    }
+    return json({ ok: true }, 200, { "Set-Cookie": clearAuthCookie() });
+  }
+
+  let tokenResponse: Response;
+  if (action === "sign-in") {
+    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+    const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
+    if (!body?.email || !body.password) return json({ error: "credentials_required" }, 400);
+    tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: config.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: body.email, password: body.password }),
+    });
+  } else {
+    const refreshToken = cookieValue(request, AUTH_COOKIE);
+    if (!refreshToken) return json({ error: "authentication_required" }, 401);
+    tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { apikey: config.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+  }
+
+  if (!tokenResponse.ok) return json({ error: "authentication_failed" }, tokenResponse.status, { "Set-Cookie": clearAuthCookie() });
+  const token = await tokenResponse.json() as AuthTokenResponse;
+  return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token) });
+}
 
 async function handleRpc(request: Request, env: WorkerEnv, commandName: string, requestId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); if (!ALLOWED_COMMANDS.has(commandName)) return json({ error: "command_not_allowed" }, 404, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 503 }); return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); } let body: unknown; try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); } if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId }); let rpcResponse: Response; try { rpcResponse = await fetch(`${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`, { method: "POST", headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }); } catch { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const responseBody = await rpcResponse.text(); const result = rpcResponse.status >= 500 ? "server_error" : rpcResponse.status >= 400 ? "client_error" : "success"; logEvent("command_request", { request_id: requestId, command: commandName, result, status: rpcResponse.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(responseBody, { status: rpcResponse.status, headers: { "Content-Type": rpcResponse.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
 
@@ -28,6 +97,9 @@ export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url);
     const requestId = getRequestId(request);
+    if (url.pathname === "/api/auth/sign-in") return handleAuth(request, env, "sign-in");
+    if (url.pathname === "/api/auth/session") return handleAuth(request, env, "session");
+    if (url.pathname === "/api/auth/sign-out") return handleAuth(request, env, "sign-out");
     if (url.pathname === "/api/health") { logEvent("health_request", { request_id: requestId, result: "success", status: 200 }); return json({ status: "ok", service: "ecommerce-operations" }, 200, { "X-Request-ID": requestId }); }
     if (url.pathname === "/api/orders") return handleOrders(request, env, requestId);
     const timelineMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/timeline$/);

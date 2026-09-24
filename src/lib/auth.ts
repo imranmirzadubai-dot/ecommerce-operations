@@ -18,23 +18,13 @@ export type AuthState = {
   accessToken: string | null
 }
 
-type StoredSession = {
+type AuthConfig = { url: string; publishableKey: string }
+
+type AuthResponse = {
   accessToken: string
-  refreshToken: string
-  expiresAt: number
   userId: string
 }
 
-type AuthConfig = { url: string; publishableKey: string }
-
-type TokenResponse = {
-  access_token: string
-  refresh_token: string
-  expires_in: number
-  user: { id: string }
-}
-
-const SESSION_KEY = 'ecommerce-operations.auth.session'
 const AUTH_REQUEST_TIMEOUT_MS = 8_000
 
 export function hasOperationalAccess(profile: Profile | null): boolean {
@@ -52,21 +42,14 @@ export function getAuthConfig(): AuthConfig | null {
   return { url: url.replace(/\/$/, ''), publishableKey }
 }
 
-function readStoredSession(): StoredSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as StoredSession) : null
-  } catch {
-    return null
-  }
-}
-
-function storeSession(session: StoredSession): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-}
+const LEGACY_SESSION_KEY = 'ecommerce-operations.auth.session'
 
 export function clearStoredSession(): void {
-  localStorage.removeItem(SESSION_KEY)
+  try {
+    localStorage.removeItem(LEGACY_SESSION_KEY)
+  } catch {
+    // Browser storage may be unavailable; authentication does not depend on it.
+  }
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, signal?: AbortSignal): Promise<Response> {
@@ -76,28 +59,27 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, sig
   else signal?.addEventListener('abort', abort, { once: true })
   const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
   try {
-    return await fetch(input, { ...init, signal: controller.signal })
+    return await fetch(input, { ...init, signal: controller.signal, credentials: 'include' })
   } finally {
     window.clearTimeout(timeout)
     signal?.removeEventListener('abort', abort)
   }
 }
 
-async function authRequest<T>(config: AuthConfig, grantType: 'password' | 'refresh_token', body: Record<string, string>, signal?: AbortSignal): Promise<T> {
+async function authEndpoint<T>(path: string, init: RequestInit, signal?: AbortSignal): Promise<T> {
   let response: Response
   try {
-    response = await fetchWithTimeout(`${config.url}/auth/v1/token?grant_type=${grantType}`, {
-      method: 'POST',
-      headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }, signal)
+    response = await fetchWithTimeout(path, init, signal)
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authentication request timed out', { cause: error })
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Authentication request timed out', { cause: error })
+    }
     throw error
   }
+
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { msg?: string; error_description?: string; message?: string } | null
-    throw new Error(payload?.msg ?? payload?.error_description ?? payload?.message ?? 'Authentication request failed')
+    const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null
+    throw new Error(payload?.message ?? payload?.error ?? 'Authentication request failed')
   }
   return response.json() as Promise<T>
 }
@@ -109,7 +91,9 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
       headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
     }, signal)
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Authenticated profile request timed out', { cause: error })
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Authenticated profile request timed out', { cause: error })
+    }
     throw error
   }
   if (!response.ok) throw new Error('Unable to load the authenticated profile')
@@ -122,49 +106,44 @@ async function loadProfile(config: AuthConfig, accessToken: string, userId: stri
 export async function signIn(email: string, password: string, signal?: AbortSignal): Promise<AuthState> {
   const config = getAuthConfig()
   if (!config) throw new Error('Supabase authentication is not configured for this environment')
-  const token = await authRequest<TokenResponse>(config, 'password', { email, password }, signal)
-  storeSession({ accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id })
+  const session = await authEndpoint<AuthResponse>('/api/auth/sign-in', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  }, signal)
   try {
-    const profile = await loadProfile(config, token.access_token, token.user.id, signal)
-    return { authenticated: true, userId: token.user.id, profile, accessToken: token.access_token }
+    const profile = await loadProfile(config, session.accessToken, session.userId, signal)
+    return { authenticated: true, userId: session.userId, profile, accessToken: session.accessToken }
   } catch (error) {
-    clearStoredSession()
+    await authEndpoint('/api/auth/sign-out', { method: 'POST' }).catch(() => undefined)
     throw error
   }
 }
 
 export async function restoreSession(signal?: AbortSignal): Promise<AuthState> {
+  clearStoredSession()
   const config = getAuthConfig()
-  let session = readStoredSession()
-  if (!config || !session) return { authenticated: false, userId: null, profile: null, accessToken: null }
+  if (!config) return { authenticated: false, userId: null, profile: null, accessToken: null }
 
-  if (session.expiresAt <= Date.now() + 30_000) {
-    try {
-      const token = await authRequest<TokenResponse>(config, 'refresh_token', { refresh_token: session.refreshToken }, signal)
-      session = { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + token.expires_in * 1000, userId: token.user.id }
-      storeSession(session)
-    } catch {
-      clearStoredSession()
+  let session: AuthResponse
+  try {
+    session = await authEndpoint<AuthResponse>('/api/auth/session', { method: 'GET' }, signal)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'authentication_required') {
       return { authenticated: false, userId: null, profile: null, accessToken: null }
     }
+    return { authenticated: false, userId: null, profile: null, accessToken: null }
   }
 
   try {
     const profile = await loadProfile(config, session.accessToken, session.userId, signal)
     return { authenticated: true, userId: session.userId, profile, accessToken: session.accessToken }
   } catch {
-    clearStoredSession()
+    await authEndpoint('/api/auth/sign-out', { method: 'POST' }).catch(() => undefined)
     return { authenticated: false, userId: null, profile: null, accessToken: null }
   }
 }
 
 export async function signOut(signal?: AbortSignal): Promise<void> {
-  const config = getAuthConfig()
-  const stored = readStoredSession()
-  clearStoredSession()
-  if (!config || !stored) return
-  await fetchWithTimeout(`${config.url}/auth/v1/logout`, {
-    method: 'POST',
-    headers: { apikey: config.publishableKey, Authorization: `Bearer ${stored.accessToken}` },
-  }, signal).catch(() => undefined)
+  await authEndpoint('/api/auth/sign-out', { method: 'POST' }, signal).catch(() => undefined)
 }
