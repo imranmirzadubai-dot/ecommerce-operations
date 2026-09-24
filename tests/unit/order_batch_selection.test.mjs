@@ -19,3 +19,11 @@ test('P6-T108 keeps the canonical Orders workspace as the active implementation'
   assert.match(workspace, /export function OrdersWorkspace/)
   assert.doesNotMatch(workspace, /OrderBatchSelection as OrdersWorkspace/)
 })
+
+test('UI-002 removes temporary DOM observation from batch selection', () => {
+  assert.match(selection, /OrderListRow/)
+  assert.match(selection, /onOrdersChange={handleOrdersChange}/)
+  assert.doesNotMatch(selection, /MutationObserver/)
+  assert.doesNotMatch(selection, /querySelectorAll/)
+  assert.doesNotMatch(selection, /document\.querySelector/)
+})
