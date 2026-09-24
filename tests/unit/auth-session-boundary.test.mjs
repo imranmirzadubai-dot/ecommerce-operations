@@ -19,7 +19,7 @@ test('AUTH-004 removes browser storage of authentication sessions', () => {
 })
 
 test('AUTH-004 uses credentialed requests only for same-origin auth endpoints', () => {
-  assert.match(authSource, /fetchWithTimeout\(input, init, signal, credentials\)/)
+  assert.match(authSource, /async function fetchWithTimeout\([^)]*credentials: RequestCredentials = 'include'\)/)
   assert.match(authSource, /fetch\(input, \{ \.\.\.init, signal: controller\.signal, credentials \}\)/)
   assert.match(authSource, /\/api\/auth\/sign-in/)
   assert.match(authSource, /\/api\/auth\/session/)
