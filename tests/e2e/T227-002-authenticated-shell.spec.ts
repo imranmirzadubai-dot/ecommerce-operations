@@ -41,7 +41,7 @@ test('T227-002 authenticated shell isolates navigation from operational tree', a
   await page.route('**/api/auth/sign-out', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) })
   })
-  await page.route('https://*/rest/v1/profiles*', async (route) => {
+  await page.route('**/rest/v1/profiles*', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([AUTHENTICATED_PROFILE]) })
   })
 
