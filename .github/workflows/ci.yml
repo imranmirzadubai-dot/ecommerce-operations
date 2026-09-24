@@ -105,7 +105,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - run: VITE_APP_ENVIRONMENT=ci VITE_E2E_DIAGNOSTIC=t227-002 npm run build
       - run: npm run e2e:install
       - run: npm run e2e
         env:
