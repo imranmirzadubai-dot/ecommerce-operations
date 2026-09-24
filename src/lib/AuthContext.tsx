@@ -7,6 +7,7 @@ const REFRESH_LEAD_MS = 60_000
 const MIN_REFRESH_DELAY_MS = 5_000
 const AUTH_CHANNEL_NAME = 'ecommerce-operations.auth'
 const SESSION_CHANGED_MESSAGE = 'session-changed'
+const SESSION_EVENT_KEY = 'ecommerce-operations.auth.event'
 
 type AuthContextValue = AuthState & {
   auth: AuthState
@@ -49,6 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isCurrentOperation])
 
   const announceSessionChange = useCallback(() => {
+    try {
+      localStorage.setItem(SESSION_EVENT_KEY, crypto.randomUUID())
+    } catch {
+      // BroadcastChannel remains the primary cross-tab mechanism.
+    }
     authChannel.current?.postMessage(SESSION_CHANGED_MESSAGE)
   }, [])
 
@@ -56,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const payload = accessToken.split('.')[1]
       if (!payload) return null
-      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number }
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '=')
+      const decoded = JSON.parse(atob(padded)) as { exp?: number }
       return typeof decoded.exp === 'number' ? decoded.exp * 1000 : null
     } catch {
       return null
@@ -96,25 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [beginOperation, clearRefreshTimer, finishOperation, isCurrentOperation])
 
   const syncExternalSession = useCallback(() => {
-    const stored = localStorage.getItem('ecommerce-operations.auth.session')
-    if (!stored) {
-      beginOperation()
-      setAuth(signedOutState)
-      setLoading(false)
-      return
-    }
-
     const { controller, generation } = beginUserOperation()
     void restoreSession(controller.signal).then((next) => {
       if (isCurrentOperation(generation, controller)) setAuth(next)
     }).finally(() => {
       finishOperation(generation, controller)
     })
-  }, [beginOperation, beginUserOperation, finishOperation, isCurrentOperation])
+  }, [beginUserOperation, finishOperation, isCurrentOperation])
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === 'ecommerce-operations.auth.session') syncExternalSession()
+      if (event.key === SESSION_EVENT_KEY) syncExternalSession()
     }
     window.addEventListener('storage', handleStorage)
 
