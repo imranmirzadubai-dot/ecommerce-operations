@@ -14,7 +14,7 @@ test('P6-T110 exports visible filtered orders as XLSX', () => {
   assert.match(exporter, /downloadExcelWorkbook/)
   assert.match(exporter, /orders-export-/)
   assert.match(exporter, /selectedOrderIds/)
-  assert.match(batch, /<OrderExport selectedOrderIds={selected} />/)
+  assert.match(batch, /<OrderExport selectedOrderIds=\{selected\} \/>/)
 })
 
 test('P6-T110 limits selected export to the current visible page', () => {
