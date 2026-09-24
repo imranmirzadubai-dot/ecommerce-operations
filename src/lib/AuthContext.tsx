@@ -23,12 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const operationGeneration = useRef(0)
   const operationController = useRef<AbortController | null>(null)
 
-  const beginOperation = useCallback(() => {
+  const beginOperation = useCallback((showLoading = true) => {
     operationController.current?.abort()
     const controller = new AbortController()
     operationController.current = controller
     const generation = ++operationGeneration.current
-    setLoading(true)
+    if (showLoading) setLoading(true)
     return { controller, generation }
   }, [])
 
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [beginOperation, finishOperation, isCurrentOperation])
 
   useEffect(() => {
-    const { controller, generation } = beginOperation()
+    const { controller, generation } = beginOperation(false)
     void restoreSession(controller.signal).then((next) => {
       if (isCurrentOperation(generation, controller)) setAuth(next)
     }).finally(() => {
