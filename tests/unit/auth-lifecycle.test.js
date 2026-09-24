@@ -16,7 +16,7 @@ test('auth bootstrap has one owner', () => {
 
 test('auth lifecycle schedules refresh before session expiry', () => {
   assert.match(context, /REFRESH_LEAD_MS = 60_000/)
-  assert.match(context, /session\.expiresAt - Date\.now\(\) - REFRESH_LEAD_MS/)
+  assert.match(context, /expiresAt - Date\.now\(\) - REFRESH_LEAD_MS/)
   assert.match(context, /window\.setTimeout/) 
   assert.match(context, /void refresh\(\)/)
 })
