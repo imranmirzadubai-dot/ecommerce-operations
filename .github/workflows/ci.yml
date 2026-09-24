@@ -105,7 +105,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: VITE_APP_ENVIRONMENT=ci VITE_E2E_DIAGNOSTIC=t227-002 VITE_SUPABASE_URL=https://t227-002.invalid VITE_SUPABASE_PUBLISHABLE_KEY=t227-002-test-key npm run build
+      - name: Build T227-002 diagnostic artifact
+        run: npm run build
+        env:
+          VITE_APP_ENVIRONMENT: ci
+          VITE_E2E_DIAGNOSTIC: t227-002
+          VITE_SUPABASE_URL: https://t227-002.invalid
+          VITE_SUPABASE_PUBLISHABLE_KEY: t227-002-test-key
       - run: npm run e2e:install
       - run: npm run e2e
         env:
