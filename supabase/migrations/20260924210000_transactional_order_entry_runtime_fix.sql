@@ -114,10 +114,7 @@ begin
     where id=v_customer_id;
   end if;
 
-  insert into public.orders(
-    customer_id,original_amount,lifecycle_state,notes,created_by
-  )
-  values(v_customer_id,p_original_amount,'Draft',p_notes,auth.uid())
+  insert into public.orders(customer_id,original_amount,lifecycle_state,notes,created_by) values(v_customer_id,p_original_amount,'Draft',p_notes,auth.uid())
   returning public.orders.id, public.orders.order_number
   into v_order_id,v_order_number;
 
