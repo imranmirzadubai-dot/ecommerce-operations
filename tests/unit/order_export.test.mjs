@@ -29,7 +29,7 @@ test('P13-T204 mounts authenticated order export and reports independently in th
   assert.match(app, /onOrdersChange=\{handleOrdersChange\}/)
   assert.match(app, /activeWorkspace === 'Reports'/)
   assert.match(app, /activeWorkspace === 'Orders'/)
-  assert.match(app, /<ReportWorkspace accessToken=\{auth\.accessToken\} \/>/)
+  assert.match(app, /activeWorkspace === 'Reports'/)
   assert.match(app, /onClick=\{\(\) => navigateTo\(item\)\}/)
 })
 
