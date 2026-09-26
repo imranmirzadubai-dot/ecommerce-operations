@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation, feature/t167-order-cod-obligation, feature/t168-parcel-cod-allocation]
+    branches: [main, develop, feature/t157-partial-delivery-reconciliation, feature/t158-partial-rto-reconciliation, feature/t167-order-cod-obligation, feature/t168-parcel-cod-allocation, fix/staging-order-search]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -32,6 +34,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -105,6 +109,8 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: t227-005-test-key
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
