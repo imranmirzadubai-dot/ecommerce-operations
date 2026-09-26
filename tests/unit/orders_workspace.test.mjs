@@ -55,6 +55,10 @@ test('P6-T105 provides server-side order search with safe input handling', () =>
   assert.match(worker, /customer_id\.in/)
   assert.match(worker, /id\.in/)
   assert.match(worker, /invalid_search/)
+  assert.doesNotMatch(worker, /customers\\.name\\.ilike/)
+  assert.doesNotMatch(worker, /customers\\.phone\\.ilike/)
+  assert.doesNotMatch(worker, /customers\\.address\\.ilike/)
+  assert.doesNotMatch(worker, /order_items\\.description\\.ilike/)
 })
 
 test('P6-T106 provides server-side Orders filters that preserve pagination/search context', () => {
