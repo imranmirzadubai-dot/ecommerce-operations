@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   repair:
-    name: Reconcile and deploy staging database migrations
+    name: Reconcile staging migration history
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: staging
@@ -30,7 +30,7 @@ jobs:
         with:
           version: 2.98.2
 
-      - name: Repair obsolete remote migration history
+      - name: Verify staging schema matches repository migrations
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
@@ -42,20 +42,16 @@ jobs:
           echo "Current staging migration history:"
           supabase migration list --db-url "$DB_URL"
 
-          # These versions exist in staging history but no longer exist in the
-          # repository migration chain. Repair only the history records.
-          # migration repair changes tracking only; it does not run or undo SQL.
-          supabase migration repair --db-url "$DB_URL" --status reverted \
-            20260910222428 20260911003036 20260911003053 20260911011622 20260911012857 \
-            20260912030447 20260912030832 20260912031038 20260912031838 20260912032512 \
-            20260912032705 20260912032915 20260912033110 20260912033233 20260912033419 \
-            20260912033531 20260912033651 20260912033858 20260912034045 20260912034242 \
-            20260912034429 20260912034558 20260912034729 20260912034934 20260912034947 \
-            20260912035001 20260912035014 20260912035045 20260912035103 20260912035609 \
-            20260912035828 20260912040049 20260919094725 20260919163507 20260920000901 \
-            20260924190649 20260924190654 20260924192750
+          echo "Comparing the live staging schema with the complete repository migration chain..."
+          supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/staging-schema-diff.log
 
-      - name: Dry-run repository migrations
+          if ! grep -q "No schema changes found" /tmp/staging-schema-diff.log; then
+            echo "ERROR: staging schema differs from the repository migration chain."
+            echo "No migration-history repair will be performed."
+            exit 1
+          fi
+
+      - name: Mark schema-equivalent repository migrations as applied
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
@@ -64,21 +60,35 @@ jobs:
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
 
-          echo "Migration plan after history reconciliation:"
-          supabase db push --db-url "$DB_URL" --dry-run
+          supabase migration list --db-url "$DB_URL" > /tmp/migration-list.txt
 
-      - name: Apply repository migrations to staging
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
-        run: |
-          set -euo pipefail
-          test -n "$SUPABASE_DB_PASSWORD"
-          DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
-          DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+          # Only repair local migrations that are absent from remote history.
+          # The preceding schema diff is the safety gate: it proves the live
+          # schema already matches the complete repository migration chain.
+          PENDING="$(
+            awk -F '|' '
+              /^[[:space:]]*[0-9]{14}[[:space:]]*\|/ {
+                local=$1
+                remote=$2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", local)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote)
+                if (local != "" && remote == "") print local
+              }
+            ' /tmp/migration-list.txt
+          )"
 
-          supabase db push --db-url "$DB_URL"
+          if [ -z "$PENDING" ]; then
+            echo "No repository-only migrations remain."
+            exit 0
+          fi
 
-      - name: Verify migration history and schema
+          echo "Marking these schema-equivalent migrations as applied:"
+          printf '%s\n' "$PENDING"
+
+          # migration repair changes history only; it does not execute SQL.
+          supabase migration repair --db-url "$DB_URL" --status applied $PENDING
+
+      - name: Verify migration history is aligned
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
@@ -90,10 +100,12 @@ jobs:
           echo "Final staging migration history:"
           supabase migration list --db-url "$DB_URL"
 
+          echo "Final migration dry-run:"
+          supabase db push --db-url "$DB_URL" --dry-run
+
+          echo "Final schema verification:"
           supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/final-staging-schema-diff.log
           if ! grep -q "No schema changes found" /tmp/final-staging-schema-diff.log; then
-            echo "ERROR: staging schema is still different from the repository migration chain after deployment."
+            echo "ERROR: final staging schema verification failed."
             exit 1
           fi
-
-          supabase db push --db-url "$DB_URL" --dry-run
