@@ -3,9 +3,12 @@ begin;
 -- T060: harden the COD obligation contract already introduced by the
 -- database foundation. The obligation is one-per-order, exact AED money,
 -- and its lifecycle is constrained to the approved state vocabulary.
-
-alter table public.cod_obligations
-  alter column expected_amount type numeric(12,2);
+--
+-- The foundation migration already defines expected_amount as numeric(12,2).
+-- Do not issue a redundant ALTER COLUMN TYPE here: PostgreSQL rejects even
+-- a same-type alteration when an existing reporting view depends on the
+-- column. The hardening below enforces the actual constraints without
+-- requiring the reporting view to be dropped and recreated.
 
 alter table public.cod_obligations
   drop constraint if exists cod_obligations_expected_amount_check;
