@@ -20,7 +20,7 @@ enable_confirmations = false
 [auth.rate_limit]
 email_sent = 30
 sms_sent = 30
-verify = 30
+token_verifications = 30
 
 [db]
 major_version = 17
