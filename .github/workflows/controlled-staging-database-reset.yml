@@ -1,0 +1,157 @@
+name: Controlled Staging Database Reset
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type RESET STAGING to authorize the destructive staging reset'
+        required: true
+        type: string
+      create_backup:
+        description: 'Create a short-lived staging data backup artifact before reset'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: controlled-staging-database-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    name: Rebuild staging database from repository migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    permissions:
+      contents: read
+      actions: write
+    env:
+      SUPABASE_PROJECT_ID: mijbpvgxrxjaalimyqgm
+      SUPABASE_POOLER_HOST: aws-0-ap-south-1.pooler.supabase.com
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.2
+
+      - name: Fail closed unless explicitly authorized
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "RESET STAGING"
+          echo "Explicit destructive-reset authorization confirmed for staging."
+
+      - name: Build and verify staging connection target
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_PASSWORD"
+
+          DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
+          DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@$SUPABASE_POOLER_HOST:5432/postgres"
+
+          EXPECTED_USER="postgres.$SUPABASE_PROJECT_ID"
+          ACTUAL_USER="$(node -e 'const u=new URL(process.argv[1]); process.stdout.write(decodeURIComponent(u.username))' "$DB_URL")"
+
+          test "$ACTUAL_USER" = "$EXPECTED_USER"
+          test "$SUPABASE_PROJECT_ID" = "mijbpvgxrxjaalimyqgm"
+
+          echo "Target project: $SUPABASE_PROJECT_ID"
+          echo "Target host: $SUPABASE_POOLER_HOST"
+          echo "Target user: $ACTUAL_USER"
+
+          printf '%s' "$DB_URL" > /tmp/staging-db-url
+          chmod 600 /tmp/staging-db-url
+
+      - name: Verify repository migration chain on a clean local database
+        run: |
+          set -euo pipefail
+          supabase db start
+          supabase db reset --no-seed
+
+      - name: Capture current staging migration history and data counts
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DB_URL="$(cat /tmp/staging-db-url)"
+
+          echo "Current staging migration history:"
+          supabase migration list --db-url "$DB_URL"
+
+          echo "Current staging data snapshot:"
+          supabase db dump --db-url "$DB_URL" --data-only --use-copy -f /tmp/staging-data.sql
+
+          sha256sum /tmp/staging-data.sql
+          wc -l /tmp/staging-data.sql
+
+      - name: Upload short-lived staging backup
+        if: ${{ inputs.create_backup }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-data-before-reset-${{ github.run_id }}
+          path: /tmp/staging-data.sql
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Reset staging database from repository migrations
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DB_URL="$(cat /tmp/staging-db-url)"
+
+          echo "DESTRUCTIVE OPERATION: resetting staging project $SUPABASE_PROJECT_ID"
+          supabase db reset --db-url "$DB_URL" --no-seed
+
+      - name: Verify migration history after reset
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DB_URL="$(cat /tmp/staging-db-url)"
+
+          supabase migration list --db-url "$DB_URL"
+          supabase db push --db-url "$DB_URL" --dry-run
+
+      - name: Verify schema after reset
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DB_URL="$(cat /tmp/staging-db-url)"
+
+          supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/final-schema-diff.log
+
+          if ! grep -q "No schema changes found" /tmp/final-schema-diff.log; then
+            echo "ERROR: staging schema is not aligned with repository migrations."
+            exit 1
+          fi
+
+      - name: Verify runtime functions
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DB_URL="$(cat /tmp/staging-db-url)"
+
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          select
+            p.proname,
+            pg_get_function_identity_arguments(p.oid) as arguments
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('create_order', 'resolve_customer_by_phone', 'normalize_uae_phone')
+          order by p.proname;
+          SQL
