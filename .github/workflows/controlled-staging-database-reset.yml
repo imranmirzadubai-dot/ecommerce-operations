@@ -112,7 +112,7 @@ jobs:
           DB_URL="$(cat /tmp/staging-db-url)"
 
           echo "DESTRUCTIVE OPERATION: resetting staging project $SUPABASE_PROJECT_ID"
-          supabase db reset --db-url "$DB_URL" --no-seed
+          supabase --yes db reset --db-url "$DB_URL" --no-seed
 
       - name: Verify migration history after reset
         env:
