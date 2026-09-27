@@ -20,6 +20,7 @@ test('P6-T112 preserves server-side search for historical records in normal view
   assert.match(workspace, /Search runs server-side/)
   assert.match(commands, /query\.set\('search', search\)/)
   assert.match(worker, /const rawSearch = url\.searchParams\.get\("search"\) \?\? ""/)
+  assert.match(worker, /const pattern = `\\%\$\{search\}\\%`/)
   assert.match(worker, /order_number\.ilike/)
   assert.match(worker, /matchingCustomerIds/)
   assert.match(worker, /matchingOrderIds/)
