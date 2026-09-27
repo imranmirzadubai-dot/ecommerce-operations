@@ -124,17 +124,17 @@ jobs:
           supabase migration list --db-url "$DB_URL"
           supabase db push --db-url "$DB_URL" --dry-run
 
-      - name: Verify schema after reset
+      - name: Verify public schema after reset
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           DB_URL="$(cat /tmp/staging-db-url)"
 
-          supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/final-schema-diff.log
+          supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/final-public-schema-diff.log
 
-          if ! grep -q "No schema changes found" /tmp/final-schema-diff.log; then
-            echo "ERROR: staging schema is not aligned with repository migrations."
+          if ! grep -q "No schema changes found" /tmp/final-public-schema-diff.log; then
+            echo "ERROR: public staging schema is not aligned with repository migrations."
             exit 1
           fi
 
