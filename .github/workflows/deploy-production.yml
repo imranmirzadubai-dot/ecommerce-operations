@@ -47,13 +47,8 @@ jobs:
           test "$VITE_SUPABASE_URL" = "https://lltcviwgklwulicjtxnx.supabase.co"
           test -n "$PRODUCTION_SUPABASE_PUBLISHABLE_KEY"
 
-          grep -q '"name": "ecommerce-operations"' wrangler.jsonc
-          grep -q '"main": "worker/index.ts"' wrangler.jsonc
-
-          if grep -q '"name": "ecommerce-operations-staging"' wrangler.jsonc; then
-            echo 'ERROR: production configuration contains the staging Worker name.'
-            exit 1
-          fi
+          grep -q '^  "name": "ecommerce-operations",' wrangler.jsonc
+          grep -q '^  "main": "worker/index.ts",' wrangler.jsonc
 
       - name: Quality gate
         run: |
