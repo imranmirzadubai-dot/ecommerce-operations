@@ -46,7 +46,7 @@ select ok((select pg_get_functiondef(p.oid) like '%Only Draft orders can be edit
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='update_order'), 'non-Draft edits are rejected by the command');
 
-select ok((select pg_get_functiondef(p.oid) like '%delete from public.order_items where order_id=p_order_id%'
+select ok((select pg_get_functiondef(p.oid) like '%delete from public.order_items oi where oi.order_id=p_order_id%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='update_order'), 'Draft item set is replaced atomically');
 
