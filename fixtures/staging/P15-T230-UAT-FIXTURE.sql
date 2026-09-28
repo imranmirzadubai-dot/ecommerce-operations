@@ -298,6 +298,9 @@ begin
   values
     (o2, 'UAT_DISCOUNT', -10.00, 'P15-T230 synthetic UAT adjustment', v_user);
 
+  -- o8 is intentionally multi-parcel (lost + damaged), and invoice snapshot
+  -- generation requires exactly one parcel per order. The fixture therefore keeps
+  -- invoices on the seven one-parcel orders only; o8 remains the multi-parcel outcome case.
   insert into public.invoice_records
     (order_id, invoice_number, template_version, generated_by)
   values
@@ -306,8 +309,8 @@ begin
     (o3, 'UAT230-INV-0003', 'v1', v_user),
     (o4, 'UAT230-INV-0004', 'v1', v_user),
     (o5, 'UAT230-INV-0005', 'v1', v_user),
-    (o7, 'UAT230-INV-0007', 'v1', v_user),
-    (o8, 'UAT230-INV-0008', 'v1', v_user);
+    (o6, 'UAT230-INV-0006', 'v1', v_user),
+    (o7, 'UAT230-INV-0007', 'v1', v_user);
 
   insert into public.order_events
     (order_id, parcel_id, event_type, performed_by, notes)
