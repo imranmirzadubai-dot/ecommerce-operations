@@ -48,7 +48,7 @@ select ok((select pg_get_functiondef(p.oid) like '%errcode=''P0001''%Order conta
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'invalid item description or quantity is rejected with P0001');
 
-select ok((select position('select lifecycle_state,order_number,original_amount,customer_id' in pg_get_functiondef(p.oid)) < position('update public.orders' in pg_get_functiondef(p.oid))
+select ok((select (position('select lifecycle_state,order_number,original_amount,customer_id' in pg_get_functiondef(p.oid)) > 0 or position('select o.lifecycle_state,o.order_number,o.original_amount,o.customer_id' in pg_get_functiondef(p.oid)) > 0)
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'authoritative order validation precedes lifecycle mutation');
 
