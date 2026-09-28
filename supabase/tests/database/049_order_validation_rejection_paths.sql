@@ -68,7 +68,7 @@ select ok((select position('update public.orders' in pg_get_functiondef(p.oid)) 
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'audit record is written only after successful mutation');
 
-select ok((select pg_get_functiondef(p.oid) like '%claim_command_idempotency(''confirm_order''%' and position('claim_command_idempotency(' in pg_get_functiondef(p.oid)) < position('select lifecycle_state' in pg_get_functiondef(p.oid))
+select ok((select pg_get_functiondef(p.oid) like '%claim_command_idempotency(''confirm_order''%' and position('claim_command_idempotency(' in pg_get_functiondef(p.oid)) < (case when position('select o.lifecycle_state' in pg_get_functiondef(p.oid)) > 0 then position('select o.lifecycle_state' in pg_get_functiondef(p.oid)) else position('select lifecycle_state' in pg_get_functiondef(p.oid)) end))
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'idempotency is claimed before order validation/mutation');
 
