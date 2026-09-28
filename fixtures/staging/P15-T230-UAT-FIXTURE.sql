@@ -81,18 +81,12 @@ begin
 
   delete from public.customers
    where normalized_phone in (
-     '0502300001',
-     '0502300002',
-     '0502300003',
-     '0502300004',
-     '0502300005',
-     '0502300006',
-     '+97150023001',
-     '+97150023002',
-     '+97150023003',
-     '+97150023004',
-     '+97150023005',
-     '+97150023006'
+     public.normalize_uae_phone('0502300001'),
+     public.normalize_uae_phone('0502300002'),
+     public.normalize_uae_phone('0502300003'),
+     public.normalize_uae_phone('0502300004'),
+     public.normalize_uae_phone('0502300005'),
+     public.normalize_uae_phone('0502300006')
    );
 
   insert into public.shippers (name, active)
@@ -103,19 +97,19 @@ begin
   insert into public.customers
     (name, phone, normalized_phone, address, city)
   values
-    ('UAT Customer 01', '0502300001', '0502300001', 'UAT Address 01', 'Dubai'),
-    ('UAT Customer 02', '0502300002', '0502300002', 'UAT Address 02', 'Sharjah'),
-    ('UAT Customer 03', '0502300003', '0502300003', 'UAT Address 03', 'Ajman'),
-    ('UAT Customer 04', '0502300004', '0502300004', 'UAT Address 04', 'Dubai'),
-    ('UAT Customer 05', '0502300005', '0502300005', 'UAT Address 05', 'Abu Dhabi'),
-    ('UAT Customer 06', '0502300006', '0502300006', 'UAT Address 06', 'Al Ain');
+    ('UAT Customer 01', '0502300001', public.normalize_uae_phone('0502300001'), 'UAT Address 01', 'Dubai'),
+    ('UAT Customer 02', '0502300002', public.normalize_uae_phone('0502300002'), 'UAT Address 02', 'Sharjah'),
+    ('UAT Customer 03', '0502300003', public.normalize_uae_phone('0502300003'), 'UAT Address 03', 'Ajman'),
+    ('UAT Customer 04', '0502300004', public.normalize_uae_phone('0502300004'), 'UAT Address 04', 'Dubai'),
+    ('UAT Customer 05', '0502300005', public.normalize_uae_phone('0502300005'), 'UAT Address 05', 'Abu Dhabi'),
+    ('UAT Customer 06', '0502300006', public.normalize_uae_phone('0502300006'), 'UAT Address 06', 'Al Ain');
 
-  select id into c1 from public.customers where normalized_phone = '0502300001';
-  select id into c2 from public.customers where normalized_phone = '0502300002';
-  select id into c3 from public.customers where normalized_phone = '0502300003';
-  select id into c4 from public.customers where normalized_phone = '0502300004';
-  select id into c5 from public.customers where normalized_phone = '0502300005';
-  select id into c6 from public.customers where normalized_phone = '0502300006';
+  select id into c1 from public.customers where normalized_phone = public.normalize_uae_phone('0502300001');
+  select id into c2 from public.customers where normalized_phone = public.normalize_uae_phone('0502300002');
+  select id into c3 from public.customers where normalized_phone = public.normalize_uae_phone('0502300003');
+  select id into c4 from public.customers where normalized_phone = public.normalize_uae_phone('0502300004');
+  select id into c5 from public.customers where normalized_phone = public.normalize_uae_phone('0502300005');
+  select id into c6 from public.customers where normalized_phone = public.normalize_uae_phone('0502300006');
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)

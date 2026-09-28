@@ -101,7 +101,7 @@ jobs:
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DATABASE_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "
-            select 'customers=' || count(*) from public.customers where normalized_phone like '+971500230%';
+            select 'customers=' || count(*) from public.customers where normalized_phone like '+971502300%';
             select 'orders=' || count(*) from public.orders where notes like 'P15-T230-%';
             select 'parcels=' || count(*) from public.parcels where parcel_number like 'PCL-UAT-23%';
             select 'invoices=' || count(*) from public.invoice_records where invoice_number like 'UAT230-%';
