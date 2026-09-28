@@ -304,13 +304,13 @@ begin
   insert into public.invoice_records
     (order_id, invoice_number, template_version, generated_by)
   values
-    (o1, 'UAT230-INV-0001', 'v1', v_user),
-    (o2, 'UAT230-INV-0002', 'v1', v_user),
-    (o3, 'UAT230-INV-0003', 'v1', v_user),
-    (o4, 'UAT230-INV-0004', 'v1', v_user),
-    (o5, 'UAT230-INV-0005', 'v1', v_user),
-    (o6, 'UAT230-INV-0006', 'v1', v_user),
-    (o7, 'UAT230-INV-0007', 'v1', v_user);
+    (o1, 'UAT230-INV-0001', 'v1.0', v_user),
+    (o2, 'UAT230-INV-0002', 'v1.0', v_user),
+    (o3, 'UAT230-INV-0003', 'v1.0', v_user),
+    (o4, 'UAT230-INV-0004', 'v1.0', v_user),
+    (o5, 'UAT230-INV-0005', 'v1.0', v_user),
+    (o6, 'UAT230-INV-0006', 'v1.0', v_user),
+    (o7, 'UAT230-INV-0007', 'v1.0', v_user);
 
   insert into public.order_events
     (order_id, parcel_id, event_type, performed_by, notes)
@@ -334,7 +334,7 @@ begin
      'PCL-UAT-2305','PCL-UAT-2306','PCL-UAT-2307','PCL-UAT-2308','PCL-UAT-2309');
 
   -- Embedded verification: fail the staging deployment unless the fixture is complete.
-  if (select count(*) from public.customers where normalized_phone like '050230000%') <> 6 then
+  if (select count(*) from public.customers where normalized_phone like '+9715023000%') <> 6 then
     raise exception 'P15-T230 verification failed: expected 6 synthetic customers';
   end if;
 
