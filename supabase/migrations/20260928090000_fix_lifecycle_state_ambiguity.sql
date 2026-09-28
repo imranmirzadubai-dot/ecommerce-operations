@@ -1,0 +1,275 @@
+-- P15 lifecycle fix: qualify output-column names that collide with PL/pgSQL RETURNS TABLE names.
+-- PostgreSQL treats RETURNS TABLE columns as output parameters, so unqualified references
+-- to lifecycle_state/order_number inside these functions are ambiguous.
+
+CREATE OR REPLACE FUNCTION public.cancel_order(p_order_id uuid, p_idempotency_key text)
+ RETURNS TABLE(order_id uuid, order_number text, lifecycle_state text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+declare v_state text; v_order_number text; v_hash text; v_is_new boolean; v_status text; v_result jsonb;
+begin
+  if auth.uid() is null or public.app_role() not in ('sales','operations','admin') then raise exception using errcode='42501',message='Authenticated operational role required'; end if;
+  if p_idempotency_key is null or btrim(p_idempotency_key)='' then raise exception using errcode='22023',message='Idempotency key is required'; end if;
+  v_hash:=md5(jsonb_build_object('order_id',p_order_id)::text);
+  select is_new,status,result into v_is_new,v_status,v_result from public.claim_command_idempotency('cancel_order',btrim(p_idempotency_key),v_hash);
+  if not v_is_new then return query select (v_result->>'order_id')::uuid,v_result->>'order_number',v_result->>'lifecycle_state'; return; end if;
+  select o.lifecycle_state,o.order_number into v_state,v_order_number from public.orders o where o.id=p_order_id for update;
+  if not found then raise exception using errcode='P0002',message='Order not found'; end if;
+  if v_state not in ('Draft','Confirmed') then raise exception using errcode='P0001',message='Order cannot be cancelled after parcel dispatch or later'; end if;
+  if exists(select 1 from public.parcels where order_id=p_order_id and state not in ('Prepared','Cancelled')) then raise exception using errcode='P0001',message='Order cannot be cancelled after a parcel reaches dispatch or later'; end if;
+  update public.orders set lifecycle_state='Cancelled',updated_at=now() where id=p_order_id;
+  update public.parcel_items pi set allocation_state='Reversed',updated_at=now() from public.parcels p where p.id=pi.parcel_id and p.order_id=p_order_id and p.state='Prepared' and pi.allocation_state='Allocated';
+  update public.parcels set state='Cancelled',updated_at=now() where order_id=p_order_id and state='Prepared';
+  insert into public.order_events(order_id,event_type,performed_by,metadata) values(p_order_id,'OrderCancelled',auth.uid(),jsonb_build_object('from',v_state,'to','Cancelled','allocation_reversal','applied'));
+  insert into public.audit_logs(actor,action,entity_type,entity_id,before_data,after_data) values(auth.uid(),'cancel_order','order',p_order_id,jsonb_build_object('lifecycle_state',v_state),jsonb_build_object('lifecycle_state','Cancelled'));
+  v_result:=jsonb_build_object('order_id',p_order_id,'order_number',v_order_number,'lifecycle_state','Cancelled');
+  perform public.complete_command_idempotency('cancel_order',btrim(p_idempotency_key),v_result);
+  return query select p_order_id,v_order_number,'Cancelled'::text;
+end; $function$
+
+CREATE OR REPLACE FUNCTION public.confirm_order(p_order_id uuid, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS TABLE(order_id uuid, order_number text, lifecycle_state text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+declare
+  v_state text;
+  v_order_number text;
+  v_original_amount numeric(12,2);
+  v_customer_id uuid;
+  v_item_count integer;
+  v_hash text;
+  v_is_new boolean;
+  v_status text;
+  v_result jsonb;
+begin
+  if auth.uid() is null or public.app_role() not in ('sales','operations','admin') then
+    raise exception using errcode='42501', message='Authenticated operational role required';
+  end if;
+  if p_order_id is null then
+    raise exception using errcode='22023', message='Order ID is required';
+  end if;
+  if btrim(coalesce(p_idempotency_key,''))='' then
+    raise exception using errcode='22023', message='Idempotency key is required';
+  end if;
+
+  v_hash := md5(jsonb_build_object('order_id',p_order_id)::text);
+  select is_new,status,result into v_is_new,v_status,v_result
+    from public.claim_command_idempotency('confirm_order',btrim(p_idempotency_key),v_hash);
+  if not v_is_new then
+    return query select
+      (v_result->>'order_id')::uuid,
+      v_result->>'order_number',
+      v_result->>'lifecycle_state';
+    return;
+  end if;
+
+  select o.lifecycle_state,o.order_number,o.original_amount,o.customer_id
+    into v_state,v_order_number,v_original_amount,v_customer_id
+    from public.orders o
+   where o.id=p_order_id
+   for update;
+  if not found then
+    raise exception using errcode='P0002', message='Order not found';
+  end if;
+  if v_state <> 'Draft' then
+    raise exception using errcode='P0001', message='Only Draft orders can be confirmed';
+  end if;
+  if v_customer_id is null then
+    raise exception using errcode='P0001', message='Order must have a customer before confirmation';
+  end if;
+  if v_original_amount is null or v_original_amount < 0 then
+    raise exception using errcode='P0001', message='Order Total Order Amount must be zero or greater';
+  end if;
+
+  select count(*) into v_item_count from public.order_items where order_id=p_order_id;
+  if v_item_count = 0 then
+    raise exception using errcode='P0001', message='Order must contain at least one item';
+  end if;
+  if exists (
+    select 1
+      from public.order_items
+     where order_id=p_order_id
+       and (btrim(coalesce(description,''))='' or quantity is null or quantity <= 0)
+  ) then
+    raise exception using errcode='P0001', message='Order contains an invalid item';
+  end if;
+
+  update public.orders
+     set lifecycle_state='Confirmed',
+         updated_at=now()
+   where o.id=p_order_id;
+
+  insert into public.order_events(order_id,event_type,performed_by,metadata)
+  values(
+    p_order_id,
+    'OrderConfirmed',
+    auth.uid(),
+    jsonb_build_object('from','Draft','to','Confirmed','original_amount',v_original_amount,'item_count',v_item_count)
+  );
+
+  insert into public.audit_logs(actor,action,entity_type,entity_id,before_data,after_data)
+  values(
+    auth.uid(),
+    'confirm_order',
+    'order',
+    p_order_id,
+    jsonb_build_object('lifecycle_state','Draft'),
+    jsonb_build_object('lifecycle_state','Confirmed','original_amount',v_original_amount,'item_count',v_item_count)
+  );
+
+  v_result := jsonb_build_object(
+    'order_id',p_order_id,
+    'order_number',v_order_number,
+    'lifecycle_state','Confirmed'
+  );
+  perform public.complete_command_idempotency('confirm_order',btrim(p_idempotency_key),v_result);
+
+  return query select p_order_id,v_order_number,'Confirmed'::text;
+end; $function$
+
+CREATE OR REPLACE FUNCTION public.update_order(p_order_id uuid, p_customer_name text, p_phone text, p_address text, p_city text, p_original_amount numeric, p_items jsonb, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
+ RETURNS TABLE(order_id uuid, order_number text, lifecycle_state text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+declare
+  v_state text;
+  v_order_number text;
+  v_customer_id uuid;
+  v_normalized_phone text;
+  v_item jsonb;
+  v_line_no integer := 0;
+  v_description text;
+  v_quantity integer;
+  v_hash text;
+  v_is_new boolean;
+  v_status text;
+  v_result jsonb;
+begin
+  if auth.uid() is null or public.app_role() not in ('sales','operations','admin') then
+    raise exception using errcode='42501', message='Authenticated operational role required';
+  end if;
+  if btrim(coalesce(p_idempotency_key,''))='' then
+    raise exception using errcode='22023', message='Idempotency key is required';
+  end if;
+  if p_order_id is null then
+    raise exception using errcode='22023', message='Order ID is required';
+  end if;
+  if btrim(coalesce(p_customer_name,''))='' then
+    raise exception using errcode='22023', message='Customer name is required';
+  end if;
+  if btrim(coalesce(p_phone,''))='' then
+    raise exception using errcode='22023', message='Customer phone is required';
+  end if;
+  if p_original_amount is null or p_original_amount < 0 then
+    raise exception using errcode='22023', message='Total Order Amount must be zero or greater';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items)=0 then
+    raise exception using errcode='22023', message='At least one order item is required';
+  end if;
+
+  v_normalized_phone := regexp_replace(p_phone,'[^0-9+]','','g');
+  if v_normalized_phone='' then
+    raise exception using errcode='22023', message='Phone is invalid';
+  end if;
+
+  v_hash := md5(jsonb_build_object(
+    'order_id', p_order_id,
+    'customer_name', btrim(p_customer_name),
+    'phone', btrim(p_phone),
+    'address', nullif(btrim(coalesce(p_address,'')),''),
+    'city', nullif(btrim(coalesce(p_city,'')),''),
+    'original_amount', p_original_amount,
+    'items', p_items,
+    'notes', p_notes
+  )::text);
+
+  select is_new,status,result into v_is_new,v_status,v_result
+  from public.claim_command_idempotency('update_order',btrim(p_idempotency_key),v_hash);
+  if not v_is_new then
+    return query select (v_result->>'order_id')::uuid,v_result->>'order_number',v_result->>'lifecycle_state';
+    return;
+  end if;
+
+  select o.lifecycle_state,o.order_number,o.customer_id
+    into v_state,v_order_number,v_customer_id
+    from public.orders o
+   where o.id=p_order_id
+   for update;
+  if not found then
+    raise exception using errcode='P0002', message='Order not found';
+  end if;
+  if v_state <> 'Draft' then
+    raise exception using errcode='P0001', message='Only Draft orders can be edited before confirmation';
+  end if;
+
+  -- Validate every item before any business row is mutated.
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    v_line_no := v_line_no + 1;
+    v_description := nullif(btrim(coalesce(v_item->>'description','')),'');
+    if v_description is null or coalesce(v_item->>'quantity','') !~ '^\d+$' then
+      raise exception using errcode='22023', message=format('Invalid order item at line %s',v_line_no);
+    end if;
+    v_quantity := (v_item->>'quantity')::integer;
+    if v_quantity <= 0 then
+      raise exception using errcode='22023', message=format('Invalid order item at line %s',v_line_no);
+    end if;
+  end loop;
+
+  select id into v_customer_id from public.customers where normalized_phone=v_normalized_phone for update;
+  if v_customer_id is null then
+    begin
+      insert into public.customers(name,phone,normalized_phone,address,city)
+      values(
+        btrim(p_customer_name), btrim(p_phone), v_normalized_phone,
+        nullif(btrim(coalesce(p_address,'')),''), nullif(btrim(coalesce(p_city,'')),'')
+      ) returning id into v_customer_id;
+    exception when unique_violation then
+      select id into v_customer_id from public.customers where normalized_phone=v_normalized_phone for update;
+    end;
+  else
+    update public.customers
+       set name=btrim(p_customer_name),
+           phone=btrim(p_phone),
+           address=nullif(btrim(coalesce(p_address,'')),''),
+           city=nullif(btrim(coalesce(p_city,'')),''),
+           updated_at=now()
+     where id=v_customer_id;
+  end if;
+
+  update public.orders
+     set customer_id=v_customer_id,
+         original_amount=p_original_amount,
+         notes=p_notes,
+         updated_at=now()
+   where o.id=p_order_id;
+
+  delete from public.order_items where order_id=p_order_id;
+  v_line_no := 0;
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    v_line_no := v_line_no + 1;
+    insert into public.order_items(order_id,line_no,description,quantity)
+    values(p_order_id,v_line_no,btrim(v_item->>'description'),(v_item->>'quantity')::integer);
+  end loop;
+
+  insert into public.order_events(order_id,event_type,performed_by,metadata)
+  values(p_order_id,'OrderUpdated',auth.uid(),jsonb_build_object('lifecycle_state','Draft','item_count',jsonb_array_length(p_items)));
+
+  insert into public.audit_logs(actor,action,entity_type,entity_id,before_data,after_data)
+  values(
+    auth.uid(),'update_order','order',p_order_id,
+    jsonb_build_object('lifecycle_state','Draft'),
+    jsonb_build_object('order_number',v_order_number,'customer_id',v_customer_id,'original_amount',p_original_amount,'item_count',jsonb_array_length(p_items))
+  );
+
+  v_result := jsonb_build_object('order_id',p_order_id,'order_number',v_order_number,'lifecycle_state','Draft');
+  perform public.complete_command_idempotency('update_order',btrim(p_idempotency_key),v_result);
+
+  return query select p_order_id,v_order_number,'Draft'::text;
+end; $function$
+
