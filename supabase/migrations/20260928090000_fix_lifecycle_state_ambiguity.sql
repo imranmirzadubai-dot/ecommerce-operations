@@ -27,7 +27,7 @@ begin
   v_result:=jsonb_build_object('order_id',p_order_id,'order_number',v_order_number,'lifecycle_state','Cancelled');
   perform public.complete_command_idempotency('cancel_order',btrim(p_idempotency_key),v_result);
   return query select p_order_id,v_order_number,'Cancelled'::text;
-end; $function$
+end; $function$;
 
 CREATE OR REPLACE FUNCTION public.confirm_order(p_order_id uuid, p_idempotency_key text DEFAULT NULL::text)
  RETURNS TABLE(order_id uuid, order_number text, lifecycle_state text)
@@ -129,7 +129,7 @@ begin
   perform public.complete_command_idempotency('confirm_order',btrim(p_idempotency_key),v_result);
 
   return query select p_order_id,v_order_number,'Confirmed'::text;
-end; $function$
+end; $function$;
 
 CREATE OR REPLACE FUNCTION public.update_order(p_order_id uuid, p_customer_name text, p_phone text, p_address text, p_city text, p_original_amount numeric, p_items jsonb, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
  RETURNS TABLE(order_id uuid, order_number text, lifecycle_state text)
@@ -247,7 +247,7 @@ begin
          original_amount=p_original_amount,
          notes=p_notes,
          updated_at=now()
-   where o.id=p_order_id;
+   where id=p_order_id;
 
   delete from public.order_items where order_id=p_order_id;
   v_line_no := 0;
@@ -271,5 +271,5 @@ begin
   perform public.complete_command_idempotency('update_order',btrim(p_idempotency_key),v_result);
 
   return query select p_order_id,v_order_number,'Draft'::text;
-end; $function$
+end; $function$;
 
