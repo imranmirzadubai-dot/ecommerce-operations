@@ -81,6 +81,12 @@ begin
 
   delete from public.customers
    where normalized_phone in (
+     '0502300001',
+     '0502300002',
+     '0502300003',
+     '0502300004',
+     '0502300005',
+     '0502300006',
      '+97150023001',
      '+97150023002',
      '+97150023003',
@@ -97,19 +103,19 @@ begin
   insert into public.customers
     (name, phone, normalized_phone, address, city)
   values
-    ('UAT Customer 01', '050023001', '+97150023001', 'UAT Address 01', 'Dubai'),
-    ('UAT Customer 02', '050023002', '+97150023002', 'UAT Address 02', 'Sharjah'),
-    ('UAT Customer 03', '050023003', '+97150023003', 'UAT Address 03', 'Ajman'),
-    ('UAT Customer 04', '050023004', '+97150023004', 'UAT Address 04', 'Dubai'),
-    ('UAT Customer 05', '050023005', '+97150023005', 'UAT Address 05', 'Abu Dhabi'),
-    ('UAT Customer 06', '050023006', '+97150023006', 'UAT Address 06', 'Al Ain');
+    ('UAT Customer 01', '0502300001', '0502300001', 'UAT Address 01', 'Dubai'),
+    ('UAT Customer 02', '0502300002', '0502300002', 'UAT Address 02', 'Sharjah'),
+    ('UAT Customer 03', '0502300003', '0502300003', 'UAT Address 03', 'Ajman'),
+    ('UAT Customer 04', '0502300004', '0502300004', 'UAT Address 04', 'Dubai'),
+    ('UAT Customer 05', '0502300005', '0502300005', 'UAT Address 05', 'Abu Dhabi'),
+    ('UAT Customer 06', '0502300006', '0502300006', 'UAT Address 06', 'Al Ain');
 
-  select id into c1 from public.customers where normalized_phone = '+97150023001';
-  select id into c2 from public.customers where normalized_phone = '+97150023002';
-  select id into c3 from public.customers where normalized_phone = '+97150023003';
-  select id into c4 from public.customers where normalized_phone = '+97150023004';
-  select id into c5 from public.customers where normalized_phone = '+97150023005';
-  select id into c6 from public.customers where normalized_phone = '+97150023006';
+  select id into c1 from public.customers where normalized_phone = '0502300001';
+  select id into c2 from public.customers where normalized_phone = '0502300002';
+  select id into c3 from public.customers where normalized_phone = '0502300003';
+  select id into c4 from public.customers where normalized_phone = '0502300004';
+  select id into c5 from public.customers where normalized_phone = '0502300005';
+  select id into c6 from public.customers where normalized_phone = '0502300006';
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
@@ -320,7 +326,7 @@ begin
      'PCL-UAT-2305','PCL-UAT-2306','PCL-UAT-2307','PCL-UAT-2308','PCL-UAT-2309');
 
   -- Embedded verification: fail the staging deployment unless the fixture is complete.
-  if (select count(*) from public.customers where normalized_phone like '+971500230%') <> 6 then
+  if (select count(*) from public.customers where normalized_phone like '050230000%') <> 6 then
     raise exception 'P15-T230 verification failed: expected 6 synthetic customers';
   end if;
 
