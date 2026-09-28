@@ -118,37 +118,37 @@ begin
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c2, current_date, 249.50, 'Confirmed', 'Dispatched parcel', 'P15-T230-02 Confirmed UAT order', v_user)
+  values (c2, current_date, 249.50, 'Draft', 'Dispatched parcel', 'P15-T230-02 Confirmed UAT order', v_user)
   returning id into o2;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c3, current_date, 399.00, 'Active', 'In-transit parcel', 'P15-T230-03 Active UAT order', v_user)
+  values (c3, current_date, 399.00, 'Draft', 'In-transit parcel', 'P15-T230-03 Active UAT order', v_user)
   returning id into o3;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c4, current_date - 1, 549.00, 'Completed', 'Delivered parcel', 'P15-T230-04 Completed UAT order', v_user)
+  values (c4, current_date - 1, 549.00, 'Draft', 'Delivered parcel', 'P15-T230-04 Completed UAT order', v_user)
   returning id into o4;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c5, current_date, 189.00, 'Active', 'NDR parcel', 'P15-T230-05 NDR UAT order', v_user)
+  values (c5, current_date, 189.00, 'Draft', 'NDR parcel', 'P15-T230-05 NDR UAT order', v_user)
   returning id into o5;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c6, current_date, 299.00, 'Cancelled', 'Cancelled parcel', 'P15-T230-06 Cancelled UAT order', v_user)
+  values (c6, current_date, 299.00, 'Draft', 'Cancelled parcel', 'P15-T230-06 Cancelled UAT order', v_user)
   returning id into o6;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c1, current_date - 2, 799.00, 'Active', 'RTO parcel', 'P15-T230-07 Repeat-customer RTO UAT order', v_user)
+  values (c1, current_date - 2, 799.00, 'Draft', 'RTO parcel', 'P15-T230-07 Repeat-customer RTO UAT order', v_user)
   returning id into o7;
 
   insert into public.orders
     (customer_id, order_date, original_amount, lifecycle_state, fulfillment_summary, notes, created_by)
-  values (c2, current_date - 3, 899.00, 'Completed', 'Lost and damaged parcel cases', 'P15-T230-08 Multi-parcel outcome UAT order', v_user)
+  values (c2, current_date - 3, 899.00, 'Draft', 'Lost and damaged parcel cases', 'P15-T230-08 Multi-parcel outcome UAT order', v_user)
   returning id into o8;
 
   insert into public.order_items (order_id, line_no, description, quantity) values
@@ -162,6 +162,17 @@ begin
     (o7, 1, 'UAT Portable Fan', 2),
     (o8, 1, 'UAT Backpack', 1),
     (o8, 2, 'UAT Travel Adapter', 1);
+
+  -- All order items must be inserted while their parent orders are still Draft.
+  -- The lifecycle states are then advanced after item creation so the immutable-item
+  -- trigger remains satisfied for Confirmed and later synthetic UAT orders.
+  update public.orders set lifecycle_state='Confirmed', updated_at=now() where id=o2;
+  update public.orders set lifecycle_state='Active', updated_at=now() where id=o3;
+  update public.orders set lifecycle_state='Completed', updated_at=now() where id=o4;
+  update public.orders set lifecycle_state='Active', updated_at=now() where id=o5;
+  update public.orders set lifecycle_state='Cancelled', updated_at=now() where id=o6;
+  update public.orders set lifecycle_state='Active', updated_at=now() where id=o7;
+  update public.orders set lifecycle_state='Completed', updated_at=now() where id=o8;
 
   insert into public.parcels
     (order_id, parcel_number, barcode, shipper_id, tracking_id, state)
