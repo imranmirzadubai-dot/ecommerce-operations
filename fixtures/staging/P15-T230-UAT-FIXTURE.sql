@@ -1,7 +1,7 @@
 -- P15-T230 — Synthetic staging UAT fixture
 -- This file is executed ONLY by the Deploy Staging workflow.
 -- It intentionally creates clearly marked synthetic data and is not invoked by Deploy Production.
--- Re-running the staging workflow replaces only this fixture's own rows.
+-- A committed fixture is preserved on rerun because COD receipt history is immutable.
 
 begin;
 
