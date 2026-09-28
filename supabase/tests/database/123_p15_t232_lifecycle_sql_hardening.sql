@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select ok((select pg_get_functiondef(p.oid) not like '%from public.parcels where order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='cancel_order'),'cancel_order has no unqualified parcels.order_id reference');
+select ok((select pg_get_functiondef(p.oid) like '%from public.parcels p where p.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='cancel_order'),'cancel_order qualifies parcels.order_id');
+select ok((select pg_get_functiondef(p.oid) like '%select count(*) into v_item_count from public.order_items oi where oi.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='confirm_order'),'confirm_order qualifies order_items.order_id in count query');
+select ok((select pg_get_functiondef(p.oid) like '%from public.order_items oi%where oi.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='confirm_order'),'confirm_order qualifies order_items.order_id in item validation');
+select ok((select pg_get_functiondef(p.oid) like '%update public.orders o%where o.id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='confirm_order'),'confirm_order declares the orders UPDATE alias before using it');
+select ok((select pg_get_functiondef(p.oid) like '%from public.order_items oi%where oi.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='update_order'),'update_order qualifies order_items.order_id in item access');
+select ok((select pg_get_functiondef(p.oid) like '%delete from public.order_items oi where oi.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='update_order'),'update_order qualifies order_items.order_id in deletion');
+select ok((select pg_get_functiondef(p.oid) like '%update public.parcels p set state=''Cancelled''%where p.order_id=p_order_id%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='cancel_order'),'cancel_order qualifies the parcel cancellation target');
+select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='confirm_order' and pg_get_function_identity_arguments(p.oid)='p_order_id uuid, p_idempotency_key text'),'confirm_order keeps canonical signature');
+select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='cancel_order' and pg_get_function_identity_arguments(p.oid)='p_order_id uuid, p_idempotency_key text'),'cancel_order keeps canonical signature');
+select * from finish();
+rollback;
