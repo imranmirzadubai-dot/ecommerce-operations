@@ -46,15 +46,15 @@ select ok(
 );
 
 select ok(
-  (select position('where cod_obligation_id = p_cod_obligation_id' in pg_get_functiondef(p.oid)) > 0
-          and position('and parcel_id = p_parcel_id' in pg_get_functiondef(p.oid)) > 0
+  (select position('where a.cod_obligation_id = p_cod_obligation_id' in pg_get_functiondef(p.oid)) > 0
+          and position('and a.parcel_id = p_parcel_id' in pg_get_functiondef(p.oid)) > 0
           and position('for update' in lower(pg_get_functiondef(p.oid))) > 0
    from pg_proc p
    join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname = 'record_cod_receipt'
      and pg_get_function_identity_arguments(p.oid) = 'p_cod_obligation_id uuid, p_parcel_id uuid, p_received_amount numeric, p_idempotency_key text'),
-  'authoritative parcel allocation is locked before snapshot use'
+  'authoritative parcel allocation is locked before snapshot use (qualified lookup)'
 );
 
 select ok(
