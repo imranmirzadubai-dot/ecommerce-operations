@@ -60,3 +60,9 @@ test('invoice renderer produces a print-oriented document', () => {
   assert.match(source, /renderInvoiceHtml/)
   assert.match(source, /data-template-version=/)
 })
+
+
+test('invoice renderer sets the PDF document title to the order number', () => {
+  assert.match(source, /<title>\$\{escapeHtml\(source\.orderNumber\)\}<\/title>/)
+  assert.doesNotMatch(source, /<title>Invoice \$\{escapeHtml\(source\.invoiceNumber\)\}<\/title>/)
+})
