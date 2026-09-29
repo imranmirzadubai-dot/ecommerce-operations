@@ -68,19 +68,34 @@ function toInvoiceSource(record: InvoiceRecord): InvoiceSource {
   }
 }
 
-function openPrintWindow(html?: string): Window | null {
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer')
-  if (!printWindow) return null
-  if (html !== undefined) {
-    printWindow.document.open()
-    printWindow.document.write(html)
-    printWindow.document.close()
-    printWindow.addEventListener('load', () => {
-      printWindow.focus()
-      printWindow.print()
-    }, { once: true })
+function printInHiddenFrame(html: string): void {
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.position = 'fixed'
+  frame.style.left = '-10000px'
+  frame.style.top = '0'
+  frame.style.width = '1px'
+  frame.style.height = '1px'
+  frame.style.border = '0'
+  frame.style.opacity = '0'
+  document.body.appendChild(frame)
+
+  const frameDocument = frame.contentDocument
+  const frameWindow = frame.contentWindow
+  if (!frameDocument || !frameWindow) {
+    frame.remove()
+    throw new Error('Unable to prepare the invoice print surface')
   }
-  return printWindow
+
+  frameDocument.open()
+  frameDocument.write(html)
+  frameDocument.close()
+  frameWindow.focus()
+  frameWindow.print()
+
+  const cleanup = () => frame.remove()
+  frameWindow.addEventListener('afterprint', cleanup, { once: true })
+  window.setTimeout(cleanup, 5000)
 }
 
 export function InvoicePrintWorkspace({ accessToken }: Props) {
@@ -112,8 +127,7 @@ export function InvoicePrintWorkspace({ accessToken }: Props) {
     setError('')
     try {
       const source = toInvoiceSource(record)
-      const printWindow = openPrintWindow(renderInvoiceHtml(source))
-      if (!printWindow) throw new Error('The browser blocked the print window. Allow pop-ups for this application and try again.')
+      printInHiddenFrame(renderInvoiceHtml(source))
       const event = await recordPrint(accessToken, record.id, 'individual')
       setMessage(`${record.invoice_number} sent to print. Event ${event.print_event_id.slice(0, 8)} recorded; print count is now ${event.print_count}.`)
     } catch (printError) {
@@ -133,17 +147,9 @@ export function InvoicePrintWorkspace({ accessToken }: Props) {
       if (selected.length !== selectedIds.length) throw new Error('One or more selected invoices are no longer available. Refresh and try again.')
       const sources = selected.map(toInvoiceSource)
       const html = sources.map((source) => renderInvoiceHtml(source)).join('<div style="page-break-after: always"></div>')
-      const printWindow = openPrintWindow()
-      if (!printWindow) throw new Error('The browser blocked the print window. Allow pop-ups for this application and try again.')
+      printInHiddenFrame(html)
       const events = []
       for (const record of selected) events.push(await recordPrint(accessToken, record.id, 'batch'))
-      printWindow.document.open()
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.addEventListener('load', () => {
-        printWindow.focus()
-        printWindow.print()
-      }, { once: true })
       setMessage(`${selected.length} invoices sent to batch print. ${events.length} batch print events recorded.`)
       setSelectedIds([])
     } catch (printError) {
