@@ -6,7 +6,7 @@ const pdfSource = fs.readFileSync(new URL('../../src/lib/invoicePdf.ts', import.
 const component = fs.readFileSync(new URL('../../src/components/InvoicePrintWorkspace.tsx', import.meta.url), 'utf8')
 
 test('invoice PDF generator produces a real PDF document from invoice snapshots', () => {
-  assert.ok(pdfSource.includes('export function renderInvoicePdf(sources: InvoiceSource): Uint8Array'))
+  assert.ok(pdfSource.includes('export function renderInvoicePdf(sources: InvoiceSource[]): Uint8Array'))
   assert.ok(pdfSource.includes('%PDF-1.4'))
   assert.ok(pdfSource.includes('/Type /Catalog'))
   assert.ok(pdfSource.includes('/Type /Page'))
