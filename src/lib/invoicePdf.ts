@@ -122,8 +122,8 @@ export function renderInvoicePdf(sources: InvoiceSource[]): Uint8Array {
   const pageObjectIds: number[] = []
   const contentObjectIds: number[] = []
   for (let index = 0; index < sources.length; index += 1) {
-    pageObjectIds.push(4 + index * 2)
-    contentObjectIds.push(5 + index * 2)
+    pageObjectIds.push(5 + index * 2)
+    contentObjectIds.push(6 + index * 2)
   }
   objects.push(`<< /Type /Pages /Kids [ ${pageObjectIds.map((id) => `${id} 0 R`).join(' ')} ] /Count ${sources.length} >>`)
   objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
@@ -137,7 +137,7 @@ export function renderInvoicePdf(sources: InvoiceSource[]): Uint8Array {
     objects[contentId - 1] = `<< /Length ${encodeAscii(stream).byteLength} >>\nstream\n${stream}\nendstream`
   }
 
-  let pdf = '%PDF-1.4\n%âãÏÓ\n'
+  let pdf = '%PDF-1.4\n%1234\n'
   const offsets: number[] = [0]
   for (let index = 0; index < objects.length; index += 1) {
     offsets.push(encodeAscii(pdf).byteLength)
