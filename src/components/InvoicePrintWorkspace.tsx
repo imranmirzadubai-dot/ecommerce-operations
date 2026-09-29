@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { renderInvoiceHtml, type InvoiceSource } from '../lib/invoice'
+import { renderInvoicePdf } from '../lib/invoicePdf'
 
 type Props = { accessToken: string }
 type InvoiceRecord = {
@@ -68,6 +69,17 @@ function toInvoiceSource(record: InvoiceRecord): InvoiceSource {
   }
 }
 
+
+function downloadPdf(bytes: Uint8Array, filename: string): void {
+  const blob = new Blob([bytes], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 function printInHiddenFrame(html: string): void {
   const frame = document.createElement('iframe')
   frame.setAttribute('aria-hidden', 'true')
@@ -117,6 +129,48 @@ export function InvoicePrintWorkspace({ accessToken }: Props) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to load invoices')
     } finally {
       setLoading(false)
+    }
+  }
+
+
+  async function downloadInvoice(record: InvoiceRecord) {
+    if (printingId || batchPrinting) return
+    setPrintingId(record.id)
+    setMessage('')
+    setError('')
+    try {
+      const source = toInvoiceSource(record)
+      downloadPdf(renderInvoicePdf([source]), `${source.orderNumber}.pdf`)
+      const event = await recordPrint(accessToken, record.id, 'individual')
+      setMessage(`${source.orderNumber}.pdf downloaded. Event ${event.print_event_id.slice(0, 8)} recorded; print count is now ${event.print_count}.`)
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'Unable to download invoice PDF')
+    } finally {
+      setPrintingId(null)
+    }
+  }
+
+  async function downloadBatchPdf() {
+    if (printingId || batchPrinting || selectedIds.length === 0) return
+    setBatchPrinting(true)
+    setMessage('')
+    setError('')
+    try {
+      const selected = selectedIds.map((id) => records.find((record) => record.id === id)).filter((record): record is InvoiceRecord => record !== undefined)
+      if (selected.length !== selectedIds.length) throw new Error('One or more selected invoices are no longer available. Refresh and try again.')
+      const sources = selected.map(toInvoiceSource)
+      const filename = sources.length === 1
+        ? `${sources[0].orderNumber}.pdf`
+        : `Invoice-Batch-${sources[0].orderNumber}-to-${sources[sources.length - 1].orderNumber}.pdf`
+      downloadPdf(renderInvoicePdf(sources), filename)
+      const events = []
+      for (const record of selected) events.push(await recordPrint(accessToken, record.id, 'batch'))
+      setMessage(`${filename} downloaded. ${events.length} batch print events recorded.`)
+      setSelectedIds([])
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'Unable to download invoice batch PDF')
+    } finally {
+      setBatchPrinting(false)
     }
   }
 
@@ -194,7 +248,10 @@ export function InvoicePrintWorkspace({ accessToken }: Props) {
       </div>
       <div>
         <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={busy}>{loading ? 'Loading…' : 'Refresh'}</button>
-        {records.length > 0 && <button className="login-button" type="button" onClick={() => void printBatch()} disabled={busy || selectedIds.length === 0}>{batchPrinting ? 'Preparing batch…' : `Print selected (${selectedIds.length})`}</button>}
+        {records.length > 0 && <>
+          <button className="secondary-button" type="button" onClick={() => void downloadBatchPdf()} disabled={busy || selectedIds.length === 0}>{batchPrinting ? 'Preparing PDF…' : `Download PDF (${selectedIds.length})`}</button>
+          <button className="login-button" type="button" onClick={() => void printBatch()} disabled={busy || selectedIds.length === 0}>{batchPrinting ? 'Preparing batch…' : `Print selected (${selectedIds.length})`}</button>
+        </>}
       </div>
     </div>
     {error && <p className="form-error" role="alert">{error}</p>}
@@ -213,7 +270,10 @@ export function InvoicePrintWorkspace({ accessToken }: Props) {
           <td>{record.source_snapshot.orderNumber ?? record.orders?.order_number ?? '—'}</td>
           <td>{record.template_version}</td>
           <td>{new Date(record.generated_at).toLocaleString()}</td>
-          <td><button className="login-button" type="button" onClick={() => void printInvoice(record)} disabled={busy}>{printingId === record.id ? 'Preparing…' : 'Print invoice'}</button></td>
+          <td>
+            <button className="secondary-button" type="button" onClick={() => void downloadInvoice(record)} disabled={busy}>{printingId === record.id ? 'Preparing…' : 'Download PDF'}</button>
+            <button className="login-button" type="button" onClick={() => void printInvoice(record)} disabled={busy}>Print invoice</button>
+          </td>
         </tr>)}</tbody>
       </table>
     </div>}
