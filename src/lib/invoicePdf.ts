@@ -26,10 +26,6 @@ function pdfLine(x1: number, y1: number, x2: number, y2: number, width = 1): str
   return `${width.toFixed(2)} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`
 }
 
-function pdfRect(x: number, y: number, width: number, height: number): string {
-  return `${x.toFixed(2)} ${y.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re S`
-}
-
 function pdfBarcode(value: string, x: number, y: number, targetWidth: number, height = 48): string {
   const codeValues = Array.from(value).map((character) => character.charCodeAt(0) - 32)
   if (codeValues.some((code) => code < 0 || code >= 103)) {
