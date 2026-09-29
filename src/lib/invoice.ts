@@ -125,7 +125,7 @@ export function renderInvoiceHtml(source: InvoiceSource): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invoice ${escapeHtml(source.invoiceNumber)}</title>
+<title>${escapeHtml(source.orderNumber)}</title>
 <style>
 @page { size: A4; margin: 12mm; }
 body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #171717; background: #fff; }
