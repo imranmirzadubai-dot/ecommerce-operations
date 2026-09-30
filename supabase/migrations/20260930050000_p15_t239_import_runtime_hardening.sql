@@ -1,18 +1,13 @@
--- P15-T239: historical-import runtime compatibility and status-contract hardening.
--- Confirmed staging runtime: PostgreSQL 17.6.
--- Corrects only confirmed defects in the historical-import path:
---   * pg_input_is_valid must receive the type name as text, not regtype.
---   * historical-import regex literals use single backslashes so decimal and +phone
---     validation has the intended POSIX regex semantics.
---   * import_rows.status uses only Pending/Valid/Invalid/Imported/Skipped/Failed.
---   * customer classification lives in customer_match_status, not import_rows.status.
--- No production business data is changed by these function definitions.
+-- P15-T239: harden the remaining historical-import runtime contract after staging analysis.
+-- Confirmed against staging PostgreSQL 17.6.
+-- This migration fixes only defects that were verified in the historical-import path:
+--   * regex literals use the intended single-backslash POSIX semantics;
+--   * row status values conform to import_rows.status CHECK constraints;
+--   * customer create/match/exception classification is read from customer_match_status;
+--   * error reporting reads Invalid rows rather than an unsupported Error status.
+-- No production data is changed.
 
--- SOURCE: 20260919040000_import_phone_normalization.sql
--- P12-T188: normalize configured phone fields in mapped historical-import rows.
--- Normalization is deterministic and applied only to staged normalized_data; raw_data is retained.
--- A supplied default country code may convert national numbers beginning with 0 to +countrycode.
-
+-- 20260919040000_import_phone_normalization.sql
 create or replace function public.normalize_import_phone_fields(
   p_batch_id uuid,
   p_phone_fields jsonb,
@@ -142,7 +137,7 @@ begin
   where r.batch_id = p_batch_id;
 
   select count(*)::integer into v_row_count
-  from public.import_rows where batch_id = p_batch_id;
+  from public.import_rows ir where ir.batch_id = p_batch_id;
 
   select count(*)::integer into v_normalized_count
   from public.import_rows r
@@ -182,29 +177,7 @@ revoke all on function public.normalize_import_phone_fields(uuid, jsonb, text, t
 grant execute on function public.normalize_import_phone_fields(uuid, jsonb, text, text) to authenticated;
 
 
--- SOURCE: 20260919060000_import_customer_matching.sql
--- P12-T190: match staged historical-import rows to existing customers and classify exceptions.
--- Existing customers are matched only by exact normalized phone. Unmatched valid rows are
--- classified as Create for the later production-import milestone; invalid/missing phones are errors.
-
-alter table public.import_rows
-  add column if not exists matched_customer_id uuid references public.customers(id) on delete restrict;
-
-alter table public.import_rows
-  add column if not exists customer_match_status text;
-
-alter table public.import_rows
-  add column if not exists customer_match_method text;
-
-alter table public.import_rows
-  add column if not exists customer_match_error text;
-
-create index if not exists idx_import_rows_matched_customer_id
-  on public.import_rows(matched_customer_id);
-
-create index if not exists idx_import_rows_customer_match_status
-  on public.import_rows(customer_match_status);
-
+-- 20260919060000_import_customer_matching.sql
 create or replace function public.match_import_customers(
   p_batch_id uuid,
   p_phone_field text,
@@ -365,11 +338,7 @@ revoke all on function public.match_import_customers(uuid, text, text) from publ
 grant execute on function public.match_import_customers(uuid, text, text) to authenticated;
 
 
--- SOURCE: 20260919061000_import_preview_counts.sql
--- P12-T191: preview staged customer import create/update/error counts.
--- This is read-only with respect to business/customer data and staged rows.
--- Matched rows are presented as updates; Create rows as creates; Error rows as errors.
-
+-- 20260919061000_import_preview_counts.sql
 create or replace function public.preview_import_customer_changes(
   p_batch_id uuid,
   p_idempotency_key text
@@ -477,11 +446,7 @@ revoke all on function public.preview_import_customer_changes(uuid, text) from p
 grant execute on function public.preview_import_customer_changes(uuid, text) to authenticated;
 
 
--- SOURCE: 20260919070000_import_staging_reconciliation.sql
--- P12-T192: reconcile staged customer-import classification and persist the
--- deterministic reconciliation summary on the import batch.
--- This does not create/update production customers and does not alter staged rows.
-
+-- 20260919070000_import_staging_reconciliation.sql
 create or replace function public.reconcile_import_staging(
   p_batch_id uuid,
   p_idempotency_key text
@@ -637,11 +602,7 @@ revoke all on function public.reconcile_import_staging(uuid, text) from public, 
 grant execute on function public.reconcile_import_staging(uuid, text) to authenticated;
 
 
--- SOURCE: 20260919080000_import_monetary_count_reconciliation.sql
--- P12-T193: reconcile historical-import row counts and monetary totals against
--- caller-supplied source control totals. No production business data or staged
--- row data is mutated by this command.
-
+-- 20260919080000_import_monetary_count_reconciliation.sql
 create or replace function public.reconcile_import_monetary_counts(
   p_batch_id uuid,
   p_amount_field text,
@@ -817,12 +778,7 @@ revoke all on function public.reconcile_import_monetary_counts(uuid, text, integ
 grant execute on function public.reconcile_import_monetary_counts(uuid, text, integer, numeric, text) to authenticated;
 
 
--- SOURCE: 20260919090000_import_production_idempotent.sql
--- P12-T194: idempotent production import for validated historical batches.
--- One staged source row represents one historical order/item record. The command creates
--- missing customers, reuses customers matched by T190, and creates the order plus one
--- order-item atomically. No parcel is created here; fulfillment remains a later workflow.
-
+-- 20260919090000_import_production_idempotent.sql
 create or replace function public.import_historical_batch(
   p_batch_id uuid,
   p_field_map jsonb,
@@ -998,11 +954,7 @@ revoke all on function public.import_historical_batch(uuid,jsonb,text) from publ
 grant execute on function public.import_historical_batch(uuid,jsonb,text) to authenticated;
 
 
--- SOURCE: 20260919110000_import_error_reports.sql
--- P12-T196: generate a deterministic Admin-only report from retained import-row errors.
--- Error details remain authoritative on public.import_rows; this command provides a
--- stable, source-lineage-aware report without mutating staging or production data.
-
+-- 20260919110000_import_error_reports.sql
 create or replace function public.generate_import_error_report(
   p_batch_id uuid
 )
