@@ -401,7 +401,7 @@ begin
                  when lower(tm.type) = 'date' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'string'
                    or btrim(r2.normalized_data ->> tm.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                   or not pg_input_is_valid(btrim(r2.normalized_data ->> tm.field), 'date'::regtype)
+                   or btrim(to_char(to_date(btrim(r2.normalized_data ->> tm.field), 'YYYY-MM-DD'), 'YYYY-MM-DD')) <> btrim(r2.normalized_data ->> tm.field)
                  ) then 'Invalid date: ' || tm.field
                  when lower(tm.type) = 'boolean' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'boolean'
