@@ -3,7 +3,7 @@
 -- transaction and rolled back at the end; no staging business data is retained.
 
 begin;
-select plan(10);
+select plan(11);
 set local role postgres;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000239';
 
