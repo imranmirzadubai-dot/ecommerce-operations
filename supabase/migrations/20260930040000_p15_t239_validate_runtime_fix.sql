@@ -164,7 +164,7 @@ begin
                    then 'Invalid text type: ' || tm.field
                  when lower(tm.type) = 'integer' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) not in ('number','string')
-                   or (jsonb_typeof(r2.normalized_data -> tm.field) = 'string' and btrim(r2.normalized_data ->> tm.field) !~ '^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$')
+                   or (jsonb_typeof(r2.normalized_data -> tm.field) = 'string' and btrim(r2.normalized_data ->> tm.field) !~ '^-?[0-9]+$')
                  ) then 'Invalid integer type: ' || tm.field
                  when lower(tm.type) = 'number' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) not in ('number','string')
@@ -172,7 +172,7 @@ begin
                  ) then 'Invalid number type: ' || tm.field
                  when lower(tm.type) = 'date' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'string'
-                   or (jsonb_typeof(r2.normalized_data -> tm.field) = 'string' and btrim(r2.normalized_data ->> tm.field) !~ '^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$')
+                   or btrim(r2.normalized_data ->> tm.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                    or not pg_catalog.pg_input_is_valid(btrim(r2.normalized_data ->> tm.field), 'date')
                  ) then 'Invalid date: ' || tm.field
                  when lower(tm.type) = 'boolean' and (
@@ -218,10 +218,10 @@ begin
   from public.import_rows ir where ir.batch_id = p_batch_id;
 
   select count(*)::integer into v_valid_count
-  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Valid'
+  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Valid';
 
   select count(*)::integer into v_error_count
-  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Invalid'
+  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Invalid';
 
   update public.import_batches
   set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
