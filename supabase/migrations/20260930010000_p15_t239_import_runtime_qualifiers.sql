@@ -141,7 +141,7 @@ begin
     raise exception using errcode='22023', message='Column mapping must be a JSON object';
   end if;
 
-  if jsonb_object_length(p_mapping) = 0 then
+  if (select count(*) from jsonb_object_keys(p_mapping)) = 0 then
     raise exception using errcode='22023', message='Column mapping must not be empty';
   end if;
 
