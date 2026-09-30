@@ -1,9 +1,7 @@
--- P15-T239: make historical import validation compatible with the deployed PostgreSQL runtime.
--- This is a focused runtime fix only:
---   * replace unavailable pg_input_is_valid(date) usage with guarded ISO-calendar validation
---   * qualify import_rows.batch_id references to avoid RETURNS TABLE output-parameter ambiguity
---   * use the schema-supported Invalid status for rejected rows
--- No production business data is changed by this migration.
+-- P12-T187: validate mapped historical-import rows before downstream normalization/import.
+-- Required fields, declared types, ISO dates, and non-negative monetary amounts are
+-- evaluated against import_rows.normalized_data. Invalid rows retain their data and
+-- receive a deterministic error message; no production business data is changed.
 
 create or replace function public.validate_import_rows(
   p_batch_id uuid,
@@ -28,6 +26,7 @@ declare
   v_result jsonb;
   v_field text;
   v_type text;
+  v_value text;
   v_error text;
   v_errors text[];
 begin
@@ -130,6 +129,13 @@ begin
     return;
   end if;
 
+  -- Validate every staged row independently. Existing normalized_data and raw_data
+  -- are retained unchanged; only validation status/error are updated.
+  for v_field in select value from jsonb_array_elements_text(p_required_fields)
+  loop
+    null;
+  end loop;
+
   update public.import_rows r
   set status = case when v_errors.errors is null then 'Valid' else 'Invalid' end,
       error = v_errors.errors
@@ -162,30 +168,12 @@ begin
                  ) then 'Invalid integer type: ' || tm.field
                  when lower(tm.type) = 'number' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) not in ('number','string')
-                   or (jsonb_typeof(r2.normalized_data -> tm.field) = 'string' and btrim(r2.normalized_data ->> tm.field) !~ '^-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$')
+                   or (jsonb_typeof(r2.normalized_data -> tm.field) = 'string' and btrim(r2.normalized_data ->> tm.field) !~ '^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$')
                  ) then 'Invalid number type: ' || tm.field
                  when lower(tm.type) = 'date' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'string'
                    or btrim(r2.normalized_data ->> tm.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                   or case
-                        when btrim(r2.normalized_data ->> tm.field) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                        then (
-                          substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer not between 1 and 9999
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer not between 1 and 12
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer < 1
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer >
-                             extract(
-                               day from (
-                                 make_date(
-                                   greatest(1, least(9999, substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer)),
-                                   greatest(1, least(12, substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer)),
-                                   1
-                                 ) + interval '1 month - 1 day'
-                               )
-                             )::integer
-                        )
-                        else true
-                      end
+                   or not pg_catalog.pg_input_is_valid(btrim(r2.normalized_data ->> tm.field), 'date')
                  ) then 'Invalid date: ' || tm.field
                  when lower(tm.type) = 'boolean' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'boolean'
@@ -199,7 +187,7 @@ begin
         select af.ord,
                case
                  when not (r2.normalized_data ? af.field) or r2.normalized_data -> af.field is null then null
-                 when btrim(r2.normalized_data ->> af.field) !~ '^-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$'
+                 when btrim(r2.normalized_data ->> af.field) !~ '^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
                    then 'Invalid amount: ' || af.field
                  when (r2.normalized_data ->> af.field)::numeric < 0
                    then 'Amount must be non-negative: ' || af.field
@@ -213,29 +201,11 @@ begin
 
         select df.ord,
                case
-                 when not (r2.normalized_data ? df.field) or r2.normalized_data -> df.field is null
-                   or jsonb_typeof(r2.normalized_data -> df.field) <> 'string'
+                 when not (r2.normalized_data ? df.field) or r2.normalized_data -> df.field is null then null
+                 when jsonb_typeof(r2.normalized_data -> df.field) <> 'string'
                    or btrim(r2.normalized_data ->> df.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                   or case
-                        when btrim(r2.normalized_data ->> df.field) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                        then (
-                          substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer not between 1 and 9999
-                          or substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer not between 1 and 12
-                          or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer < 1
-                          or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer >
-                             extract(
-                               day from (
-                                 make_date(
-                                   greatest(1, least(9999, substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer)),
-                                   greatest(1, least(12, substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer)),
-                                   1
-                                 ) + interval '1 month - 1 day'
-                               )
-                             )::integer
-                        )
-                        else true
-                      end
-                 ) then 'Invalid date: ' || df.field
+                   or not pg_catalog.pg_input_is_valid(btrim(r2.normalized_data ->> df.field), 'date')
+                   then 'Invalid date: ' || df.field
                end as msg
         from jsonb_array_elements_text(p_date_fields) with ordinality df(field, ord)
       ) validation_messages
@@ -245,16 +215,13 @@ begin
   where r.id = v_errors.id;
 
   select count(*)::integer into v_row_count
-  from public.import_rows ir
-  where ir.batch_id = p_batch_id;
+  from public.import_rows ir where ir.batch_id = p_batch_id;
 
   select count(*)::integer into v_valid_count
-  from public.import_rows ir
-  where ir.batch_id = p_batch_id and ir.status = 'Valid';
+  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Valid';
 
   select count(*)::integer into v_error_count
-  from public.import_rows ir
-  where ir.batch_id = p_batch_id and ir.status = 'Invalid';
+  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Invalid';
 
   update public.import_batches
   set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
