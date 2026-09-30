@@ -432,7 +432,7 @@ begin
                  when not (r2.normalized_data ? df.field) or r2.normalized_data -> df.field is null then null
                  when jsonb_typeof(r2.normalized_data -> df.field) <> 'string'
                    or btrim(r2.normalized_data ->> df.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                   or not pg_input_is_valid(btrim(r2.normalized_data ->> df.field), 'date'::regtype)
+                   or btrim(to_char(to_date(btrim(r2.normalized_data ->> df.field), 'YYYY-MM-DD'), 'YYYY-MM-DD')) <> btrim(r2.normalized_data ->> df.field)
                    then 'Invalid date: ' || df.field
                end as msg
         from jsonb_array_elements_text(p_date_fields) with ordinality df(field, ord)
