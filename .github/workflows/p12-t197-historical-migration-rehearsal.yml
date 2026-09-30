@@ -19,6 +19,7 @@ jobs:
           version: latest
       - run: supabase start
       - run: supabase db reset
-      - run: supabase test db \
-          supabase/tests/database/116_historical_migration_rehearsal.sql \
-          supabase/tests/database/131_p15_t239_historical_import_runtime_rehearsal.sql
+      - run: |
+          supabase test db \
+            supabase/tests/database/116_historical_migration_rehearsal.sql \
+            supabase/tests/database/131_p15_t239_historical_import_runtime_rehearsal.sql
