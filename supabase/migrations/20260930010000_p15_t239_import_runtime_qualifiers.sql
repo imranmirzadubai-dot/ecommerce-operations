@@ -78,8 +78,8 @@ begin
   where jsonb_typeof(elem) = 'object';
 
   select count(*)::integer into v_row_count
-  from public.import_rows
-  where batch_id = v_batch_id;
+  from public.import_rows ir
+  where ir.batch_id = v_batch_id;
 
   if v_row_count <> jsonb_array_length(p_rows) then
     raise exception using errcode='22023', message='Every import row must be a JSON object';
@@ -446,10 +446,12 @@ begin
   from public.import_rows r where r.batch_id = p_batch_id;
 
   select count(*)::integer into v_valid_count
-  from public.import_rows where batch_id = p_batch_id and status = 'Valid';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.status = 'Valid';
 
   select count(*)::integer into v_error_count
-  from public.import_rows where batch_id = p_batch_id and status = 'Error';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.status = 'Error';
 
   update public.import_batches
   set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
@@ -614,7 +616,8 @@ begin
     );
 
   select count(*)::integer into v_error_count
-  from public.import_rows where batch_id = p_batch_id and status = 'Error';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.status = 'Error';
 
   update public.import_batches
   set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
@@ -739,8 +742,8 @@ begin
   from public.import_rows r where r.batch_id = p_batch_id;
 
   select count(*)::integer into v_identity_count
-  from public.import_rows
-  where batch_id = p_batch_id and source_identity is not null;
+  from public.import_rows r
+  where r.batch_id = p_batch_id and source_identity is not null;
 
   v_result := jsonb_build_object(
     'batch_id', p_batch_id,
@@ -848,7 +851,7 @@ begin
       customer_match_error = null
   where r.batch_id = p_batch_id
     and r.status = 'Valid'
-    and r.customer_match_status is distinct from 'Matched'
+    and r.r.customer_match_status is distinct from 'Matched'
     and r.normalized_data ? btrim(p_phone_field)
     and (r.normalized_data ->> btrim(p_phone_field)) is not null
     and btrim(r.normalized_data ->> btrim(p_phone_field)) <> '';
@@ -884,13 +887,16 @@ begin
   from public.import_rows r where r.batch_id = p_batch_id;
 
   select count(*)::integer into v_matched_count
-  from public.import_rows where batch_id = p_batch_id and customer_match_status = 'Matched';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.customer_match_status = 'Matched';
 
   select count(*)::integer into v_create_count
-  from public.import_rows where batch_id = p_batch_id and customer_match_status = 'Create';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.customer_match_status = 'Create';
 
   select count(*)::integer into v_error_count
-  from public.import_rows where batch_id = p_batch_id and customer_match_status = 'Exception';
+  from public.import_rows r
+  where r.batch_id = p_batch_id and r.customer_match_status = 'Exception';
 
   update public.import_batches
   set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
@@ -1100,33 +1106,33 @@ begin
   where r.batch_id = p_batch_id;
 
   select count(*)::integer into v_matched_count
-  from public.import_rows
-  where batch_id = p_batch_id
-    and customer_match_status = 'Matched';
+  from public.import_rows r
+  where r.batch_id = p_batch_id
+    and r.customer_match_status = 'Matched';
 
   select count(*)::integer into v_create_count
-  from public.import_rows
-  where batch_id = p_batch_id
-    and customer_match_status = 'Create';
+  from public.import_rows r
+  where r.batch_id = p_batch_id
+    and r.customer_match_status = 'Create';
 
   select count(*)::integer into v_exception_count
-  from public.import_rows
-  where batch_id = p_batch_id
-    and customer_match_status = 'Exception';
+  from public.import_rows r
+  where r.batch_id = p_batch_id
+    and r.customer_match_status = 'Exception';
 
   select count(*)::integer into v_unclassified_count
-  from public.import_rows
-  where batch_id = p_batch_id
-    and customer_match_status is distinct from 'Matched'
-    and customer_match_status is distinct from 'Create'
-    and customer_match_status is distinct from 'Exception';
+  from public.import_rows r
+  where r.batch_id = p_batch_id
+    and r.customer_match_status is distinct from 'Matched'
+    and r.customer_match_status is distinct from 'Create'
+    and r.customer_match_status is distinct from 'Exception';
 
   select count(*)::integer into v_status_mismatch_count
-  from public.import_rows
-  where batch_id = p_batch_id
+  from public.import_rows r
+  where r.batch_id = p_batch_id
     and (
-      (customer_match_status in ('Matched','Create') and status <> 'Valid')
-      or (customer_match_status = 'Exception' and status <> 'Error')
+      (customer_match_status in ('Matched','Create') and r.status <> 'Valid')
+      or (customer_match_status = 'Exception' and r.status <> 'Error')
     );
 
   v_reconciled :=
