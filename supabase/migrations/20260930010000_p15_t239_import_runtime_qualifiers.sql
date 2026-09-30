@@ -851,7 +851,7 @@ begin
       customer_match_error = null
   where r.batch_id = p_batch_id
     and r.status = 'Valid'
-    and r.r.customer_match_status is distinct from 'Matched'
+    and r.customer_match_status is distinct from 'Matched'
     and r.normalized_data ? btrim(p_phone_field)
     and (r.normalized_data ->> btrim(p_phone_field)) is not null
     and btrim(r.normalized_data ->> btrim(p_phone_field)) <> '';
@@ -1131,8 +1131,8 @@ begin
   from public.import_rows r
   where r.batch_id = p_batch_id
     and (
-      (customer_match_status in ('Matched','Create') and r.status <> 'Valid')
-      or (customer_match_status = 'Exception' and r.status <> 'Error')
+      (r.customer_match_status in ('Matched','Create') and r.status <> 'Valid')
+      or (r.customer_match_status = 'Exception' and r.status <> 'Error')
     );
 
   v_reconciled :=
