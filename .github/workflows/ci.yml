@@ -97,7 +97,8 @@ jobs:
             supabase/tests/database/087_unknown_cancelled_barcode_scans.sql \
             supabase/tests/database/087_order_cod_obligation.sql \
             supabase/tests/database/088_parcel_cod_allocation.sql \
-            supabase/tests/database/096_financial_adjustment_command.sql
+            supabase/tests/database/096_financial_adjustment_command.sql \
+            supabase/tests/database/131_p15_t239_historical_import_runtime_rehearsal.sql
 
   e2e:
     runs-on: ubuntu-latest
