@@ -1,6 +1,6 @@
 -- P15-T239: make historical import validation compatible with the deployed PostgreSQL runtime.
 -- This is a focused runtime fix only:
---   * replace unavailable pg_input_is_valid(date) usage with guarded ISO-calendar validation
+--   * replace unavailable pg_input_is_valid(date) usage with guarded ISO-calendar validation without nested CASE date parsing
 --   * qualify import_rows.batch_id references to avoid RETURNS TABLE output-parameter ambiguity
 --   * use the schema-supported Invalid status for rejected rows
 -- No production business data is changed by this migration.
@@ -166,19 +166,140 @@ begin
                  ) then 'Invalid number type: ' || tm.field
                  when lower(tm.type) = 'date' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'string'
-                   or btrim(r2.normalized_data ->> tm.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                   or btrim(r2.normalized_data ->> tm.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}
+                 when lower(tm.type) = 'boolean' and (
+                   jsonb_typeof(r2.normalized_data -> tm.field) <> 'boolean'
+                   and (jsonb_typeof(r2.normalized_data -> tm.field) <> 'string' or lower(btrim(r2.normalized_data ->> tm.field)) not in ('true','false'))
+                 ) then 'Invalid boolean type: ' || tm.field
+               end as msg
+        from jsonb_each_text(p_type_map) with ordinality tm(field, type, ord)
+
+        union all
+
+        select af.ord,
+               case
+                 when not (r2.normalized_data ? af.field) or r2.normalized_data -> af.field is null then null
+                 when btrim(r2.normalized_data ->> af.field) !~ '^-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$'
+                   then 'Invalid amount: ' || af.field
+                 when (r2.normalized_data ->> af.field)::numeric < 0
+                   then 'Amount must be non-negative: ' || af.field
+                 when position('.' in btrim(r2.normalized_data ->> af.field)) > 0
+                   and length(split_part(btrim(r2.normalized_data ->> af.field), '.', 2)) > 2
+                   then 'Amount must have at most 2 decimal places: ' || af.field
+               end as msg
+        from jsonb_array_elements_text(p_amount_fields) with ordinality af(field, ord)
+
+        union all
+
+        select df.ord,
+               case
+                 when not (r2.normalized_data ? df.field) or r2.normalized_data -> df.field is null
+                   or jsonb_typeof(r2.normalized_data -> df.field) <> 'string'
+                   or btrim(r2.normalized_data ->> df.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}
+               end as msg
+        from jsonb_array_elements_text(p_date_fields) with ordinality df(field, ord)
+      ) validation_messages
+    ) errs
+    where r2.batch_id = p_batch_id
+  ) v_errors
+  where r.id = v_errors.id;
+
+  select count(*)::integer into v_row_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id;
+
+  select count(*)::integer into v_valid_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Valid';
+
+  select count(*)::integer into v_error_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Invalid';
+
+  update public.import_batches
+  set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
+  where id = p_batch_id;
+
+  v_result := jsonb_build_object(
+    'batch_id', p_batch_id,
+    'row_count', v_row_count,
+    'valid_count', v_valid_count,
+    'error_count', v_error_count
+  );
+
+  perform public.complete_command_idempotency(
+    'validate_import_rows',
+    p_idempotency_key,
+    v_result
+  );
+
+  return query select p_batch_id, v_row_count, v_valid_count, v_error_count;
+end;
+$$;
+
+revoke all on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) from public, anon;
+grant execute on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) to authenticated;
+
+                   or (
+                     substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer not between 1 and 9999
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer not between 1 and 12
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer < 1
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer >
+                       case
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer in (1,3,5,7,8,10,12) then 31
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer in (4,6,9,11) then 30
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer = 2
+                           and (
+                             substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 400 = 0
+                             or (substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 4 = 0
+                                 and substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 100 <> 0)
+                           ) then 29
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer = 2 then 28
+                         else 0
+                       end
+                   )
+                 ) then 'Invalid date: ' || tm.field
+                 when lower(tm.type) = 'boolean' and (
+                   jsonb_typeof(r2.normalized_data -> tm.field) <> 'boolean'
+                   and (jsonb_typeof(r2.normalized_data -> tm.field) <> 'string' or lower(btrim(r2.normalized_data ->> tm.field)) not in ('true','false'))
+                 ) then 'Invalid boolean type: ' || tm.field
+               end as msg
+        from jsonb_each_text(p_type_map) with ordinality tm(field, type, ord)
+
+        union all
+
+        select af.ord,
+               case
+                 when not (r2.normalized_data ? af.field) or r2.normalized_data -> af.field is null then null
+                 when btrim(r2.normalized_data ->> af.field) !~ '^-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$'
+                   then 'Invalid amount: ' || af.field
+                 when (r2.normalized_data ->> af.field)::numeric < 0
+                   then 'Amount must be non-negative: ' || af.field
+                 when position('.' in btrim(r2.normalized_data ->> af.field)) > 0
+                   and length(split_part(btrim(r2.normalized_data ->> af.field), '.', 2)) > 2
+                   then 'Amount must have at most 2 decimal places: ' || af.field
+               end as msg
+        from jsonb_array_elements_text(p_amount_fields) with ordinality af(field, ord)
+
+        union all
+
+        select df.ord,
+               case
+                 when not (r2.normalized_data ? df.field) or r2.normalized_data -> df.field is null
+                   or jsonb_typeof(r2.normalized_data -> df.field) <> 'string'
+                   or btrim(r2.normalized_data ->> df.field) !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                    or case
-                        when btrim(r2.normalized_data ->> tm.field) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                        when btrim(r2.normalized_data ->> df.field) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                         then (
-                          substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer not between 1 and 9999
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer not between 1 and 12
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer < 1
-                          or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer >
+                          substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer not between 1 and 9999
+                          or substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer not between 1 and 12
+                          or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer < 1
+                          or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer >
                              extract(
                                day from (
                                  make_date(
-                                   greatest(1, least(9999, substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer)),
-                                   greatest(1, least(12, substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer)),
+                                   greatest(1, least(9999, substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer)),
+                                   greatest(1, least(12, substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer)),
                                    1
                                  ) + interval '1 month - 1 day'
                                )
@@ -186,6 +307,132 @@ begin
                         )
                         else true
                       end
+                 ) then 'Invalid date: ' || df.field
+               end as msg
+        from jsonb_array_elements_text(p_date_fields) with ordinality df(field, ord)
+      ) validation_messages
+    ) errs
+    where r2.batch_id = p_batch_id
+  ) v_errors
+  where r.id = v_errors.id;
+
+  select count(*)::integer into v_row_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id;
+
+  select count(*)::integer into v_valid_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Valid';
+
+  select count(*)::integer into v_error_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Invalid';
+
+  update public.import_batches
+  set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
+  where id = p_batch_id;
+
+  v_result := jsonb_build_object(
+    'batch_id', p_batch_id,
+    'row_count', v_row_count,
+    'valid_count', v_valid_count,
+    'error_count', v_error_count
+  );
+
+  perform public.complete_command_idempotency(
+    'validate_import_rows',
+    p_idempotency_key,
+    v_result
+  );
+
+  return query select p_batch_id, v_row_count, v_valid_count, v_error_count;
+end;
+$$;
+
+revoke all on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) from public, anon;
+grant execute on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) to authenticated;
+
+                   or (
+                     substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer not between 1 and 9999
+                     or substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer not between 1 and 12
+                     or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer < 1
+                     or substring(btrim(r2.normalized_data ->> df.field) from 9 for 2)::integer >
+                       case
+                         when substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer in (1,3,5,7,8,10,12) then 31
+                         when substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer in (4,6,9,11) then 30
+                         when substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer = 2
+                           and (
+                             substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer % 400 = 0
+                             or (substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer % 4 = 0
+                                 and substring(btrim(r2.normalized_data ->> df.field) from 1 for 4)::integer % 100 <> 0)
+                           ) then 29
+                         when substring(btrim(r2.normalized_data ->> df.field) from 6 for 2)::integer = 2 then 28
+                         else 0
+                       end
+                   )
+                 ) then 'Invalid date: ' || df.field
+               end as msg
+        from jsonb_array_elements_text(p_date_fields) with ordinality df(field, ord)
+      ) validation_messages
+    ) errs
+    where r2.batch_id = p_batch_id
+  ) v_errors
+  where r.id = v_errors.id;
+
+  select count(*)::integer into v_row_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id;
+
+  select count(*)::integer into v_valid_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Valid';
+
+  select count(*)::integer into v_error_count
+  from public.import_rows ir
+  where ir.batch_id = p_batch_id and ir.status = 'Invalid';
+
+  update public.import_batches
+  set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
+  where id = p_batch_id;
+
+  v_result := jsonb_build_object(
+    'batch_id', p_batch_id,
+    'row_count', v_row_count,
+    'valid_count', v_valid_count,
+    'error_count', v_error_count
+  );
+
+  perform public.complete_command_idempotency(
+    'validate_import_rows',
+    p_idempotency_key,
+    v_result
+  );
+
+  return query select p_batch_id, v_row_count, v_valid_count, v_error_count;
+end;
+$$;
+
+revoke all on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) from public, anon;
+grant execute on function public.validate_import_rows(uuid, jsonb, jsonb, jsonb, jsonb, text) to authenticated;
+
+                   or (
+                     substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer not between 1 and 9999
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer not between 1 and 12
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer < 1
+                     or substring(btrim(r2.normalized_data ->> tm.field) from 9 for 2)::integer >
+                       case
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer in (1,3,5,7,8,10,12) then 31
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer in (4,6,9,11) then 30
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer = 2
+                           and (
+                             substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 400 = 0
+                             or (substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 4 = 0
+                                 and substring(btrim(r2.normalized_data ->> tm.field) from 1 for 4)::integer % 100 <> 0)
+                           ) then 29
+                         when substring(btrim(r2.normalized_data ->> tm.field) from 6 for 2)::integer = 2 then 28
+                         else 0
+                       end
+                   )
                  ) then 'Invalid date: ' || tm.field
                  when lower(tm.type) = 'boolean' and (
                    jsonb_typeof(r2.normalized_data -> tm.field) <> 'boolean'
