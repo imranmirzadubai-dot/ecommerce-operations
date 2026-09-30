@@ -2,7 +2,7 @@
 -- This test is intentionally independent of authenticated business-row fixtures.
 begin;
 
-select plan(18);
+select plan(20);
 
 select ok(
   to_regprocedure('pg_catalog.pg_input_is_valid(text,text)') is not null,
@@ -113,6 +113,44 @@ select ok(
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='generate_import_error_report'),
   'error reports read the supported Invalid row status'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public'
+      and p.proname in (
+        'normalize_import_phone_fields',
+        'match_import_customers',
+        'reconcile_import_monetary_counts',
+        'import_historical_batch'
+      )
+      and position(E'\\\\' in pg_get_functiondef(p.oid)) > 0
+  ),
+  'affected historical-import functions contain no doubled regex backslashes'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public'
+      and p.proname in (
+        'validate_import_rows',
+        'normalize_import_phone_fields',
+        'match_import_customers',
+        'preview_import_customer_changes',
+        'reconcile_import_staging',
+        'reconcile_import_monetary_counts',
+        'import_historical_batch',
+        'generate_import_error_report'
+      )
+      and position('status = ''Error''' in pg_get_functiondef(p.oid)) > 0
+  ),
+  'historical-import functions do not assign the unsupported Error row status'
 );
 
 select * from finish();
