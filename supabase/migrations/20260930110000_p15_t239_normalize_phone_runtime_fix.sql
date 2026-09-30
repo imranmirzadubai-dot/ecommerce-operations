@@ -1,15 +1,19 @@
 -- P15-T239: fix runtime execution of phone normalization.
--- The previous hardening migration used UPDATE ... FROM LATERAL while referencing
--- the UPDATE target alias inside the lateral subquery. PostgreSQL rejects that
--- reference at execution time. This migration preserves the logic while using a
--- separate source-row alias for the lateral calculation.
+-- PostgreSQL rejects references to the UPDATE target alias from inside the
+-- lateral calculation. Use a separate source-row alias and correlate it back
+-- to the UPDATE target by primary key.
 
-CREATE OR REPLACE FUNCTION public.normalize_import_phone_fields(p_batch_id uuid, p_phone_fields jsonb, p_default_country_code text, p_idempotency_key text)
- RETURNS TABLE(batch_id uuid, row_count integer, normalized_count integer, error_count integer)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'pg_catalog', 'public'
-AS $function$
+create or replace function public.normalize_import_phone_fields(
+  p_batch_id uuid,
+  p_phone_fields jsonb,
+  p_default_country_code text,
+  p_idempotency_key text
+)
+returns table(batch_id uuid, row_count integer, normalized_count integer, error_count integer)
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
 declare
   v_actor_id uuid;
   v_status text;
@@ -128,3 +132,40 @@ begin
   ) x
   where r.id = source_row.id
     and source_row.batch_id = p_batch_id;
+
+  select count(*)::integer into v_row_count
+  from public.import_rows ir where ir.batch_id = p_batch_id;
+
+  select count(*)::integer into v_normalized_count
+  from public.import_rows r
+  where r.batch_id = p_batch_id
+    and exists (
+      select 1
+      from jsonb_array_elements_text(p_phone_fields) pf(field)
+      where r.normalized_data ? pf.field
+        and (r.normalized_data ->> pf.field) ~ '^\+[1-9][0-9]{6,14}$'
+    );
+
+  select count(*)::integer into v_error_count
+  from public.import_rows ir where ir.batch_id = p_batch_id and ir.status = 'Invalid';
+
+  update public.import_batches
+  set status = case when v_error_count = 0 then 'Ready' else 'Validating' end
+  where id = p_batch_id;
+
+  v_result := jsonb_build_object(
+    'batch_id', p_batch_id,
+    'row_count', v_row_count,
+    'normalized_count', v_normalized_count,
+    'error_count', v_error_count
+  );
+
+  perform public.complete_command_idempotency(
+    'normalize_import_phone_fields',
+    p_idempotency_key,
+    v_result
+  );
+
+  return query select p_batch_id, v_row_count, v_normalized_count, v_error_count;
+end;
+$$;
