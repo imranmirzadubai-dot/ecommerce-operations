@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
+import './styles/tablet-navigation.css'
 import { canAdministerUsers, getAuthConfig, hasOperationalAccess } from './lib/auth'
 import { useAuth } from './lib/AuthContext'
 import { getPostLoginPath } from './lib/routes'
