@@ -1,0 +1,90 @@
+/* UI-MP-1.2 — Admin responsive surface */
+.admin-users-card { min-height:0; margin-bottom:20px; }
+.admin-users-card .section-heading { align-items:flex-start; }
+.admin-users-card .section-heading > div { min-width:0; }
+.admin-user-form { grid-template-columns:minmax(220px,2fr) minmax(160px,1fr) minmax(150px,1fr) auto; }
+.admin-user-form input,
+.admin-user-form select { min-height:44px; box-sizing:border-box; }
+.admin-user-form .login-button { min-height:44px; white-space:nowrap; }
+.admin-users-table-wrap { margin-top:16px; }
+.admin-users-table-wrap .orders-table { min-width:760px; }
+.admin-users-table-wrap .orders-table th,
+.admin-users-table-wrap .orders-table td { vertical-align:middle; }
+.admin-users-table-wrap .orders-table td:first-child strong { display:block; }
+.admin-users-table-wrap .orders-table td:first-child small { overflow-wrap:anywhere; }
+.admin-users-table-wrap .orders-table .state-pill { min-height:28px; box-sizing:border-box; }
+.admin-users-table-wrap .orders-table .secondary-button { min-height:40px; }
+
+@media (max-width:900px) {
+  .admin-user-form { grid-template-columns:1fr 1fr; }
+  .admin-user-form .login-button { grid-column:1 / -1; }
+  .admin-users-table-wrap { border:0; overflow:visible; }
+  .admin-users-table-wrap .orders-table { min-width:0; display:block; }
+  .admin-users-table-wrap .orders-table thead { display:none; }
+  .admin-users-table-wrap .orders-table tbody { display:grid; gap:10px; }
+  .admin-users-table-wrap .orders-table tbody tr {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 14px;
+    padding:14px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface);
+  }
+  .admin-users-table-wrap .orders-table td {
+    display:grid;
+    gap:3px;
+    padding:0;
+    border:0;
+    white-space:normal;
+    min-width:0;
+  }
+  .admin-users-table-wrap .orders-table td:first-child { grid-column:1 / -1; }
+  .admin-users-table-wrap .orders-table td:nth-child(2)::before { content:'Email'; }
+  .admin-users-table-wrap .orders-table td:nth-child(3)::before { content:'Role'; }
+  .admin-users-table-wrap .orders-table td:nth-child(4)::before { content:'Status'; }
+  .admin-users-table-wrap .orders-table td:nth-child(5) {
+    grid-column:1 / -1;
+    padding-top:4px;
+  }
+  .admin-users-table-wrap .orders-table td::before {
+    color:var(--muted);
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    font-weight:750;
+  }
+  .admin-users-table-wrap .orders-table td:nth-child(5) .secondary-button {
+    width:100%;
+    min-height:44px;
+  }
+}
+
+@media (max-width:560px) {
+  .admin-users-card { padding:14px; border-radius:14px; }
+  .admin-users-card .section-heading { margin-bottom:14px; }
+  .admin-users-card .section-heading .check { align-self:flex-start; }
+  .admin-user-form { grid-template-columns:1fr; gap:12px; }
+  .admin-user-form .login-button {
+    grid-column:auto;
+    width:100%;
+    min-height:46px;
+  }
+  .admin-users-table-wrap .orders-table tbody tr {
+    grid-template-columns:1fr;
+    gap:9px;
+    padding:14px;
+  }
+  .admin-users-table-wrap .orders-table td:first-child,
+  .admin-users-table-wrap .orders-table td:nth-child(5) {
+    grid-column:auto;
+  }
+  .admin-users-table-wrap .orders-table td:nth-child(5) {
+    padding-top:3px;
+  }
+}
+
+@media (max-width:380px) {
+  .admin-users-card { padding:12px; }
+  .admin-users-table-wrap .orders-table tbody tr { padding:12px; }
+}
