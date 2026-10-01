@@ -1,0 +1,55 @@
+/* UI-MP-1.2 — Dispatch / Scan responsive surface */
+.dispatch-scan-workspace,
+.bulk-dispatch-workspace { min-width: 0; }
+
+.dispatch-scan-workspace .dispatch-scan-form input,
+.bulk-dispatch-workspace .dispatch-scan-form input { min-height: 48px; font-size: 15px; }
+
+.dispatch-scan-workspace .dispatch-scan-form .login-button,
+.bulk-dispatch-workspace .dispatch-scan-form .login-button { min-height: 48px; }
+
+.dispatch-scan-workspace .dispatch-parcel-panel { min-width: 0; }
+.dispatch-scan-workspace .dispatch-parcel-panel > * { min-width: 0; }
+.dispatch-scan-workspace .dispatch-parcel-panel strong,
+.dispatch-scan-workspace .dispatch-parcel-panel small { overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .dispatch-scan-workspace .dispatch-parcel-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bulk-dispatch-workspace .orders-table-wrap { margin-inline: -2px; }
+}
+
+@media (max-width: 560px) {
+  .dispatch-scan-workspace,
+  .bulk-dispatch-workspace { padding: 14px; }
+
+  .dispatch-scan-workspace .dispatch-scan-form,
+  .bulk-dispatch-workspace .dispatch-scan-form { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--app-bg); }
+
+  .dispatch-scan-workspace .dispatch-scan-form .button-group,
+  .bulk-dispatch-workspace .dispatch-scan-form .button-group { display: grid; grid-template-columns: 1fr; gap: 8px; }
+
+  .dispatch-scan-workspace .dispatch-scan-form input,
+  .bulk-dispatch-workspace .dispatch-scan-form input,
+  .dispatch-scan-workspace .dispatch-scan-form .login-button,
+  .bulk-dispatch-workspace .dispatch-scan-form .login-button { width: 100%; box-sizing: border-box; min-height: 50px; }
+
+  .dispatch-scan-workspace .dispatch-parcel-panel { grid-template-columns: 1fr; padding: 12px; }
+  .dispatch-scan-workspace .dispatch-parcel-panel > div,
+  .dispatch-scan-workspace .dispatch-parcel-panel > label { padding: 2px 0 8px; border-bottom: 1px solid var(--border); }
+  .dispatch-scan-workspace .dispatch-parcel-panel > *:last-child { border-bottom: 0; padding-bottom: 0; }
+
+  .dispatch-scan-workspace .dispatch-actions,
+  .bulk-dispatch-workspace .bulk-dispatch-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .dispatch-scan-workspace .dispatch-actions button,
+  .bulk-dispatch-workspace .bulk-dispatch-actions button { min-height: 46px; }
+
+  .bulk-dispatch-workspace .orders-table-wrap { overflow: visible; border: 0; }
+  .bulk-dispatch-workspace .orders-table { display: block; }
+  .bulk-dispatch-workspace .orders-table thead { display: none; }
+  .bulk-dispatch-workspace .orders-table tbody { display: grid; gap: 8px; }
+  .bulk-dispatch-workspace .orders-table tr { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--app-bg); }
+  .bulk-dispatch-workspace .orders-table td { display: block; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  .bulk-dispatch-workspace .orders-table td:nth-child(2) { color: var(--muted); font-size: 11px; }
+  .bulk-dispatch-workspace .orders-table td:last-child { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .bulk-dispatch-workspace .orders-table td:last-child .remove-button { min-height: 44px; }
+}
