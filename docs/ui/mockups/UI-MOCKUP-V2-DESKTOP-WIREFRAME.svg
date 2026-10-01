@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="920" viewBox="0 0 1440 920">
+<rect width="1440" height="920" fill="#f6f8fb"/>
+<rect x="0" y="0" width="240" height="920" fill="#ffffff" stroke="#d9dee7"/>
+<text x="28" y="46" font-family="Arial" font-size="22" font-weight="700" fill="#172033">E-Commerce Ops</text>
+<text x="28" y="82" font-family="Arial" font-size="12" fill="#667085">OPERATIONS</text>
+<rect x="16" y="112" width="208" height="42" rx="8" fill="#eef4ff"/><text x="34" y="138" font-family="Arial" font-size="14" fill="#175cd3">Dashboard</text><rect x="16" y="170" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="196" font-family="Arial" font-size="14" fill="#344054">Customers</text><rect x="16" y="228" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="254" font-family="Arial" font-size="14" fill="#344054">Orders</text><rect x="16" y="286" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="312" font-family="Arial" font-size="14" fill="#344054">Parcels</text><rect x="16" y="344" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="370" font-family="Arial" font-size="14" fill="#344054">Dispatch</text><rect x="16" y="402" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="428" font-family="Arial" font-size="14" fill="#344054">Delivery / NDR</text><rect x="16" y="460" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="486" font-family="Arial" font-size="14" fill="#344054">COD & Finance</text><rect x="16" y="518" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="544" font-family="Arial" font-size="14" fill="#344054">Invoices</text><rect x="16" y="576" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="602" font-family="Arial" font-size="14" fill="#344054">Reports</text><rect x="16" y="634" width="208" height="42" rx="8" fill="#fff"/><text x="34" y="660" font-family="Arial" font-size="14" fill="#344054">Admin Users</text>
+<rect x="240" y="0" width="1200" height="72" fill="#fff" stroke="#d9dee7"/>
+<text x="276" y="43" font-family="Arial" font-size="24" font-weight="700" fill="#172033">Dashboard</text>
+<text x="1180" y="42" font-family="Arial" font-size="13" fill="#667085">Operations · Admin</text>
+<text x="276" y="110" font-family="Arial" font-size="14" fill="#667085">Quick operational access</text>
+<rect x="276" y="132" width="1128" height="100" rx="12" fill="#fff" stroke="#d9dee7"/>
+<text x="300" y="164" font-family="Arial" font-size="16" font-weight="700" fill="#172033">Create Draft Order</text>
+<rect x="300" y="181" width="250" height="36" rx="7" fill="#fff" stroke="#98a2b3"/><text x="314" y="205" font-family="Arial" font-size="13" fill="#98a2b3">Customer phone</text>
+<rect x="564" y="181" width="250" height="36" rx="7" fill="#fff" stroke="#98a2b3"/><text x="578" y="205" font-family="Arial" font-size="13" fill="#98a2b3">Order reference</text>
+<rect x="828" y="181" width="150" height="36" rx="7" fill="#175cd3"/><text x="861" y="205" font-family="Arial" font-size="13" fill="#fff">Start order</text>
+<text x="276" y="282" font-family="Arial" font-size="14" fill="#667085">Existing application status</text>
+<rect x="276" y="304" width="540" height="88" rx="12" fill="#fff" stroke="#d9dee7"/><text x="300" y="336" font-family="Arial" font-size="14" font-weight="700" fill="#172033">Authentication</text><text x="300" y="362" font-family="Arial" font-size="13" fill="#667085">Authenticated</text><rect x="844" y="304" width="540" height="88" rx="12" fill="#fff" stroke="#d9dee7"/><text x="868" y="336" font-family="Arial" font-size="14" font-weight="700" fill="#172033">Workspace</text><text x="868" y="362" font-family="Arial" font-size="13" fill="#667085">Ready</text><rect x="276" y="416" width="540" height="88" rx="12" fill="#fff" stroke="#d9dee7"/><text x="300" y="448" font-family="Arial" font-size="14" font-weight="700" fill="#172033">Permissions</text><text x="300" y="474" font-family="Arial" font-size="13" fill="#667085">Role-controlled</text><rect x="844" y="416" width="540" height="88" rx="12" fill="#fff" stroke="#d9dee7"/><text x="868" y="448" font-family="Arial" font-size="14" font-weight="700" fill="#172033">Data</text><text x="868" y="474" font-family="Arial" font-size="13" fill="#667085">Authoritative backend</text>
+<rect x="276" y="552" width="1128" height="300" rx="12" fill="#fff" stroke="#d9dee7"/>
+<text x="300" y="588" font-family="Arial" font-size="16" font-weight="700" fill="#172033">Responsive behaviour</text>
+<text x="300" y="620" font-family="Arial" font-size="13" fill="#475467">390 / 430: stacked task cards and compact navigation</text>
+<text x="300" y="650" font-family="Arial" font-size="13" fill="#475467">768: collapsible navigation and horizontally scrollable data where required</text>
+<text x="300" y="680" font-family="Arial" font-size="13" fill="#475467">1280+: persistent navigation and dense operational workspace</text>
+<text x="300" y="734" font-family="Arial" font-size="13" fill="#475467">Design direction: Clean Modern SaaS + Modern Operations</text>
+<text x="300" y="764" font-family="Arial" font-size="13" fill="#475467">Selective Command Center treatment is reserved for scan / field workflows.</text>
+<text x="300" y="810" font-family="Arial" font-size="12" fill="#98a2b3">WIREFRAME — no production business logic or data changes</text>
+</svg>
