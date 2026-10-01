@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { processRto } from '../lib/parcelCommands'
 import { BulkRtoWorkspace } from './BulkRtoWorkspace'
+import '../styles/delivery-responsive.css'
 
 type Props = { accessToken: string }
 type Shipper = { id: string; name: string; active: boolean }
