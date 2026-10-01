@@ -1,0 +1,35 @@
+/* UI-MP-1.2 — Reports responsive surface */
+.report-workspace{min-width:0}
+.report-workspace .report-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:16px}
+.report-workspace .report-toolbar>button,.report-card .secondary-button{min-height:44px}
+.report-filters .secondary-button,.report-filters input{min-height:44px}
+.report-card{min-width:0}
+.report-card .report-card-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.report-table-wrap{overflow:auto}
+.report-table{min-width:620px}
+@media (max-width:900px){
+  .report-workspace .report-toolbar{flex-direction:column}
+  .report-workspace .report-toolbar>button{width:100%}
+  .report-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+  .report-filters strong{grid-column:1/-1}
+  .report-filters .secondary-button{width:100%}
+  .report-card .report-card-heading{align-items:flex-start}
+  .report-card .report-table-wrap{border:0;overflow:visible}
+  .report-card .report-table{min-width:0;display:block}
+  .report-card .report-table thead{display:none}
+  .report-card .report-table tbody{display:grid;gap:10px}
+  .report-card .report-table tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+  .report-card .report-table td{display:grid;gap:3px;padding:0;border:0;white-space:normal;min-width:0;overflow-wrap:anywhere}
+  .report-card .report-table td::before{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:750}
+  .report-card .report-table td:nth-child(1){grid-column:1/-1}
+}
+@media (max-width:560px){
+  .report-workspace{padding:14px;border-radius:14px}
+  .report-filters{grid-template-columns:1fr}
+  .report-filters strong{grid-column:auto}
+  .report-card{padding:12px}
+  .report-card .report-card-heading{flex-direction:column;align-items:stretch}
+  .report-card .report-card-heading .secondary-button{width:100%}
+  .report-card .report-table tbody tr{grid-template-columns:1fr}
+  .report-card .report-table td:nth-child(1){grid-column:auto}
+}
