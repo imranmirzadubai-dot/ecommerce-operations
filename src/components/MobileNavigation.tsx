@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react'
-
 type Props = {
   activeWorkspace: string
   authenticated: boolean
