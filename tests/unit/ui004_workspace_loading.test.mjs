@@ -8,7 +8,7 @@ test('UI-004 lazy-loads authenticated workspaces and mounts only the active work
   assert.match(app, /lazy\(\(\) => import\('\.\/components\/OrdersWorkspace'\)/)
   assert.match(app, /lazy\(\(\) => import\('\.\/components\/ReportWorkspace'\)/)
   assert.match(app, /const \[activeWorkspace, setActiveWorkspace\] = useState\('Dashboard'\)/)
-  assert.match(app, /function navigateTo\(item: string\) \{ setActiveWorkspace\(item\) \}/)
+  assert.match(app, /function navigateTo\(item: string\) \{ setActiveWorkspace\(item\); setMobileMenuOpen\(false\) \}/)
   assert.match(app, /activeWorkspace === 'Orders'/)
   assert.match(app, /activeWorkspace === 'Reports'/)
   assert.match(app, /activeWorkspace === 'Customers'/)
