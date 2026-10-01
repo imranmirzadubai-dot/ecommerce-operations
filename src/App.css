@@ -267,3 +267,64 @@
   .mobile-menu-item.active { background:#eef4ff; color:#175cd3; }
   .mobile-menu-item.danger { margin-top:8px; color:#b42318; background:#fff1f0; }
 }
+
+
+/* Approved visual baseline — Orders cards and state treatment */
+.orders-workspace { background:var(--surface); }
+.orders-workspace .section-heading h2 { font-size:18px; }
+.orders-workspace .order-search > label,
+.orders-workspace .order-filters label,
+.orders-workspace .order-date-views label { color:var(--text-h); }
+.orders-workspace .orders-table td:first-child .secondary-button {
+  border:0;
+  background:transparent;
+  color:#172033;
+  padding:0;
+  font-weight:800;
+  font-size:12px;
+}
+.orders-workspace .orders-table td:nth-child(2) span { color:var(--text-h); font-weight:650; }
+.orders-workspace .state-pill {
+  border:0;
+  background:#eef4ff;
+  color:#175cd3;
+}
+.orders-workspace .state-pill[data-status="success"] { background:#e8f7ee; color:#067647; }
+.orders-workspace .state-pill[data-status="warning"] { background:#fff3e8; color:#b54708; }
+.orders-workspace .state-pill[data-status="danger"] { background:#ffeceb; color:#b42318; }
+
+@media (max-width:560px) {
+  .orders-workspace {
+    padding:14px;
+    border-radius:14px;
+  }
+  .orders-workspace .section-heading h2 { font-size:17px; }
+  .orders-workspace .order-search { padding:0; }
+  .orders-workspace .order-search .button-group { display:grid; grid-template-columns:1fr auto; }
+  .orders-workspace .order-search .button-group .login-button { grid-column:auto; min-height:44px; }
+  .orders-workspace .order-search .button-group .secondary-button { min-height:44px; }
+  .orders-workspace .order-filters {
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    overflow:auto;
+    padding-bottom:2px;
+  }
+  .orders-workspace .order-filters > label { min-width:150px; }
+  .orders-workspace .order-filters > .button-group { min-width:150px; }
+  .orders-workspace .orders-table tbody tr {
+    position:relative;
+    padding:15px;
+    gap:8px 12px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  .orders-workspace .orders-table td:first-child .secondary-button { font-size:13px; }
+  .orders-workspace .orders-table td:nth-child(3) .state-pill { width:max-content; }
+  .orders-workspace .orders-table td:nth-child(4) { font-weight:750; color:var(--text-h); }
+  .orders-workspace .orders-table td:nth-child(6) .button-group {
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:7px;
+  }
+  .orders-workspace .orders-table td:nth-child(6) .button-group .login-button {
+    grid-column:1 / -1;
+  }
+}
