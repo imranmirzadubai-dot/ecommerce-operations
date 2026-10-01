@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '../styles/cod-finance-responsive.css'
 import { getAuthConfig } from '../lib/auth'
 
 type Props = { accessToken: string; isAdmin: boolean }
@@ -185,7 +186,7 @@ export function CodFinanceWorkspace({ accessToken, isAdmin }: Props) {
   const receiptableAllocations = allocations.filter((item) => !receipts.some((receipt) => receipt.parcel_id === item.parcel_id))
   const exceptionReceipts = receipts.filter((receipt) => receipt.state === 'Exception')
 
-  return <section className="card" aria-labelledby="cod-finance-title">
+  return <section className="card cod-finance-workspace" aria-labelledby="cod-finance-title">
     <div className="section-heading">
       <div><span className="eyebrow">Finance Gate · T236</span><h2 id="cod-finance-title">COD &amp; Finance</h2><p>Manage the order-level COD obligation, parcel allocation, collection receipt and exception resolution through authoritative commands.</p></div>
       <span className="check">Operations / Admin</span>
