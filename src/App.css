@@ -138,3 +138,24 @@
   .report-card .section-heading { flex-direction:column; }
   .report-card .section-heading .secondary-button { width:100%; }
 }
+
+
+/* Dashboard operational status surface — contract-backed data only. */
+.operational-status-indicators { margin-bottom:20px; padding:18px; border:1px solid var(--border); border-radius:10px; background:var(--surface); box-shadow:var(--shadow-1,0 1px 2px rgba(15,23,42,.04)); }
+.operational-status-indicators .section-heading { margin-bottom:12px; }
+.status-indicator-list { display:grid; gap:8px; }
+.status-indicator-row { display:grid; grid-template-columns:minmax(120px,180px) minmax(0,1fr); gap:12px; align-items:center; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--app-bg); }
+.status-indicator-row > strong { color:var(--text-h); font-size:12px; }
+.status-indicators { display:flex; flex-wrap:wrap; gap:6px; }
+.status-indicator-row .state-pill { display:inline-flex; align-items:center; min-height:30px; border:1px solid var(--border); border-radius:999px; font-size:10px; }
+@media (max-width:900px) {
+  .operational-status-indicators { padding:16px; }
+  .status-indicator-row { grid-template-columns:1fr; gap:8px; }
+}
+@media (max-width:560px) {
+  .operational-status-indicators { padding:14px; }
+  .operational-status-indicators .section-heading { flex-direction:column; }
+  .operational-status-indicators .section-heading .secondary-button { width:100%; min-height:44px; }
+  .status-indicators { display:grid; grid-template-columns:1fr; }
+  .status-indicator-row .state-pill { width:100%; }
+}
