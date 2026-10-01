@@ -363,3 +363,21 @@
 @media (max-width:380px) {
   .customer-history-workspace .orders-table tbody tr { grid-template-columns:1fr; }
 }
+
+
+.parcel-workspace{display:grid;gap:16px}
+.parcel-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.8fr);gap:16px}
+.parcel-search label,.parcel-control-grid label,.parcel-action-panel label{display:grid;gap:6px}
+.parcel-orders{display:grid;gap:8px;max-height:560px;overflow:auto}
+.parcel-order{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;text-align:left;width:100%;min-height:56px;padding:12px;border:1px solid var(--border,#dfe4ea);border-radius:10px;background:var(--surface,#fff);cursor:pointer}
+.parcel-order:hover,.parcel-order.selected{border-color:var(--brand,#2563eb);background:var(--surface-subtle,#f7f9fc)}
+.parcel-order span{font-size:.78rem;color:var(--text-muted,#667085)}
+.parcel-control-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.parcel-control-grid select,.parcel-action-panel input,.parcel-action-panel select,.parcel-search input{min-height:44px}
+.parcel-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.parcel-summary span{display:grid;gap:4px;padding:12px;border:1px solid var(--border,#dfe4ea);border-radius:10px;background:var(--surface-subtle,#f7f9fc)}
+.parcel-action-panel{display:grid;grid-template-columns:minmax(180px,1fr) 150px auto;gap:14px;align-items:end;padding:16px 0;border-top:1px solid var(--border,#dfe4ea)}
+.parcel-action-panel .form-note{margin:4px 0 0}
+.parcel-danger-zone{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--border,#dfe4ea)}
+@media (max-width:900px){.parcel-grid{grid-template-columns:1fr}.parcel-orders{max-height:300px}}
+@media (max-width:640px){.parcel-control-grid,.parcel-summary{grid-template-columns:1fr}.parcel-order{grid-template-columns:1fr auto}.parcel-order span:last-child{grid-column:1/-1}.parcel-action-panel{grid-template-columns:1fr}.parcel-danger-zone{align-items:stretch;flex-direction:column}.parcel-danger-zone .remove-button{width:100%;min-height:44px}}
