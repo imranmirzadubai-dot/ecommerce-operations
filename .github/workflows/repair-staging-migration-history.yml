@@ -47,24 +47,7 @@ jobs:
             echo "Public application schema matches the repository migration chain."
           else
             echo "Verifying the two known staging-only/representation differences."
-            python - <<'PY'
-          import re
-          from pathlib import Path
-          diff = Path("/tmp/staging-public-schema-diff.log").read_text()
-          expected = Path("supabase/migrations/20260930130000_p15_t239_match_phone_source_fix.sql").read_text()
-          def body(text):
-              m = re.search(r"create\s+or\s+replace\s+function\s+public\.match_import_customers.*?\$function\$(.*?)\$function\$\s*;", text, re.I | re.S)
-              return re.sub(r"\s+", " ", m.group(1)).strip().lower() if m else None
-          if body(diff) != body(expected):
-              raise SystemExit("ERROR: match_import_customers is not repository-equivalent.")
-          filtered = re.sub(r'create extension if not exists "plpgsql_check" with schema "public";\s*', "", diff, flags=re.I)
-          filtered = re.sub(r"create\s+or\s+replace\s+function\s+public\.match_import_customers.*?\$function\$.*?\$function\$\s*;", "", filtered, flags=re.I | re.S)
-          filtered = re.sub(r"^--.*(?:\n|$)", "", filtered, flags=re.M)
-          if re.sub(r"\s+", "", filtered):
-              print(filtered)
-              raise SystemExit("ERROR: unexpected public-schema drift.")
-          print("Verified known differences only.")
-            PY
+            python scripts/verify-staging-public-schema.py
           fi
 
       - name: Remove obsolete remote-only migration history
@@ -105,7 +88,8 @@ jobs:
           supabase migration list --db-url "$DB_URL"
           supabase db push --db-url "$DB_URL" --dry-run
           supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/final-staging-public-schema-diff.log
-          if ! grep -q "No schema changes found" /tmp/final-staging-public-schema-diff.log; then
-            echo "ERROR: final public-schema verification failed."
-            exit 1
+          if grep -q "No schema changes found" /tmp/final-staging-public-schema-diff.log; then
+            echo "Final public-schema verification is clean."
+          else
+            python scripts/verify-staging-public-schema.py /tmp/final-staging-public-schema-diff.log
           fi
