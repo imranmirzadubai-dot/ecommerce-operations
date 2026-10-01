@@ -88,7 +88,8 @@ jobs:
           supabase migration list --db-url "$DB_URL"
           supabase db push --db-url "$DB_URL" --dry-run
           supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/final-staging-public-schema-diff.log
-          if ! grep -q "No schema changes found" /tmp/final-staging-public-schema-diff.log; then
-            echo "ERROR: final public-schema verification failed."
-            exit 1
+          if grep -q "No schema changes found" /tmp/final-staging-public-schema-diff.log; then
+            echo "Final public-schema verification is clean."
+          else
+            python scripts/verify-staging-public-schema.py /tmp/final-staging-public-schema-diff.log
           fi
