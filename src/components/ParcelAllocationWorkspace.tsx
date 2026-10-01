@@ -70,11 +70,18 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
     setMessage('')
   }
 
-  async function run(action: () => Promise<unknown>, success: string) {
+  async function run<T>(action: () => Promise<T>, success: string, onSuccess?: (result: T) => void) {
     setBusy(true); setError(''); setMessage('')
-    try { await action(); setMessage(success); await load() }
-    catch (e) { setError(e instanceof Error ? e.message : 'Operation failed') }
-    finally { setBusy(false) }
+    try {
+      const result = await action()
+      onSuccess?.(result)
+      setMessage(success)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Operation failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleCreateParcel() {
