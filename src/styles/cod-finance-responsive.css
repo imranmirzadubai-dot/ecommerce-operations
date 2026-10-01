@@ -1,0 +1,31 @@
+/* UI-MP-1.2 — COD & Finance responsive surface */
+.cod-finance-workspace { min-height: 0; }
+.cod-finance-workspace .cod-finance-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.35fr); gap:14px; }
+.cod-finance-workspace .cod-finance-section { min-width:0; }
+.cod-finance-workspace .cod-finance-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.cod-finance-workspace input,
+.cod-finance-workspace select { min-height:44px; box-sizing:border-box; }
+.cod-finance-workspace .orders-table-wrap { overflow:auto; }
+@media (max-width:900px) {
+  .cod-finance-workspace .cod-finance-grid { grid-template-columns:1fr; }
+}
+@media (max-width:560px) {
+  .cod-finance-workspace.cod-finance-workspace { padding:14px; border-radius:14px; }
+  .cod-finance-workspace .section-heading { gap:10px; }
+  .cod-finance-workspace .cod-finance-actions { display:grid; grid-template-columns:1fr; }
+  .cod-finance-workspace .cod-finance-actions > button { width:100%; min-height:48px; }
+  .cod-finance-workspace .orders-table-wrap { border:0; overflow:visible; }
+  .cod-finance-workspace .orders-table-wrap table { display:block; }
+  .cod-finance-workspace .orders-table-wrap thead { display:none; }
+  .cod-finance-workspace .orders-table-wrap tbody { display:grid; gap:8px; }
+  .cod-finance-workspace .orders-table-wrap tr { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:12px; border:1px solid var(--border); border-radius:9px; background:var(--surface); }
+  .cod-finance-workspace .orders-table-wrap td { display:grid; gap:3px; padding:0; border:0; white-space:normal; overflow-wrap:anywhere; }
+  .cod-finance-workspace .orders-table-wrap td::before { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.08em; font-weight:750; }
+  .cod-finance-workspace .orders-table-wrap td:nth-child(1)::before { content:'Parcel / Order'; }
+  .cod-finance-workspace .orders-table-wrap td:nth-child(2)::before { content:'State / Expected'; }
+  .cod-finance-workspace .orders-table-wrap td:nth-child(3)::before { content:'Amount / Receipt'; }
+  .cod-finance-workspace .orders-table-wrap td:nth-child(4)::before { content:'Status / Date'; }
+}
+@media (max-width:380px) {
+  .cod-finance-workspace .orders-table-wrap tr { grid-template-columns:1fr; }
+}
