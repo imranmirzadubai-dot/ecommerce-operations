@@ -51,6 +51,41 @@ jobs:
             exit 1
           fi
 
+      - name: Remove obsolete remote-only migration history
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_PASSWORD"
+          DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
+          DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+
+          supabase migration list --db-url "$DB_URL" > /tmp/migration-list.txt
+
+          # The schema-diff gate above proves the live schema already matches
+          # the repository migration chain. Any migration that exists only in
+          # remote history is therefore obsolete tracking metadata and can be
+          # marked reverted without executing or undoing SQL.
+          OBSOLETE="$(
+            awk -F '|' '
+              /^[[:space:]]*\|[[:space:]]*[0-9]{14}/ {
+                local=$1
+                remote=$2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", local)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote)
+                if (local == "" && remote != "") print remote
+              }
+            ' /tmp/migration-list.txt
+          )"
+
+          if [ -z "$OBSOLETE" ]; then
+            echo "No obsolete remote-only migrations remain."
+          else
+            echo "Marking obsolete remote-only migration history as reverted:"
+            printf '%s\n' "$OBSOLETE"
+            supabase migration repair --db-url "$DB_URL" --status reverted $OBSOLETE
+          fi
+
       - name: Mark schema-equivalent repository migrations as applied
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
