@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { dispatchParcel } from '../lib/parcelCommands'
 import { BulkDispatchWorkspace } from './BulkDispatchWorkspace'
+import '../styles/dispatch-responsive.css'
 
 type Props = { accessToken: string }
 type Shipper = { id: string; name: string; active: boolean }
