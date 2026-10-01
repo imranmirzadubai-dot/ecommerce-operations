@@ -1,0 +1,150 @@
+/* UI-MP-1.2 — Delivery / NDR / RTO responsive surface */
+.dispatch-scan-workspace textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--app-bg);
+  color: var(--text-h);
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.dispatch-scan-workspace textarea:focus { border-color: var(--text-h); }
+.dispatch-scan-workspace .dispatch-actions { flex-wrap: wrap; }
+.dispatch-scan-workspace .dispatch-actions button { min-height: 46px; }
+
+/* Bulk RTO uses a dedicated table wrapper/class; keep it mobile-safe without
+   changing the underlying RTO result contract. */
+.dispatch-scan-workspace .orders-table-wrapper {
+  overflow: auto;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.dispatch-scan-workspace .orders-table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.dispatch-scan-workspace .orders-table-wrapper th,
+.dispatch-scan-workspace .orders-table-wrapper td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dispatch-scan-workspace .orders-table-wrapper th {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.dispatch-scan-workspace .orders-table-wrapper tbody tr:last-child td { border-bottom: 0; }
+
+@media (max-width: 900px) {
+  .dispatch-scan-workspace .dispatch-actions button { min-height: 44px; }
+}
+
+@media (max-width: 560px) {
+  .dispatch-scan-workspace.dispatch-scan-workspace { padding: 14px; }
+
+  .dispatch-scan-workspace .dispatch-scan-form input,
+  .dispatch-scan-workspace .dispatch-scan-form .login-button,
+  .dispatch-scan-workspace .order-form input,
+  .dispatch-scan-workspace .order-form select,
+  .dispatch-scan-workspace .order-form .login-button,
+  .dispatch-scan-workspace .order-form .secondary-button {
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+
+  .dispatch-scan-workspace .dispatch-scan-form .button-group,
+  .dispatch-scan-workspace .order-form .button-group,
+  .dispatch-scan-workspace .dispatch-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .dispatch-scan-workspace .dispatch-scan-form input,
+  .dispatch-scan-workspace .dispatch-scan-form .login-button,
+  .dispatch-scan-workspace .order-form input,
+  .dispatch-scan-workspace .order-form select,
+  .dispatch-scan-workspace .order-form .login-button,
+  .dispatch-scan-workspace .order-form .secondary-button,
+  .dispatch-scan-workspace .dispatch-actions button { width: 100%; }
+
+  .dispatch-scan-workspace .dispatch-parcel-panel {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 12px;
+  }
+
+  .dispatch-scan-workspace .dispatch-parcel-panel > div {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dispatch-scan-workspace .dispatch-parcel-panel > div:last-child { border-bottom: 0; }
+
+  .dispatch-scan-workspace .orders-table-wrapper {
+    overflow: visible;
+    border: 0;
+  }
+
+  .dispatch-scan-workspace .orders-table-wrapper table,
+  .dispatch-scan-workspace .orders-table-wrapper tbody { display: block; }
+
+  .dispatch-scan-workspace .orders-table-wrapper thead { display: none; }
+
+  .dispatch-scan-workspace .orders-table-wrapper tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .dispatch-scan-workspace .orders-table-wrapper tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+  }
+
+  .dispatch-scan-workspace .orders-table-wrapper td {
+    display: grid;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .dispatch-scan-workspace .orders-table-wrapper td::before {
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 750;
+  }
+
+  .dispatch-scan-workspace .orders-table-wrapper td:nth-child(1)::before { content: 'Parcel'; }
+  .dispatch-scan-workspace .orders-table-wrapper td:nth-child(2)::before { content: 'State'; }
+  .dispatch-scan-workspace .orders-table-wrapper td:nth-child(3)::before { content: 'Stored shipper'; }
+  .dispatch-scan-workspace .orders-table-wrapper td:nth-child(4)::before { content: 'Tracking'; }
+}
+
+@media (max-width: 380px) {
+  .dispatch-scan-workspace .orders-table-wrapper tr { grid-template-columns: 1fr; }
+}
