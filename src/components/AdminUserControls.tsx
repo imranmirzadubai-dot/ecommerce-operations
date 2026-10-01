@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { canAdministerUsers, getAuthConfig, type Profile } from '../lib/auth'
+import '../styles/admin-responsive.css'
 
 export function AdminUserControls({ accessToken, profile }: { accessToken: string; profile: Profile | null }) {
   const [profiles, setProfiles] = useState<Profile[]>([])
