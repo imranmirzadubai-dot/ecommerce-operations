@@ -42,11 +42,14 @@ jobs:
           echo "Current staging migration history:"
           supabase migration list --db-url "$DB_URL"
 
-          echo "Comparing the live staging schema with the complete repository migration chain..."
-          supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/staging-schema-diff.log
+          echo "Comparing the live public application schema with the repository migration chain..."
+          # Supabase documents --schema public as the appropriate way to scope
+          # a diff. The unscoped legacy migra diff also inspects managed schemas
+          # and can report platform-owned objects such as storage triggers.
+          supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/staging-public-schema-diff.log
 
-          if ! grep -q "No schema changes found" /tmp/staging-schema-diff.log; then
-            echo "ERROR: staging schema differs from the repository migration chain."
+          if ! grep -q "No schema changes found" /tmp/staging-public-schema-diff.log; then
+            echo "ERROR: public application schema differs from the repository migration chain."
             echo "No migration-history repair will be performed."
             exit 1
           fi
