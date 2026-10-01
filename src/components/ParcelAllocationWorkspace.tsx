@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { listOrders } from '../lib/commands'
 import {
   allocateParcelItem,
@@ -39,6 +39,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loadedKey, setLoadedKey] = useState('')
 
   const load = useCallback(async () => {
     setError('')
@@ -50,13 +51,11 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
     }
   }, [accessToken, search])
 
-  useEffect(() => { void load() }, [load])
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId)
   const parcels = selectedOrder?.parcels ?? []
   const items = selectedOrder?.order_items ?? []
   const selectedParcel = parcels.find((parcel) => parcel.id === selectedParcelId)
-  const selectedItem = items.find((item) => item.id === selectedItemId)
 
   const allocationReady = Boolean(selectedParcelId && selectedItemId && Number.isInteger(Number(quantity)) && Number(quantity) > 0)
   const canCorrect = Boolean(lastParcelItemId && correctionQuantity && Number.isInteger(Number(correctionQuantity)) && Number(correctionQuantity) >= 0)
