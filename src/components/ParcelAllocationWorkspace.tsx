@@ -35,6 +35,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
   const [selectedItemId, setSelectedItemId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [correctionQuantity, setCorrectionQuantity] = useState('')
+  const [lastParcelItemId, setLastParcelItemId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -58,13 +59,14 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
   const selectedItem = items.find((item) => item.id === selectedItemId)
 
   const allocationReady = Boolean(selectedParcelId && selectedItemId && Number.isInteger(Number(quantity)) && Number(quantity) > 0)
-  const canCorrect = Boolean(correctionQuantity && selectedItemId && selectedParcelId)
+  const canCorrect = Boolean(lastParcelItemId && correctionQuantity && Number.isInteger(Number(correctionQuantity)) && Number(correctionQuantity) >= 0)
 
   function selectOrder(id: string) {
     setSelectedOrderId(id)
     const order = orders.find((row) => row.id === id)
     setSelectedParcelId(order?.parcels?.[0]?.id ?? '')
     setSelectedItemId(order?.order_items?.[0]?.id ?? '')
+    setLastParcelItemId('')
     setMessage('')
   }
 
@@ -93,32 +95,38 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
         p_idempotency_key: crypto.randomUUID(),
       }),
       'Allocation recorded successfully.',
+      (result) => { const row = result[0]; if (row?.parcel_item_id) setLastParcelItemId(row.parcel_item_id) },
     )
   }
 
   async function handleSplit() {
     if (!allocationReady) return
+    const secondParcelId = window.prompt('Enter the second parcel ID for the split allocation')
+    if (!secondParcelId || secondParcelId === selectedParcelId) return
+    const secondQuantity = Number(window.prompt('Enter the quantity for the second parcel') ?? '')
+    if (!Number.isInteger(secondQuantity) || secondQuantity <= 0) return
     await run(
       () => allocateParcelItemsSplit(accessToken, {
         p_order_item_id: selectedItemId,
-        p_allocations: [{ parcel_id: selectedParcelId, quantity: Number(quantity) }],
+        p_allocations: [{ parcel_id: selectedParcelId, quantity: Number(quantity) }, { parcel_id: secondParcelId, quantity: secondQuantity }],
         p_idempotency_key: crypto.randomUUID(),
       }),
       'Split allocation recorded successfully.',
+      (result) => { const row = result[0]; if (row?.parcel_item_id) setLastParcelItemId(row.parcel_item_id) },
     )
   }
 
   async function handleCorrect() {
     if (!canCorrect) return
-    const parcelItemId = selectedParcel?.id
-    if (!parcelItemId) { setError('Select an allocated parcel item before correcting it.'); return }
+    if (!lastParcelItemId) return
     await run(
       () => correctParcelAllocation(accessToken, {
-        p_parcel_item_id: parcelItemId,
+        p_parcel_item_id: lastParcelItemId,
         p_corrected_quantity: Number(correctionQuantity),
         p_idempotency_key: crypto.randomUUID(),
       }),
       'Allocation correction submitted.',
+      () => setLastParcelItemId(''),
     )
   }
 
