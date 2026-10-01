@@ -4,6 +4,7 @@ import { downloadExcelWorkbook } from '../lib/excel'
 import { filterRowsByDate, resolveDatePreset, type DatePreset, type DateRange } from '../lib/reportFilters'
 import { createCorrelationContext, correlationHeaders } from '../lib/correlation'
 import { logger } from '../lib/logger'
+import '../styles/report-responsive.css'
 
 type Props = { accessToken: string }
 type Report = { name: string; title: string; columns: string[]; dateColumn?: string; rows: Record<string, unknown>[] }
@@ -28,12 +29,7 @@ async function readReport(accessToken: string, report: Omit<Report, 'rows'>): Pr
   const select = report.columns.join(',')
   const requestContext = createCorrelationContext()
   const response = await fetch(`${config.url}/rest/v1/${report.name}?select=${encodeURIComponent(select)}`, {
-    headers: {
-      apikey: config.publishableKey,
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-      ...correlationHeaders(requestContext.correlationId),
-    },
+    headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}`, Accept: 'application/json', ...correlationHeaders(requestContext.correlationId) },
   })
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
@@ -55,17 +51,13 @@ export function ReportWorkspace({ accessToken }: Props) {
   const [error, setError] = useState('')
   const [preset, setPreset] = useState<DatePreset>('all')
   const [customRange, setCustomRange] = useState<DateRange>({ from: '', to: '' })
-
   const dateRange = useMemo(() => preset === 'custom' ? customRange : resolveDatePreset(preset), [preset, customRange])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    try {
-      const loaded = await Promise.all(REPORTS.map(async (report) => ({ ...report, rows: await readReport(accessToken, report) })))
-      setReports(loaded)
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load reports')
-    } finally { setLoading(false) }
+    try { setReports(await Promise.all(REPORTS.map(async (report) => ({ ...report, rows: await readReport(accessToken, report) })))) }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'Unable to load reports') }
+    finally { setLoading(false) }
   }, [accessToken])
 
   useEffect(() => {
@@ -75,8 +67,7 @@ export function ReportWorkspace({ accessToken }: Props) {
 
   function setPresetAndRange(nextPreset: DatePreset) {
     setPreset(nextPreset)
-    if (nextPreset === 'custom') return
-    setCustomRange(resolveDatePreset(nextPreset))
+    if (nextPreset !== 'custom') setCustomRange(resolveDatePreset(nextPreset))
   }
 
   function exportReport(report: Report, rows: Record<string, unknown>[]) {
@@ -85,7 +76,7 @@ export function ReportWorkspace({ accessToken }: Props) {
   }
 
   return <section className="card report-workspace" aria-label="Reports">
-    <div className="section-heading"><div><span className="eyebrow">Reports</span><h2>Operational Reports</h2><p>Authenticated read-only reporting from the authoritative Phase 13 report views.</p></div><button className="secondary-button" type="button" onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh reports'}</button></div>
+    <div className="section-heading report-toolbar"><div><span className="eyebrow">Reports</span><h2>Operational Reports</h2><p>Authenticated read-only reporting from the authoritative Phase 13 report views.</p></div><button className="secondary-button" type="button" onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh reports'}</button></div>
     <div className="report-filters" aria-label="Report date filters">
       <strong>Date range</strong>
       {(['all', 'today', 'yesterday', 'last7', 'last30', 'custom'] as DatePreset[]).map((value) => <button key={value} className={preset === value ? 'secondary-button active' : 'secondary-button'} type="button" onClick={() => setPresetAndRange(value)}>{value === 'all' ? 'All dates' : value === 'today' ? 'Today' : value === 'yesterday' ? 'Yesterday' : value === 'last7' ? 'Last 7 days' : value === 'last30' ? 'Last 30 days' : 'Custom'}</button>)}
@@ -97,7 +88,10 @@ export function ReportWorkspace({ accessToken }: Props) {
       const validRange = !dateRange.from || !dateRange.to || dateRange.from <= dateRange.to
       const filteredRows = validRange ? filterRowsByDate(report.rows, report.dateColumn, dateRange) : []
       const hasDateFilter = Boolean(report.dateColumn && (dateRange.from || dateRange.to))
-      return <article className="report-card" key={report.name}><div className="section-heading"><div><strong>{report.title}</strong><span className="form-note">{filteredRows.length} row{filteredRows.length === 1 ? '' : 's'}{hasDateFilter ? ` · filtered by ${report.dateColumn?.replaceAll('_', ' ')}` : ''}</span></div><button className="secondary-button" type="button" onClick={() => exportReport(report, filteredRows)} disabled={!filteredRows.length}>Export Excel</button></div><div className="report-table-wrap"><table className="report-table"><thead><tr>{report.columns.map((column) => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{filteredRows.slice(0, 25).map((row, index) => <tr key={index}>{report.columns.map((column) => <td key={column}>{display(row[column])}</td>)}</tr>)}</tbody></table>{!filteredRows.length && <p className="form-note">No rows returned for the current authenticated dataset and date filter.</p>}{filteredRows.length > 25 && <p className="form-note">Showing the first 25 rows. Export includes the complete filtered dataset.</p>}{!report.dateColumn && (dateRange.from || dateRange.to) && <p className="form-note">Date filtering is not applied because this report has no authoritative date column.</p>}</div></article>
+      return <article className="report-card" key={report.name}>
+        <div className="section-heading report-card-heading"><div><strong>{report.title}</strong><span className="form-note">{filteredRows.length} row{filteredRows.length === 1 ? '' : 's'}{hasDateFilter ? ` · filtered by ${report.dateColumn?.replaceAll('_', ' ')}` : ''}</span></div><button className="secondary-button" type="button" onClick={() => exportReport(report, filteredRows)} disabled={!filteredRows.length}>Export Excel</button></div>
+        <div className="report-table-wrap"><table className="report-table"><thead><tr>{report.columns.map((column) => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{filteredRows.slice(0, 25).map((row, index) => <tr key={index}>{report.columns.map((column) => <td key={column} data-label={column.replaceAll('_', ' ')}>{display(row[column])}</td>)}</tr>)}</tbody></table>{!filteredRows.length && <p className="form-note">No rows returned for the current authenticated dataset and date filter.</p>}{filteredRows.length > 25 && <p className="form-note">Showing the first 25 rows. Export includes the complete filtered dataset.</p>}{!report.dateColumn && (dateRange.from || dateRange.to) && <p className="form-note">Date filtering is not applied because this report has no authoritative date column.</p>}</div>
+      </article>
     })}
   </section>
 }
