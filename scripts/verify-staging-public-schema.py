@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import re
+import sys
 from pathlib import Path
 
-DIFF_PATH = Path("/tmp/staging-public-schema-diff.log")
+DIFF_PATH = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/staging-public-schema-diff.log")
 EXPECTED_PATH = Path("supabase/migrations/20260930130000_p15_t239_match_phone_source_fix.sql")
 
 diff = DIFF_PATH.read_text()
