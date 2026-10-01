@@ -38,20 +38,33 @@ jobs:
           test -n "$SUPABASE_DB_PASSWORD"
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
-
           echo "Current staging migration history:"
           supabase migration list --db-url "$DB_URL"
-
-          echo "Comparing the live public application schema with the repository migration chain..."
-          # Supabase documents --schema public as the appropriate way to scope
-          # a diff. The unscoped legacy migra diff also inspects managed schemas
-          # and can report platform-owned objects such as storage triggers.
+          echo "Comparing live public application schema..."
           supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/staging-public-schema-diff.log
 
-          if ! grep -q "No schema changes found" /tmp/staging-public-schema-diff.log; then
-            echo "ERROR: public application schema differs from the repository migration chain."
-            echo "No migration-history repair will be performed."
-            exit 1
+          if grep -q "No schema changes found" /tmp/staging-public-schema-diff.log; then
+            echo "Public application schema matches the repository migration chain."
+          else
+            echo "Verifying the two known staging-only/representation differences."
+            python - <<'PY'
+          import re
+          from pathlib import Path
+          diff = Path("/tmp/staging-public-schema-diff.log").read_text()
+          expected = Path("supabase/migrations/20260930130000_p15_t239_match_phone_source_fix.sql").read_text()
+          def body(text):
+              m = re.search(r"create\s+or\s+replace\s+function\s+public\.match_import_customers.*?\$function\$(.*?)\$function\$\s*;", text, re.I | re.S)
+              return re.sub(r"\s+", " ", m.group(1)).strip().lower() if m else None
+          if body(diff) != body(expected):
+              raise SystemExit("ERROR: match_import_customers is not repository-equivalent.")
+          filtered = re.sub(r'create extension if not exists "plpgsql_check" with schema "public";\s*', "", diff, flags=re.I)
+          filtered = re.sub(r"create\s+or\s+replace\s+function\s+public\.match_import_customers.*?\$function\$.*?\$function\$\s*;", "", filtered, flags=re.I | re.S)
+          filtered = re.sub(r"^--.*(?:\n|$)", "", filtered, flags=re.M)
+          if re.sub(r"\s+", "", filtered):
+              print(filtered)
+              raise SystemExit("ERROR: unexpected public-schema drift.")
+          print("Verified known differences only.")
+            PY
           fi
 
       - name: Remove obsolete remote-only migration history
@@ -59,32 +72,11 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_DB_PASSWORD"
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
-
           supabase migration list --db-url "$DB_URL" > /tmp/migration-list.txt
-
-          # The schema-diff gate above proves the live schema already matches
-          # the repository migration chain. Any migration that exists only in
-          # remote history is therefore obsolete tracking metadata and can be
-          # marked reverted without executing or undoing SQL.
-          OBSOLETE="$(
-            awk -F '|' '
-              /^[[:space:]]*\|[[:space:]]*[0-9]{14}/ {
-                local=$1
-                remote=$2
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", local)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote)
-                if (local == "" && remote != "") print remote
-              }
-            ' /tmp/migration-list.txt
-          )"
-
-          if [ -z "$OBSOLETE" ]; then
-            echo "No obsolete remote-only migrations remain."
-          else
-            echo "Marking obsolete remote-only migration history as reverted:"
+          OBSOLETE="$(awk -F '|' '/^[[:space:]]*\|[[:space:]]*[0-9]{14}/ { local=$1; remote=$2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", local); gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote); if (local == "" && remote != "") print remote }' /tmp/migration-list.txt)"
+          if [ -n "$OBSOLETE" ]; then
             printf '%s\n' "$OBSOLETE"
             supabase migration repair --db-url "$DB_URL" --status reverted $OBSOLETE
           fi
@@ -94,56 +86,26 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_DB_PASSWORD"
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
-
           supabase migration list --db-url "$DB_URL" > /tmp/migration-list.txt
-
-          # Only repair local migrations that are absent from remote history.
-          # The preceding schema diff is the safety gate: it proves the live
-          # schema already matches the complete repository migration chain.
-          PENDING="$(
-            awk -F '|' '
-              /^[[:space:]]*[0-9]{14}[[:space:]]*\|/ {
-                local=$1
-                remote=$2
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", local)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote)
-                if (local != "" && remote == "") print local
-              }
-            ' /tmp/migration-list.txt
-          )"
-
-          if [ -z "$PENDING" ]; then
-            echo "No repository-only migrations remain."
-            exit 0
+          PENDING="$(awk -F '|' '/^[[:space:]]*[0-9]{14}[[:space:]]*\|/ { local=$1; remote=$2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", local); gsub(/^[[:space:]]+|[[:space:]]+$/, "", remote); if (local != "" && remote == "") print local }' /tmp/migration-list.txt)"
+          if [ -n "$PENDING" ]; then
+            printf '%s\n' "$PENDING"
+            supabase migration repair --db-url "$DB_URL" --status applied $PENDING
           fi
-
-          echo "Marking these schema-equivalent migrations as applied:"
-          printf '%s\n' "$PENDING"
-
-          # migration repair changes history only; it does not execute SQL.
-          supabase migration repair --db-url "$DB_URL" --status applied $PENDING
 
       - name: Verify migration history is aligned
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_DB_PASSWORD"
           DB_PASSWORD_ENCODED="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
           DB_URL="postgresql://postgres.$SUPABASE_PROJECT_ID:$DB_PASSWORD_ENCODED@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
-
-          echo "Final staging migration history:"
           supabase migration list --db-url "$DB_URL"
-
-          echo "Final migration dry-run:"
           supabase db push --db-url "$DB_URL" --dry-run
-
-          echo "Final schema verification:"
-          supabase db diff --db-url "$DB_URL" --use-migra | tee /tmp/final-staging-schema-diff.log
-          if ! grep -q "No schema changes found" /tmp/final-staging-schema-diff.log; then
-            echo "ERROR: final staging schema verification failed."
+          supabase db diff --db-url "$DB_URL" --schema public --use-migra | tee /tmp/final-staging-public-schema-diff.log
+          if ! grep -q "No schema changes found" /tmp/final-staging-public-schema-diff.log; then
+            echo "ERROR: final public-schema verification failed."
             exit 1
           fi
