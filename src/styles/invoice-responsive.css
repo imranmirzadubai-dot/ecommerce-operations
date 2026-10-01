@@ -1,0 +1,38 @@
+/* UI-MP-1.2 — Invoices responsive surface */
+.invoice-print-workspace { min-width: 0; }
+.invoice-print-workspace .invoice-toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.invoice-print-workspace .invoice-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.invoice-print-workspace .invoice-actions button { min-height:44px; }
+.invoice-print-workspace .invoice-table-wrap { overflow:auto; }
+.invoice-print-workspace .invoice-table { width:100%; min-width:760px; }
+.invoice-print-workspace .invoice-table th:first-child,
+.invoice-print-workspace .invoice-table td:first-child { width:42px; }
+.invoice-print-workspace .invoice-table td:last-child { display:flex; gap:8px; flex-wrap:wrap; }
+.invoice-print-workspace input[type="checkbox"] { width:20px; height:20px; }
+@media (max-width:900px) {
+  .invoice-print-workspace .invoice-toolbar { width:100%; justify-content:flex-start; }
+  .invoice-print-workspace .invoice-toolbar button { flex:1 1 180px; min-height:44px; }
+  .invoice-print-workspace .invoice-table-wrap { overflow:visible; }
+  .invoice-print-workspace .invoice-table { min-width:0; display:block; }
+  .invoice-print-workspace .invoice-table thead { display:none; }
+  .invoice-print-workspace .invoice-table tbody { display:grid; gap:10px; }
+  .invoice-print-workspace .invoice-table tbody tr { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+  .invoice-print-workspace .invoice-table td { display:grid; gap:3px; padding:0; border:0; white-space:normal; min-width:0; }
+  .invoice-print-workspace .invoice-table td:first-child { grid-column:1 / -1; width:auto; }
+  .invoice-print-workspace .invoice-table td:nth-child(2)::before { content:'Invoice'; }
+  .invoice-print-workspace .invoice-table td:nth-child(3)::before { content:'Order'; }
+  .invoice-print-workspace .invoice-table td:nth-child(4)::before { content:'Template'; }
+  .invoice-print-workspace .invoice-table td:nth-child(5)::before { content:'Generated'; }
+  .invoice-print-workspace .invoice-table td::before { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.08em; font-weight:750; }
+  .invoice-print-workspace .invoice-table td:last-child { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:8px; padding-top:4px; }
+  .invoice-print-workspace .invoice-table td:last-child button { min-height:44px; }
+}
+@media (max-width:560px) {
+  .invoice-print-workspace { padding:14px; border-radius:14px; }
+  .invoice-print-workspace .invoice-toolbar { display:grid; grid-template-columns:1fr; }
+  .invoice-print-workspace .invoice-toolbar button { width:100%; }
+  .invoice-print-workspace .invoice-table tbody tr { grid-template-columns:1fr; }
+  .invoice-print-workspace .invoice-table td:first-child,
+  .invoice-print-workspace .invoice-table td:last-child { grid-column:auto; }
+  .invoice-print-workspace .invoice-table td:last-child { grid-template-columns:1fr; }
+}
