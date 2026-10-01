@@ -328,3 +328,38 @@
     grid-column:1 / -1;
   }
 }
+
+
+/* UI-MP-1.2 — Customers responsive surface */
+.customer-history-workspace { min-height:0; margin-bottom:20px; box-shadow:var(--shadow-1,0 1px 2px rgba(15,23,42,.04)); }
+.customer-history-search { margin-bottom:12px; }
+.customer-history-search input { min-height:44px; box-sizing:border-box; }
+.customer-history-search .secondary-button { min-height:44px; }
+.customer-history-summary { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:14px; margin:12px 0; border:1px solid var(--border); border-radius:9px; background:var(--app-bg); }
+.customer-history-summary strong { color:var(--text-h); font-size:14px; }
+.customer-history-summary span { color:var(--muted); font-size:11px; }
+.customer-history-workspace .orders-table tbody tr:hover { background:var(--surface-subtle,#fafafa); }
+@media (max-width:900px) {
+  .customer-history-workspace .section-heading { margin-bottom:14px; }
+  .customer-history-search { grid-template-columns:minmax(0,1fr) auto; }
+}
+@media (max-width:560px) {
+  .customer-history-workspace { padding:14px; border-radius:14px; }
+  .customer-history-search { grid-template-columns:1fr; }
+  .customer-history-search .secondary-button { width:100%; }
+  .customer-history-summary { align-items:flex-start; flex-direction:column; gap:5px; }
+  .customer-history-workspace .orders-table-wrap { border:0; overflow:visible; }
+  .customer-history-workspace .orders-table { display:block; }
+  .customer-history-workspace .orders-table thead { display:none; }
+  .customer-history-workspace .orders-table tbody { display:grid; gap:10px; }
+  .customer-history-workspace .orders-table tbody tr { display:grid; grid-template-columns:1fr 1fr; gap:9px 12px; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+  .customer-history-workspace .orders-table td { display:grid; gap:3px; padding:0; border:0; white-space:normal; }
+  .customer-history-workspace .orders-table td:first-child { grid-column:1 / -1; }
+  .customer-history-workspace .orders-table td:nth-child(2)::before { content:'Date'; }
+  .customer-history-workspace .orders-table td:nth-child(3)::before { content:'State'; }
+  .customer-history-workspace .orders-table td:nth-child(4)::before { content:'Amount'; }
+  .customer-history-workspace .orders-table td::before { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.08em; font-weight:750; }
+}
+@media (max-width:380px) {
+  .customer-history-workspace .orders-table tbody tr { grid-template-columns:1fr; }
+}
