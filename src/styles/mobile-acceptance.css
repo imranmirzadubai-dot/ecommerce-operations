@@ -1,0 +1,60 @@
+/* UI-MP-1.2 live acceptance corrections — presentation/client capability only. */
+
+* { box-sizing: border-box; }
+
+@media (max-width: 560px) {
+  .orders-workspace,
+  .dispatch-scan-workspace,
+  .bulk-dispatch-workspace { width: 100%; min-width: 0; overflow: hidden; }
+
+  .orders-workspace .section-heading { gap: 12px; }
+  .orders-workspace .section-heading > .button-group { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .orders-workspace .section-heading > .button-group button { width: 100%; min-width: 0; min-height: 46px; }
+
+  .orders-workspace .order-search { display: grid; gap: 7px; min-width: 0; }
+  .orders-workspace .order-search .button-group { display: grid; grid-template-columns: minmax(0, 1fr) 108px; gap: 8px; width: 100%; min-width: 0; }
+  .orders-workspace .order-search input,
+  .orders-workspace .order-search .button-group button { width: 100%; min-width: 0; min-height: 48px; }
+  .orders-workspace .order-search input { font-size: 15px; }
+  .orders-workspace .order-search .button-group .secondary-button { grid-column: 1 / -1; }
+
+  .orders-workspace .order-filters { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; }
+  .orders-workspace .order-filters label,
+  .orders-workspace .order-date-views label { display: grid; gap: 5px; min-width: 0; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  .orders-workspace .order-filters select,
+  .orders-workspace .order-date-views select,
+  .orders-workspace .order-date-views input { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--border); border-radius: 8px; background: var(--app-bg); color: var(--text-h); padding: 10px 12px; font: inherit; font-size: 13px; }
+  .orders-workspace .order-filters > .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .orders-workspace .order-filters > .button-group button,
+  .orders-workspace .order-date-views > button,
+  .orders-workspace .order-date-views > .login-button { width: 100%; min-width: 0; min-height: 46px; }
+
+  .orders-workspace .order-date-views { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; }
+  .orders-workspace .orders-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .dispatch-scan-workspace .section-heading { gap: 12px; }
+  .dispatch-scan-workspace .dispatch-scan-form { padding: 12px; }
+  .dispatch-scan-entry { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+  .dispatch-scan-entry input,
+  .dispatch-scan-entry button,
+  .dispatch-scan-form > .login-button { width: 100%; min-width: 0; min-height: 50px; }
+  .dispatch-scan-entry input { font-size: 16px; }
+  .dispatch-scan-form > .login-button { margin-top: 0; }
+
+  .mobile-barcode-scanner { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: #000; color: #fff; }
+  .mobile-barcode-scanner__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; background: rgba(0,0,0,.88); }
+  .mobile-barcode-scanner__header strong { font-size: 15px; }
+  .mobile-barcode-scanner__close { min-height: 42px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; background: transparent; color: #fff; font: inherit; font-weight: 700; }
+  .mobile-barcode-scanner__viewport { position: relative; flex: 1; display: grid; place-items: center; overflow: hidden; }
+  .mobile-barcode-scanner__video { width: 100%; height: 100%; object-fit: cover; }
+  .mobile-barcode-scanner__frame { position: absolute; width: min(78vw, 330px); aspect-ratio: 1.9 / 1; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,.35); pointer-events: none; }
+  .mobile-barcode-scanner__hint { position: absolute; left: 20px; right: 20px; bottom: 28px; padding: 10px 12px; border-radius: 8px; background: rgba(0,0,0,.68); text-align: center; font-size: 13px; line-height: 1.4; }
+  .mobile-barcode-scanner__error { margin: 0; padding: 12px 16px; background: #2a1111; color: #ffd4d4; font-size: 12px; line-height: 1.45; }
+  .mobile-barcode-scanner__footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(0,0,0,.92); }
+  .mobile-barcode-scanner__footer button { width: 100%; min-height: 46px; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; background: transparent; color: #fff; font: inherit; font-weight: 700; }
+}
+
+@media (min-width: 561px) {
+  .dispatch-scan-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+  .dispatch-scan-entry input { min-width: 0; }
+}
