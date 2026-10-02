@@ -42,9 +42,9 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [showCameraScanner, setShowCameraScanner] = useState(false)
+  const showCameraScanner = shouldShowCameraBarcodeScanner()
 
-  useEffect(() => { inputRef.current?.focus(); setShowCameraScanner(shouldShowCameraBarcodeScanner()) }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   const handleCameraDetected = (barcode: string) => {
     setScan(barcode)
