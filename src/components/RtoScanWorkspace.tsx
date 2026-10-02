@@ -30,9 +30,9 @@ export function RtoScanWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [showCameraScanner, setShowCameraScanner] = useState(false)
+  const showCameraScanner = shouldShowCameraBarcodeScanner()
 
-  useEffect(() => { inputRef.current?.focus(); setShowCameraScanner(shouldShowCameraBarcodeScanner()) }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   async function resolveScannedBarcode(rawBarcode: string) {
     const barcode = rawBarcode.trim()
