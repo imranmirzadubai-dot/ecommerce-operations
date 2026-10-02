@@ -44,15 +44,41 @@ export function BarcodeScanner({ title = 'Scan Parcel Barcode', onDetected, onCl
         resolve()
         return
       }
-      const timeout = window.setTimeout(() => reject(new Error('Camera preview did not initialize.')), 4000)
-      const handleReady = () => {
+
+      let settled = false
+      const cleanup = () => {
         window.clearTimeout(timeout)
         video.removeEventListener('loadedmetadata', handleReady)
+        video.removeEventListener('loadeddata', handleReady)
         video.removeEventListener('canplay', handleReady)
+      }
+      const handleReady = () => {
+        if (settled) return
+        settled = true
+        cleanup()
         resolve()
       }
-      video.addEventListener('loadedmetadata', handleReady, { once: true })
-      video.addEventListener('canplay', handleReady, { once: true })
+      const timeout = window.setTimeout(async () => {
+        if (settled) return
+        try {
+          await video.play()
+          if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            settled = true
+            cleanup()
+            resolve()
+            return
+          }
+        } catch {
+          // Fall through to the user-visible initialization error.
+        }
+        settled = true
+        cleanup()
+        reject(new Error('Camera preview did not initialize.'))
+      }, 8000)
+
+      video.addEventListener('loadedmetadata', handleReady)
+      video.addEventListener('loadeddata', handleReady)
+      video.addEventListener('canplay', handleReady)
     })
 
     const start = async () => {
@@ -75,6 +101,12 @@ export function BarcodeScanner({ title = 'Scan Parcel Barcode', onDetected, onCl
         }
         setAutoScanAvailable(Boolean(detector))
 
+        const video = videoRef.current
+        if (!video) throw new Error('Camera preview could not be initialized.')
+        video.muted = true
+        video.playsInline = true
+        video.autoplay = true
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
@@ -84,17 +116,12 @@ export function BarcodeScanner({ title = 'Scan Parcel Barcode', onDetected, onCl
           return
         }
 
-        const video = videoRef.current
-        if (!video) {
-          stream.getTracks().forEach((track) => track.stop())
-          throw new Error('Camera preview could not be initialized.')
-        }
-
+        // Install readiness listeners before attaching the stream so fast mobile
+        // browsers cannot fire loadedmetadata before waitForVideo starts listening.
+        const videoReady = waitForVideo(video)
         streamRef.current = stream
         video.srcObject = stream
-        video.muted = true
-        video.playsInline = true
-        await waitForVideo(video)
+        await videoReady
         await video.play()
 
         if (!activeRef.current) return
