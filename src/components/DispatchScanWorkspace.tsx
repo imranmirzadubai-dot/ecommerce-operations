@@ -39,6 +39,7 @@ function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<number | null>(null)
   const [error, setError] = useState('')
+  const [autoScanAvailable, setAutoScanAvailable] = useState(true)
 
   useEffect(() => {
     let active = true
@@ -53,8 +54,14 @@ function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     const start = async () => {
       try {
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires a secure HTTPS page and a browser with camera support.')
+
+        // Start the camera independently of BarcodeDetector. Some mobile browsers
+        // (notably iOS Safari) can access the camera but do not expose BarcodeDetector.
+        // The previous implementation checked BarcodeDetector first, so those devices
+        // never opened the camera at all.
         const Detector = (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
-        if (!Detector) throw new Error('Live barcode scanning is not supported by this browser. Use the manual parcel barcode field instead.')
+        setAutoScanAvailable(Boolean(Detector))
+
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
         if (!active) { stream.getTracks().forEach((track) => track.stop()); return }
         streamRef.current = stream
@@ -62,6 +69,9 @@ function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         if (!video) throw new Error('Camera preview could not be initialized.')
         video.srcObject = stream
         await video.play()
+
+        if (!Detector) return
+
         const detector = new Detector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar'] })
         const scanFrame = async () => {
           if (!active || !videoRef.current) return
@@ -87,7 +97,7 @@ function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     <div className="mobile-barcode-scanner__viewport">
       <video ref={videoRef} className="mobile-barcode-scanner__video" autoPlay muted playsInline aria-label="Parcel barcode camera preview" />
       <div className="mobile-barcode-scanner__frame" aria-hidden="true" />
-      {!error && <div className="mobile-barcode-scanner__hint">Point the rear camera at the parcel barcode. Scanning is automatic.</div>}
+      {!error && <div className="mobile-barcode-scanner__hint">{autoScanAvailable ? 'Point the rear camera at the parcel barcode. Scanning is automatic.' : 'Camera is active. Automatic barcode scanning is not supported by this browser; use the manual barcode field below.'}</div>}
     </div>
     {error && <p className="mobile-barcode-scanner__error" role="alert">{error}</p>}
     <div className="mobile-barcode-scanner__footer"><button type="button" onClick={onClose}>Enter barcode manually</button></div>
