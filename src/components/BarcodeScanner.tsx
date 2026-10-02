@@ -20,7 +20,9 @@ export function BarcodeScanner({ title = 'Scan Parcel Barcode', onDetected, onCl
   const [error, setError] = useState('')
   const [autoScanAvailable, setAutoScanAvailable] = useState(false)
 
-  onDetectedRef.current = onDetected
+  useEffect(() => {
+    onDetectedRef.current = onDetected
+  }, [onDetected])
 
   useEffect(() => {
     activeRef.current = true
