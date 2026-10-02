@@ -1,0 +1,46 @@
+/* Parcel allocation alignment: keep form controls inside their grid columns. */
+.parcel-action-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 150px) auto;
+}
+
+.parcel-action-panel > label {
+  min-width: 0;
+}
+
+.parcel-action-panel input,
+.parcel-action-panel select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.parcel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.parcel-action-panel > .login-button,
+.parcel-action-panel > .secondary-button,
+.parcel-actions > .login-button,
+.parcel-actions > .secondary-button {
+  min-height: 44px;
+}
+
+@media (max-width: 900px) {
+  .parcel-action-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .parcel-actions {
+    justify-content: stretch;
+  }
+
+  .parcel-actions > button,
+  .parcel-action-panel > .secondary-button {
+    width: 100%;
+  }
+}

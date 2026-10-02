@@ -1,5 +1,6 @@
 @import "./styles/design-tokens.css";
 @import "./styles/report-responsive.css";
+@import "./styles/parcel-allocation-responsive.css";
 
 :root {
   font-family: var(--sans);
