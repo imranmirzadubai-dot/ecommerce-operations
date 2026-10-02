@@ -59,4 +59,4 @@ jobs:
           npx wrangler deploy --env staging --var SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY
 
 # One-time code-only staging deployment; no database migrations or fixtures.
-# Trigger deployment against the current main revision after scanner merge.
+# Trigger deployment against the current main revision after scanner preview fix merge.
