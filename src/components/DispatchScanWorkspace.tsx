@@ -3,6 +3,7 @@ import { getAuthConfig } from '../lib/auth'
 import { dispatchParcel } from '../lib/parcelCommands'
 import { BulkDispatchWorkspace } from './BulkDispatchWorkspace'
 import { BarcodeScanner } from './BarcodeScanner'
+import { shouldShowCameraBarcodeScanner } from '../lib/deviceCapabilities'
 import '../styles/dispatch-responsive.css'
 import '../styles/mobile-acceptance.css'
 
@@ -41,8 +42,9 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [showCameraScanner, setShowCameraScanner] = useState(false)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => { inputRef.current?.focus(); setShowCameraScanner(shouldShowCameraBarcodeScanner()) }, [])
 
   const handleCameraDetected = (barcode: string) => {
     setScan(barcode)
@@ -108,12 +110,12 @@ export function DispatchScanWorkspace({ accessToken }: Props) {
   return <>
     <section className="card dispatch-scan-workspace" aria-labelledby="dispatch-scan-title">
       <div className="section-heading"><div><span className="eyebrow">Dispatch Gate · T142</span><h2 id="dispatch-scan-title">Scan-first Dispatch</h2><p>Scan the parcel barcode, verify the assigned shipper and tracking ID, then commit the individual dispatch.</p></div><span className="check">Operations / Admin</span></div>
-      <form className="dispatch-scan-form" onSubmit={handleScan}><label htmlFor="dispatch-barcode">Parcel barcode</label><div className="dispatch-scan-entry"><input ref={inputRef} id="dispatch-barcode" value={scan} onChange={(event) => setScan(event.target.value)} placeholder="Enter barcode manually" autoComplete="off" autoFocus inputMode="text" aria-describedby="dispatch-scan-help" /><button className="secondary-button" type="button" onClick={() => setScannerOpen(true)} disabled={loading || dispatching}>Scan with camera</button></div><button className="login-button" type="submit" disabled={!scan.trim() || loading || dispatching}>{loading ? 'Resolving…' : 'Resolve parcel'}</button><small id="dispatch-scan-help" className="form-note">The barcode is the immutable parcel number. Scanner input should submit with Enter.</small></form>
+      <form className="dispatch-scan-form" onSubmit={handleScan}><label htmlFor="dispatch-barcode">Parcel barcode</label><div className="dispatch-scan-entry"><input ref={inputRef} id="dispatch-barcode" value={scan} onChange={(event) => setScan(event.target.value)} placeholder="Enter barcode manually" autoComplete="off" autoFocus inputMode="text" aria-describedby="dispatch-scan-help" />{showCameraScanner && <button className="secondary-button" type="button" onClick={() => setScannerOpen(true)} disabled={loading || dispatching}>Scan with camera</button>}</div><button className="login-button" type="submit" disabled={!scan.trim() || loading || dispatching}>{loading ? 'Resolving…' : 'Resolve parcel'}</button><small id="dispatch-scan-help" className="form-note">The barcode is the immutable parcel number. Scanner input should submit with Enter.</small></form>
       {error && <p className="form-error" role="alert">{error}</p>}{message && <p className={parcel?.state === 'Dispatched' ? 'form-success' : 'form-note'} role="status">{message}</p>}
       {parcel && <div className="dispatch-parcel-panel"><div><span className="eyebrow">Parcel</span><strong>{parcel.parcel_number}</strong><small>{parcel.barcode}</small></div><div><span className="eyebrow">State</span><strong>{parcel.state}</strong></div><div><span className="eyebrow">Assigned shipper</span><strong>{parcel.shippers?.name ?? 'Not assigned'}</strong><small>{parcel.shippers?.active ? 'Active' : 'Inactive / unavailable'}</small></div><label><span className="eyebrow">Tracking ID</span><input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Enter tracking ID" disabled={dispatching || parcel.state !== 'Prepared'} /></label></div>}
       {parcel && <div className="button-group dispatch-actions"><button className="login-button" type="button" onClick={() => void handleDispatch()} disabled={!canDispatch || dispatching}>{dispatching ? 'Dispatching…' : 'Dispatch parcel'}</button><button className="secondary-button" type="button" onClick={resetScan} disabled={loading || dispatching}>Scan another parcel</button></div>}
     </section>
     <BulkDispatchWorkspace accessToken={accessToken} />
-    {scannerOpen && <BarcodeScanner onDetected={handleCameraDetected} onClose={() => setScannerOpen(false)} />}
+    {scannerOpen && showCameraScanner && <BarcodeScanner onDetected={handleCameraDetected} onClose={() => setScannerOpen(false)} />}
   </>
 }
