@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getAuthConfig } from '../lib/auth'
 import { dispatchParcel } from '../lib/parcelCommands'
 import { BulkDispatchWorkspace } from './BulkDispatchWorkspace'
+import { BarcodeScanner } from './BarcodeScanner'
 import '../styles/dispatch-responsive.css'
 import '../styles/mobile-acceptance.css'
 
@@ -16,11 +17,6 @@ type Parcel = {
   shipper_id: string | null
   shippers: Shipper | null
 }
-type BarcodeResult = { rawValue: string }
-type BarcodeDetectorInstance = { detect(source: ImageBitmapSource): Promise<BarcodeResult[]> }
-type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
-
-type BarcodeScannerProps = { onDetected: (value: string) => void; onClose: () => void }
 
 async function resolveParcelByBarcode(accessToken: string, barcode: string): Promise<Parcel | null> {
   const config = getAuthConfig()
@@ -33,76 +29,6 @@ async function resolveParcelByBarcode(accessToken: string, barcode: string): Pro
 }
 
 function newIdempotencyKey() { return crypto.randomUUID() }
-
-function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const timerRef = useRef<number | null>(null)
-  const [error, setError] = useState('')
-  const [autoScanAvailable, setAutoScanAvailable] = useState(true)
-
-  useEffect(() => {
-    let active = true
-    const stop = () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
-      timerRef.current = null
-      streamRef.current?.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
-      if (videoRef.current) videoRef.current.srcObject = null
-    }
-
-    const start = async () => {
-      try {
-        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires a secure HTTPS page and a browser with camera support.')
-
-        // Start the camera independently of BarcodeDetector. Some mobile browsers
-        // (notably iOS Safari) can access the camera but do not expose BarcodeDetector.
-        // The previous implementation checked BarcodeDetector first, so those devices
-        // never opened the camera at all.
-        const Detector = (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
-        setAutoScanAvailable(Boolean(Detector))
-
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
-        if (!active) { stream.getTracks().forEach((track) => track.stop()); return }
-        streamRef.current = stream
-        const video = videoRef.current
-        if (!video) throw new Error('Camera preview could not be initialized.')
-        video.srcObject = stream
-        await video.play()
-
-        if (!Detector) return
-
-        const detector = new Detector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar'] })
-        const scanFrame = async () => {
-          if (!active || !videoRef.current) return
-          try {
-            const results = await detector.detect(videoRef.current)
-            const value = results.find((result) => result.rawValue.trim())?.rawValue.trim()
-            if (value) { onDetected(value); return }
-          } catch { /* Keep scanning; transient frame decode errors are expected. */ }
-          if (active) timerRef.current = window.setTimeout(() => void scanFrame(), 140)
-        }
-        void scanFrame()
-      } catch (scannerError) {
-        if (active) setError(scannerError instanceof Error ? scannerError.message : 'Unable to start the camera scanner.')
-      }
-    }
-
-    void start()
-    return () => { active = false; stop() }
-  }, [onDetected])
-
-  return <div className="mobile-barcode-scanner" role="dialog" aria-modal="true" aria-labelledby="barcode-scanner-title">
-    <div className="mobile-barcode-scanner__header"><strong id="barcode-scanner-title">Scan Parcel Barcode</strong><button className="mobile-barcode-scanner__close" type="button" onClick={onClose}>Close</button></div>
-    <div className="mobile-barcode-scanner__viewport">
-      <video ref={videoRef} className="mobile-barcode-scanner__video" autoPlay muted playsInline aria-label="Parcel barcode camera preview" />
-      <div className="mobile-barcode-scanner__frame" aria-hidden="true" />
-      {!error && <div className="mobile-barcode-scanner__hint">{autoScanAvailable ? 'Point the rear camera at the parcel barcode. Scanning is automatic.' : 'Camera is active. Automatic barcode scanning is not supported by this browser; use the manual barcode field below.'}</div>}
-    </div>
-    {error && <p className="mobile-barcode-scanner__error" role="alert">{error}</p>}
-    <div className="mobile-barcode-scanner__footer"><button type="button" onClick={onClose}>Enter barcode manually</button></div>
-  </div>
-}
 
 export function DispatchScanWorkspace({ accessToken }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
