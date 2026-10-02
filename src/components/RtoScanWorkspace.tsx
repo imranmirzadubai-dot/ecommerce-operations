@@ -3,6 +3,7 @@ import { getAuthConfig } from '../lib/auth'
 import { processRto } from '../lib/parcelCommands'
 import { BulkRtoWorkspace } from './BulkRtoWorkspace'
 import { BarcodeScanner } from './BarcodeScanner'
+import { shouldShowCameraBarcodeScanner } from '../lib/deviceCapabilities'
 import '../styles/delivery-responsive.css'
 
 type Props = { accessToken: string }
@@ -29,6 +30,7 @@ export function RtoScanWorkspace({ accessToken }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
+  const showCameraScanner = shouldShowCameraBarcodeScanner()
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -69,12 +71,12 @@ export function RtoScanWorkspace({ accessToken }: Props) {
   return <>
     <section className="card dispatch-scan-workspace" aria-labelledby="rto-scan-title">
       <div className="section-heading"><div><span className="eyebrow">Lifecycle Gate · T161/T162</span><h2 id="rto-scan-title">Scan-first RTO</h2><p>Scan the parcel barcode. The stored shipper is resolved automatically; the operator does not select a historical shipper.</p></div><span className="check">Operations / Admin</span></div>
-      <form className="dispatch-scan-form" onSubmit={handleScan}><label htmlFor="rto-barcode">Parcel barcode</label><div className="button-group"><input ref={inputRef} id="rto-barcode" value={scan} onChange={(event) => setScan(event.target.value)} placeholder="Scan parcel barcode" autoComplete="off" autoFocus inputMode="text" /><button className="secondary-button" type="button" onClick={() => setScannerOpen(true)} disabled={loading || processing}>Scan with camera</button><button className="login-button" type="submit" disabled={!scan.trim() || loading || processing}>{loading ? 'Resolving…' : 'Resolve parcel'}</button></div><small className="form-note">Only In Transit and NDR parcels are eligible for RTO.</small></form>
+      <form className="dispatch-scan-form" onSubmit={handleScan}><label htmlFor="rto-barcode">Parcel barcode</label><div className="button-group"><input ref={inputRef} id="rto-barcode" value={scan} onChange={(event) => setScan(event.target.value)} placeholder="Scan parcel barcode" autoComplete="off" autoFocus inputMode="text" />{showCameraScanner && <button className="secondary-button" type="button" onClick={() => setScannerOpen(true)} disabled={loading || processing}>Scan with camera</button>}<button className="login-button" type="submit" disabled={!scan.trim() || loading || processing}>{loading ? 'Resolving…' : 'Resolve parcel'}</button></div><small className="form-note">Only In Transit and NDR parcels are eligible for RTO.</small></form>
       {error && <p className="form-error" role="alert">{error}</p>}{message && <p className={parcel?.state === 'RTO' ? 'form-success' : 'form-note'} role="status">{message}</p>}
       {parcel && <div className="dispatch-parcel-panel"><div><span className="eyebrow">Parcel</span><strong>{parcel.parcel_number}</strong><small>{parcel.barcode}</small></div><div><span className="eyebrow">State</span><strong>{parcel.state}</strong></div><div><span className="eyebrow">Stored shipper</span><strong>{parcel.shippers?.name ?? 'Not assigned'}</strong><small>{parcel.shippers?.active ? 'Active' : 'Stored historical assignment'}</small></div><div><span className="eyebrow">Tracking ID</span><strong>{parcel.tracking_id ?? '—'}</strong></div></div>}
       {parcel && <div className="button-group dispatch-actions"><button className="login-button" type="button" onClick={() => void handleRto()} disabled={!canProcess || processing}>{processing ? 'Processing RTO…' : 'Process RTO'}</button><button className="secondary-button" type="button" onClick={() => { setScan(''); setParcel(null); setRtoIdempotencyKey(null); setMessage(''); setError(''); inputRef.current?.focus() }} disabled={loading || processing}>Scan another parcel</button></div>}
     </section>
     <BulkRtoWorkspace accessToken={accessToken} resolveParcelByBarcode={resolveParcelByBarcode} />
-    {scannerOpen && <BarcodeScanner title="Scan RTO Parcel Barcode" onDetected={(barcode) => { setScannerOpen(false); void resolveScannedBarcode(barcode) }} onClose={() => setScannerOpen(false)} />}
+    {scannerOpen && showCameraScanner && <BarcodeScanner title="Scan RTO Parcel Barcode" onDetected={(barcode) => { setScannerOpen(false); void resolveScannedBarcode(barcode) }} onClose={() => setScannerOpen(false)} />}
   </>
 }
