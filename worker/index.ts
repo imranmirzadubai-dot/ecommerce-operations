@@ -5,7 +5,7 @@ const ALLOWED_COMMANDS = new Set([
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
 ]);
 
-type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
+type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string; SUPABASE_SECRET_KEY?: string };
 type AuthTokenResponse = { access_token: string; refresh_token: string; expires_in: number; user: { id: string } };
 
 function json(data: unknown, status = 200, headers?: HeadersInit): Response { return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } }); }
@@ -104,6 +104,96 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
   return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token), "X-Request-ID": requestId });
 }
 
+// P17-T282: admin invitation boundary
+async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: string): Promise<Response> {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  const config = getSupabaseConfig(env);
+  if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+
+  let body: unknown;
+  try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
+  const input = body as { email?: unknown; name?: unknown; role?: unknown; redirectTo?: unknown };
+  const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  const role = typeof input.role === "string" ? input.role.trim().toLowerCase() : "";
+  const redirectTo = typeof input.redirectTo === "string" ? input.redirectTo.trim() : undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400, { "X-Request-ID": requestId });
+  if (!name || name.length > 200) return json({ error: "invalid_name" }, 400, { "X-Request-ID": requestId });
+  if (!["sales", "operations", "admin"].includes(role)) return json({ error: "invalid_role" }, 400, { "X-Request-ID": requestId });
+  if (redirectTo && !/^https?:\/\//i.test(redirectTo)) return json({ error: "invalid_redirect" }, 400, { "X-Request-ID": requestId });
+
+  let authUserResponse: Response;
+  try {
+    authUserResponse = await fetch(`${config.url}/auth/v1/user`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  if (!authUserResponse.ok) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  const authUser = await authUserResponse.json() as { id?: string };
+  if (!authUser.id) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+
+  let actorResponse: Response;
+  try {
+    const query = new URLSearchParams({ select: "id,role,active", id: `eq.${authUser.id}`, limit: "1" });
+    actorResponse = await fetch(`${config.url}/rest/v1/profiles?${query.toString()}`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  if (!actorResponse.ok) return json({ error: "forbidden" }, 403, { "X-Request-ID": requestId });
+  const actors = await actorResponse.json() as Array<{ id: string; role: string; active: boolean }>;
+  const actor = actors[0];
+  if (!actor || actor.active !== true || actor.role !== "admin") return json({ error: "forbidden" }, 403, { "X-Request-ID": requestId });
+
+  let inviteResponse: Response;
+  try {
+    inviteResponse = await fetch(`${config.url}/auth/v1/invite`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SECRET_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ email, data: { name, role }, ...(redirectTo ? { redirect_to: redirectTo } : {}) }),
+    });
+  } catch {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, result: "upstream_request_failed", dependency: "supabase_auth" });
+    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+  }
+
+  const inviteBody = await inviteResponse.text();
+  if (!inviteResponse.ok) {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, result: "invite_failed", status: inviteResponse.status });
+    return json({ error: "invite_failed" }, inviteResponse.status, { "X-Request-ID": requestId });
+  }
+
+  let invited: { id?: string };
+  try { invited = JSON.parse(inviteBody) as { id?: string }; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }
+  if (!invited.id) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
+
+  let provisionResponse: Response;
+  try {
+    provisionResponse = await fetch(`${config.url}/rest/v1/rpc/provision_invited_profile`, {
+      method: "POST",
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ p_user_id: invited.id, p_name: name, p_role: role }),
+    });
+  } catch {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, result: "profile_provisioning_request_failed" });
+    return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
+  }
+  if (!provisionResponse.ok) {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, result: "profile_provisioning_failed", status: provisionResponse.status });
+    return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
+  }
+
+  logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, role, result: "success" });
+  return json({ ok: true, userId: invited.id }, 200, { "X-Request-ID": requestId });
+}
+
 async function handleRpc(request: Request, env: WorkerEnv, commandName: string, requestId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); if (!ALLOWED_COMMANDS.has(commandName)) return json({ error: "command_not_allowed" }, 404, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 503 }); return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); } let body: unknown; try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); } if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId }); let rpcResponse: Response; try { rpcResponse = await fetch(`${config.url}/rest/v1/rpc/${encodeURIComponent(commandName)}`, { method: "POST", headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }); } catch { logEvent("command_request", { request_id: requestId, command: commandName, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const responseBody = await rpcResponse.text(); const result = rpcResponse.status >= 500 ? "server_error" : rpcResponse.status >= 400 ? "client_error" : "success"; logEvent("command_request", { request_id: requestId, command: commandName, result, status: rpcResponse.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(responseBody, { status: rpcResponse.status, headers: { "Content-Type": rpcResponse.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); }
 
 async function handleOrders(request: Request, env: WorkerEnv, requestId: string): Promise<Response> { const startedAt = performance.now(); if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId }); const accessToken = getBearerToken(request); if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId }); const config = getSupabaseConfig(env); if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId }); const url = new URL(request.url); const rawPage = Number.parseInt(url.searchParams.get("page") ?? "1", 10); const rawPageSize = Number.parseInt(url.searchParams.get("page_size") ?? "25", 10); const rawSearch = url.searchParams.get("search") ?? ""; const search = escapeSearchTerm(rawSearch); const lifecycleState = url.searchParams.get("lifecycle_state"); const parcelState = url.searchParams.get("parcel_state"); const codState = url.searchParams.get("cod_state"); const dateFrom = url.searchParams.get("date_from"); const dateTo = url.searchParams.get("date_to"); const lifecycleStates = ["Draft", "Confirmed", "Active", "Completed", "Cancelled"] as const; const parcelStates = ["Prepared", "Dispatched", "In Transit", "NDR", "Delivered", "RTO", "Lost", "Damaged", "Cancelled"] as const; const codStates = ["Outstanding", "Partially Received", "Received", "Exception", "Voided", "Closed"] as const; if (!Number.isInteger(rawPage) || rawPage < 1 || !Number.isInteger(rawPageSize) || rawPageSize < 1 || rawPageSize > 100) return json({ error: "invalid_pagination", message: "page must be >= 1 and page_size must be between 1 and 100" }, 400, { "X-Request-ID": requestId }); if (rawSearch.trim() && !search) return json({ error: "invalid_search", message: "search must contain at least one searchable character" }, 400, { "X-Request-ID": requestId }); if (!validFilter(lifecycleState, lifecycleStates) || !validFilter(parcelState, parcelStates) || !validFilter(codState, codStates)) return json({ error: "invalid_filter" }, 400, { "X-Request-ID": requestId }); if (!validDate(dateFrom) || !validDate(dateTo) || dateFrom && dateTo && dateFrom > dateTo) return json({ error: "invalid_date_range", message: "date_from and date_to must be valid dates with date_from <= date_to" }, 400, { "X-Request-ID": requestId }); const offset = (rawPage - 1) * rawPageSize; const limit = rawPageSize + 1; let response: Response; try { const customerEmbed = "customers(id,name,phone,address,city)"; const itemEmbed = "order_items(id,line_no,description,quantity)"; const parcelEmbed = parcelState ? "parcels!inner(id,state,shipper_id,tracking_id)" : "parcels(id,state,shipper_id,tracking_id)"; const codEmbed = codState ? "cod_obligations!inner(state)" : "cod_obligations(state)"; const select = `id,order_number,lifecycle_state,original_amount,notes,order_date,created_at,updated_at,${customerEmbed},${itemEmbed},${parcelEmbed},${codEmbed}`; const query = new URLSearchParams({ select, order: "order_date.desc,created_at.desc,id.desc", limit: String(limit), offset: String(offset) }); if (search) { const pattern = `%${search}%`; const customerQuery = new URLSearchParams({ select: "id", or: `(name.ilike.${pattern},phone.ilike.${pattern},address.ilike.${pattern})`, limit: "100" }); const itemQuery = new URLSearchParams({ select: "order_id", description: `ilike.${pattern}`, limit: "100" }); const customerResponse = await fetch(`${config.url}/rest/v1/customers?${customerQuery.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); const itemResponse = await fetch(`${config.url}/rest/v1/order_items?${itemQuery.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); if (!customerResponse.ok || !itemResponse.ok) return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); const customers = await customerResponse.json() as Array<{ id: string }>; const items = await itemResponse.json() as Array<{ order_id: string }>; const matchingCustomerIds = customers.map((row) => row.id); const matchingOrderIds = items.map((row) => row.order_id); const searchParts = [`order_number.ilike.${pattern}`]; if (matchingCustomerIds.length) searchParts.push(`customer_id.in.(${matchingCustomerIds.join(",")})`); if (matchingOrderIds.length) searchParts.push(`id.in.(${matchingOrderIds.join(",")})`); if (searchParts.length === 1 && !matchingCustomerIds.length && !matchingOrderIds.length) { query.set("id", "eq.00000000-0000-0000-0000-000000000000"); } else { query.set("or", `(${searchParts.join(",")})`); } } if (lifecycleState) query.set("lifecycle_state", `eq.${lifecycleState}`); if (parcelState) query.set("parcels.state", `eq.${parcelState}`); if (codState) query.set("cod_obligations.state", `eq.${codState}`); if (dateFrom) query.set("order_date", `gte.${dateFrom}`); if (dateTo) query.set("order_date", `lte.${dateTo}`); response = await fetch(`${config.url}/rest/v1/orders?${query.toString()}`, { headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); } catch { logEvent("orders_request", { request_id: requestId, result: "server_error", status: 502, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest", error: "upstream_request_failed" }); return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); } const body = await response.text(); if (!response.ok) { logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: response.status >= 500 ? "server_error" : "client_error", status: response.status, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(body, { status: response.status, headers: { "Content-Type": response.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } }); } const parsed: unknown = (() => { try { return JSON.parse(body); } catch { return null; } })(); if (!Array.isArray(parsed)) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); const hasMore = parsed.length > rawPageSize; const pageRows = hasMore ? parsed.slice(0, rawPageSize) : parsed; logEvent("orders_request", { request_id: requestId, page: rawPage, page_size: rawPageSize, search: Boolean(search), lifecycle_state: lifecycleState, parcel_state: parcelState, cod_state: codState, date_from: dateFrom, date_to: dateTo, result: "success", status: 200, returned: pageRows.length, has_more: hasMore, duration_ms: Math.round(performance.now() - startedAt), dependency: "supabase_rest" }); return new Response(JSON.stringify(pageRows), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId, "X-Page": String(rawPage), "X-Page-Size": String(rawPageSize), "X-Has-More": String(hasMore) } }); }
@@ -119,6 +209,7 @@ export default {
     if (url.pathname === "/api/auth/sign-in") return handleAuth(request, env, "sign-in");
     if (url.pathname === "/api/auth/session") return handleAuth(request, env, "session");
     if (url.pathname === "/api/auth/sign-out") return handleAuth(request, env, "sign-out");
+    if (url.pathname === "/api/admin/users/invite") return handleAdminInvite(request, env, requestId);
     if (url.pathname === "/api/health") { logEvent("health_request", { request_id: requestId, result: "success", status: 200 }); return json({ status: "ok", service: "ecommerce-operations" }, 200, { "X-Request-ID": requestId }); }
     if (url.pathname === "/api/orders") return handleOrders(request, env, requestId);
     const timelineMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/timeline$/);
