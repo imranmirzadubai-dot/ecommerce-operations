@@ -170,7 +170,7 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
     return json({ error: "invite_failed" }, inviteResponse.status, { "X-Request-ID": requestId });
   }
 
-  let invited: { id?: string } = {};
+  let invited: { id?: string };
   try { invited = JSON.parse(inviteBody) as { id?: string }; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }
   if (!invited.id) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
 
