@@ -23,10 +23,10 @@ jobs:
       SUPABASE_PROJECT_ID: mijbpvgxrxjaalimyqgm
 
     steps:
-      - name: Checkout main
+      - name: Checkout selected workflow branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 1
 
       - name: Setup Node
