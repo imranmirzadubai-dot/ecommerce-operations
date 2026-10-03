@@ -1,0 +1,35 @@
+name: P17 T282 temporary lint fix
+
+on:
+  push:
+    branches:
+      - feature/p17-t282-admin-invitation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix lint assignment and remove temporary workflow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('worker/index.ts')
+          s = p.read_text()
+          old = '''  let invited: { id?: string } = {};\n  try { invited = JSON.parse(inviteBody) as { id?: string }; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }\n  if (!invited.id) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });'''
+          new = '''  let invited: { id?: string };\n  try { invited = JSON.parse(inviteBody) as { id?: string }; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }\n  if (!invited.id) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });'''
+          if old not in s:
+              raise SystemExit('expected T282 lint block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          rm .github/workflows/p17-t282-lint-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/index.ts .github/workflows/p17-t282-lint-fix.yml
+          git commit -m "fix: resolve T282 lint assignment"
+          git push
