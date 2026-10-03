@@ -1,0 +1,158 @@
+name: P17 T282 GitHub-side patch
+
+on:
+  push:
+    branches:
+      - feature/p17-t282-admin-invitation
+
+permissions:
+  contents: write
+
+jobs:
+  patch-worker:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/p17-t282-admin-invitation
+          fetch-depth: 1
+
+      - name: Patch worker invitation boundary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("worker/index.ts")
+          text = path.read_text(encoding="utf-8")
+          marker = "// P17-T282: admin invitation boundary"
+          if marker in text:
+              print("T282 patch already present; nothing to do.")
+              raise SystemExit(0)
+
+          old_type = "type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };"
+          new_type = "type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string; SUPABASE_SECRET_KEY?: string };"
+          if old_type not in text:
+              raise SystemExit("WorkerEnv declaration not found")
+          text = text.replace(old_type, new_type, 1)
+
+          insertion_point = "async function handleRpc(request: Request, env: WorkerEnv, commandName: string, requestId: string): Promise<Response> {"
+          if insertion_point not in text:
+              raise SystemExit("handleRpc insertion point not found")
+
+          handler = r'''// P17-T282: admin invitation boundary
+async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: string): Promise<Response> {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  const config = getSupabaseConfig(env);
+  if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+
+  let body: unknown;
+  try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
+  const input = body as { email?: unknown; name?: unknown; role?: unknown; redirectTo?: unknown };
+  const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  const role = typeof input.role === "string" ? input.role.trim().toLowerCase() : "";
+  const redirectTo = typeof input.redirectTo === "string" ? input.redirectTo.trim() : undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400, { "X-Request-ID": requestId });
+  if (!name || name.length > 200) return json({ error: "invalid_name" }, 400, { "X-Request-ID": requestId });
+  if (!["sales", "operations", "admin"].includes(role)) return json({ error: "invalid_role" }, 400, { "X-Request-ID": requestId });
+  if (redirectTo && !/^https?:\/\//i.test(redirectTo)) return json({ error: "invalid_redirect" }, 400, { "X-Request-ID": requestId });
+
+  let authUserResponse: Response;
+  try {
+    authUserResponse = await fetch(`${config.url}/auth/v1/user`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  if (!authUserResponse.ok) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+  const authUser = await authUserResponse.json() as { id?: string };
+  if (!authUser.id) return json({ error: "authentication_required" }, 401, { "X-Request-ID": requestId });
+
+  let actorResponse: Response;
+  try {
+    const query = new URLSearchParams({ select: "id,role,active", id: `eq.${authUser.id}`, limit: "1" });
+    actorResponse = await fetch(`${config.url}/rest/v1/profiles?${query.toString()}`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+  } catch { return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId }); }
+  if (!actorResponse.ok) return json({ error: "forbidden" }, 403, { "X-Request-ID": requestId });
+  const actors = await actorResponse.json() as Array<{ id: string; role: string; active: boolean }>;
+  const actor = actors[0];
+  if (!actor || actor.active !== true || actor.role !== "admin") return json({ error: "forbidden" }, 403, { "X-Request-ID": requestId });
+
+  let inviteResponse: Response;
+  try {
+    inviteResponse = await fetch(`${config.url}/auth/v1/invite`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SECRET_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ email, data: { name, role }, ...(redirectTo ? { redirect_to: redirectTo } : {}) }),
+    });
+  } catch {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, result: "upstream_request_failed", dependency: "supabase_auth" });
+    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+  }
+
+  const inviteBody = await inviteResponse.text();
+  if (!inviteResponse.ok) {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, result: "invite_failed", status: inviteResponse.status });
+    return new Response(JSON.stringify({ error: "invite_failed" }), { status: inviteResponse.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Request-ID": requestId } });
+  }
+
+  let invited: { id?: string } = {};
+  try { invited = JSON.parse(inviteBody) as { id?: string }; } catch { return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId }); }
+  if (!invited.id) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
+
+  let provisionResponse: Response;
+  try {
+    provisionResponse = await fetch(`${config.url}/rest/v1/rpc/provision_invited_profile`, {
+      method: "POST",
+      headers: { apikey: config.key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ p_user_id: invited.id, p_name: name, p_role: role }),
+    });
+  } catch {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, result: "profile_provisioning_request_failed" });
+    return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
+  }
+  if (!provisionResponse.ok) {
+    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, result: "profile_provisioning_failed", status: provisionResponse.status });
+    return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
+  }
+
+  logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, role, result: "success" });
+  return json({ ok: true, userId: invited.id }, 200, { "X-Request-ID": requestId });
+}
+
+'''
+          text = text.replace(insertion_point, handler + insertion_point, 1)
+
+          route_anchor = '    if (url.pathname === "/api/auth/sign-out") return handleAuth(request, env, "sign-out");'
+          route_line = route_anchor + '\n    if (url.pathname === "/api/admin/users/invite") return handleAdminInvite(request, env, requestId);'
+          if route_anchor not in text:
+              raise SystemExit("route insertion point not found")
+          text = text.replace(route_anchor, route_line, 1)
+
+          path.write_text(text, encoding="utf-8")
+          print("Applied T282 admin invitation boundary patch.")
+
+      - name: Verify patch
+        run: |
+          grep -n "P17-T282: admin invitation boundary" worker/index.ts
+          grep -n "SUPABASE_SECRET_KEY" worker/index.ts
+          git diff --check
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/index.ts
+          git commit -m "P17-T282 implement server-side admin invitation" || exit 0
+          git push origin HEAD:feature/p17-t282-admin-invitation
