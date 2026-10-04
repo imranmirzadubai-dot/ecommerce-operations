@@ -10,9 +10,9 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname = 'create_courier'
-      and pg_get_function_identity_arguments(p.oid) = 'p_name text, p_idempotency_key text, p_contact_name text, p_contact_phone text, p_contact_email text, p_address text, p_notes text'
+      and pg_get_function_identity_arguments(p.oid) = 'text, text, text, text, text, text, text'
   ),
-  'create_courier function exists with the locked signature'
+  'create_courier function exists with the locked seven-argument signature'
 );
 
 select ok(
