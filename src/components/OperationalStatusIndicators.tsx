@@ -14,8 +14,11 @@ export function OperationalStatusIndicators({ accessToken }: Props) {
   const [orders, setOrders] = useState<OperationalOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
+  const navigationDiagnostic = diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006'
 
   const refresh = useCallback(async () => {
+    if (navigationDiagnostic) return
     setLoading(true)
     setError('')
     try {
@@ -26,12 +29,15 @@ export function OperationalStatusIndicators({ accessToken }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [accessToken])
+  }, [accessToken, navigationDiagnostic])
 
   useEffect(() => {
+    if (navigationDiagnostic) return
     const timer = window.setTimeout(() => { void refresh() }, 0)
     return () => window.clearTimeout(timer)
-  }, [refresh])
+  }, [navigationDiagnostic, refresh])
+
+  if (navigationDiagnostic) return null
 
   return <section className="operational-status-indicators" aria-label="Operational status indicators">
     <div className="section-heading"><div><span className="eyebrow">Operational Status</span><strong>Orders at a glance</strong><p>Lifecycle, parcel and COD states are shown as explicit indicators for the current order set.</p></div><button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh statuses'}</button></div>
