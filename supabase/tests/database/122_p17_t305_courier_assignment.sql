@@ -157,7 +157,7 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%before_data%'
+  )) like '%claim_command_idempotency%'
   and pg_get_functiondef((
     select p.oid
     from pg_proc p
@@ -166,10 +166,19 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%reassign_parcel_shipper%'
+  )) like '%complete_command_idempotency%'
+  and pg_get_functiondef((
+    select p.oid
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'assign_parcel_shipper'
+      and pg_get_function_identity_arguments(p.oid) =
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
+  )) like '%assign_parcel_shipper%'
   ,
-  'reassignment is preserved in before/after audit data'
-);
+  'assignment remains idempotent and retry safe'
+)
 
 select ok(
   pg_get_functiondef((
