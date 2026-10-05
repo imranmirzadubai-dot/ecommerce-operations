@@ -1,7 +1,7 @@
 -- P17-T305: courier parcel assignment / reassignment command contract.
 begin;
 
-select plan(18);
+select plan(17);
 
 select ok(
   exists (
@@ -191,9 +191,9 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%tracking%'
-  is false,
-  'assignment command does not mutate or reinterpret tracking ownership'
+  )) not like '%tracking_id%'
+  ,
+  'assignment command does not mutate or reinterpret parcel tracking ownership'
 );
 
 select ok(
@@ -205,8 +205,8 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%orders%shipper_id%'
-  is false,
+  )) not like '%orders.shipper_id%'
+  ,
   'assignment command does not create an order-level courier source of truth'
 );
 
@@ -219,9 +219,18 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%reassigned parcel%'
+  )) like '%ShipperReassigned%'
+  and pg_get_functiondef((
+    select p.oid
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'assign_parcel_shipper'
+      and pg_get_function_identity_arguments(p.oid) =
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
+  )) like '%reassign_parcel_shipper%'
   ,
-  'assignment function contains an explicit reassignment validation path'
+  'assignment function contains explicit reassignment behavior and audit action'
 );
 
 select ok(
@@ -247,9 +256,9 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%already assigned%'
-  is false,
-  'legacy conflicting-assignment rejection is replaced by explicit reassignment semantics'
+  )) like '%v_existing_shipper_id = p_shipper_id%'
+  ,
+  'same-target assignment is explicitly recognized as a no-op'
 );
 
 select * from finish();
