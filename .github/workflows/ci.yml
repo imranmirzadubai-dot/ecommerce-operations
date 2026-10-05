@@ -71,6 +71,7 @@ jobs:
             supabase/tests/database/060_allocation_overage_rejection.sql \
             supabase/tests/database/061_post_dispatch_allocation_immutability.sql \
             supabase/tests/database/062_shipper_assignment.sql \
+            supabase/tests/database/122_p17_t305_courier_assignment.sql \
             supabase/tests/database/063_tracking_id_validation.sql \
             supabase/tests/database/064_dispatch_parcel.sql \
             supabase/tests/database/065_duplicate_dispatch_idempotency.sql \
