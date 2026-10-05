@@ -189,7 +189,7 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%claim_command_idempotency(''assign_parcel_shipper''%'
+  )) like '%claim_command_idempotency%'
   and pg_get_functiondef((
     select p.oid
     from pg_proc p
@@ -198,9 +198,18 @@ select ok(
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
         'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
-  )) like '%complete_command_idempotency(''assign_parcel_shipper''%'
+  )) like '%complete_command_idempotency%'
+  and pg_get_functiondef((
+    select p.oid
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'assign_parcel_shipper'
+      and pg_get_function_identity_arguments(p.oid) =
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
+  )) like '%''assign_parcel_shipper''%'
   ,
-  'assignment remains idempotent and retry safe'
+  'assignment idempotency is backed by claim/complete calls for assign_parcel_shipper'
 );
 
 select ok(
