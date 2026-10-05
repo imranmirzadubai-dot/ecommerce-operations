@@ -178,7 +178,7 @@ select ok(
   )) like '%assign_parcel_shipper%'
   ,
   'assignment remains idempotent and retry safe'
-)
+);
 
 select ok(
   pg_get_functiondef((
