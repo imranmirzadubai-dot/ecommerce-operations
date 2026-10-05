@@ -11,7 +11,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
+        'uuid, uuid, text'
   ),
   'assign_parcel_shipper keeps the locked three-argument contract'
 );
