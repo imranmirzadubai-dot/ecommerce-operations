@@ -11,7 +11,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   ),
   'assign_parcel_shipper keeps the locked three-argument contract'
 );
@@ -24,7 +24,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and p.prosecdef
-      and p.proconfig @> array['search_path=']
+      and p.proconfig @> array['search_path=""']
   ),
   'assignment command is security definer with an empty pinned search_path'
 );
@@ -64,7 +64,7 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
-      and pg_get_function_identity_arguments(p.oid) = 'uuid, uuid, text'
+      and pg_get_function_identity_arguments(p.oid) = 'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%public.app_role() not in (''operations'',''admin'')%',
   'assignment checks the caller role server-side'
 );
@@ -101,7 +101,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%v_state <> ''Prepared''%'
   and pg_get_functiondef((
     select p.oid
@@ -110,7 +110,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%for update%'
   and pg_get_functiondef((
     select p.oid
@@ -119,7 +119,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%v_shipper_active%'
   ,
   'assignment locks the parcel and validates Prepared plus target courier state'
@@ -133,7 +133,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%ShipperAssigned%'
   and pg_get_functiondef((
     select p.oid
@@ -142,7 +142,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%ShipperReassigned%'
   ,
   'assignment and reassignment emit distinct order events'
@@ -156,7 +156,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%before_data%'
   and pg_get_functiondef((
     select p.oid
@@ -165,7 +165,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%reassign_parcel_shipper%'
   ,
   'reassignment is preserved in before/after audit data'
@@ -179,7 +179,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%claim_command_idempotency(''assign_parcel_shipper''%'
   and pg_get_functiondef((
     select p.oid
@@ -188,7 +188,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%complete_command_idempotency(''assign_parcel_shipper''%'
   ,
   'assignment remains idempotent and retry safe'
@@ -202,7 +202,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) not like '%tracking_id%'
   ,
   'assignment command does not mutate or reinterpret parcel tracking ownership'
@@ -216,7 +216,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) not like '%orders.shipper_id%'
   ,
   'assignment command does not create an order-level courier source of truth'
@@ -230,7 +230,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%ShipperReassigned%'
   and pg_get_functiondef((
     select p.oid
@@ -239,7 +239,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%reassign_parcel_shipper%'
   ,
   'assignment function contains explicit reassignment behavior and audit action'
@@ -253,7 +253,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%Active courier is required%'
   ,
   'inactive couriers are blocked for new/different assignments'
@@ -267,7 +267,7 @@ select ok(
     where n.nspname = 'public'
       and p.proname = 'assign_parcel_shipper'
       and pg_get_function_identity_arguments(p.oid) =
-        'uuid, uuid, text'
+        'p_parcel_id uuid, p_shipper_id uuid, p_idempotency_key text'
   )) like '%v_existing_shipper_id = p_shipper_id%'
   ,
   'same-target assignment is explicitly recognized as a no-op'
