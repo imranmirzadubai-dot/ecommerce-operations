@@ -1,7 +1,7 @@
 -- P17-T305: courier parcel assignment / reassignment command contract.
 begin;
 
-select plan(17);
+select plan(18);
 
 select ok(
   exists (
