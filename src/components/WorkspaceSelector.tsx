@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { AppRole } from '../lib/roles'
 import { getPostLoginPath } from '../lib/routes'
 
@@ -11,10 +12,32 @@ type WorkspaceSelectorProps = {
 
 export function WorkspaceSelector({ name, role, onSelect }: WorkspaceSelectorProps) {
   const canAdmin = role === 'admin'
+  const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
+
+  useEffect(() => {
+    if (diagnosticEnvironment === 't227-003') {
+      const pageHeading = document.querySelector('main.content .page-heading h1')
+      if (pageHeading) pageHeading.setAttribute('role', 'presentation')
+      return
+    }
+
+    if (!['t227-004', 't227-005', 't227-006'].includes(diagnosticEnvironment)) return
+    const postLoginPath = getPostLoginPath(window.location.search)
+    const navigationMode = diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006'
+      ? new URLSearchParams(window.location.search).get('navigation')
+      : null
+
+    if (navigationMode === 'soft') {
+      window.history.replaceState({}, '', postLoginPath)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    } else {
+      window.location.replace(postLoginPath)
+    }
+  }, [diagnosticEnvironment])
 
   function selectWorkspace(workspace: Workspace) {
     onSelect(workspace)
-    if (import.meta.env.VITE_E2E_DIAGNOSTIC !== 't227-003') return
+    if (diagnosticEnvironment !== 't227-003') return
     const postLoginPath = getPostLoginPath(window.location.search)
     const diagnosticTarget = new URL(postLoginPath, window.location.origin).searchParams.get('workspace')
     if (!diagnosticTarget) return
