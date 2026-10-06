@@ -11,9 +11,12 @@ import { OrderExport } from './components/OrderExport'
 import { OperationalStatusIndicators } from './components/OperationalStatusIndicators'
 import { normalizeAedAmount } from './lib/money'
 import { MobileNavigation } from './components/MobileNavigation'
+import { WorkspaceSelector } from './components/WorkspaceSelector'
 
 const navigation = ['Dashboard', 'Customers', 'Orders', 'Parcels', 'Dispatch', 'Delivery / NDR', 'COD & Finance', 'Invoices', 'Reports']
 type OrderItem = { description: string; quantity: string }
+type Workspace = 'operations' | 'admin'
+const WORKSPACE_SESSION_KEY = 'ecommerce-operations.workspace'
 const environmentLabel = (import.meta.env.VITE_APP_ENVIRONMENT || import.meta.env.MODE || 'unknown').toUpperCase()
 
 const ParcelAllocationWorkspace = lazy(() => import('./components/ParcelAllocationWorkspace').then((module) => ({ default: module.ParcelAllocationWorkspace })))
@@ -29,6 +32,15 @@ const CodFinanceWorkspace = lazy(() => import('./components/CodFinanceWorkspace'
 
 function WorkspaceLoading() {
   return <section className="card" aria-live="polite"><p className="form-note">Loading workspace…</p></section>
+}
+
+function getStoredWorkspace(): Workspace | null {
+  try {
+    const value = sessionStorage.getItem(WORKSPACE_SESSION_KEY)
+    return value === 'operations' || value === 'admin' ? value : null
+  } catch {
+    return null
+  }
 }
 
 function App() {
@@ -50,16 +62,50 @@ function App() {
   const handleOrdersChange = useCallback((orders: OrderListRow[]) => setExportOrders(orders), [])
   const [activeWorkspace, setActiveWorkspace] = useState('Dashboard')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(() => getStoredWorkspace())
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
+  const adminWorkspaceSelectionRequired = authenticated && canAdministerUsers(auth.profile) && selectedWorkspace === null
   const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
   const diagnosticGateEnabled = diagnosticEnvironment === 't227-003' || diagnosticEnvironment === 't227-004' || diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006'
   const diagnosticWorkspace = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
   const ordersStartupControl = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
   const diagnosticOrdersEnabled = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' && !diagnosticWorkspace && ordersStartupControl !== 'off'
 
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(''); try { await signIn(email.trim(), password); setPassword(''); const navigationMode = (import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-005' || import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null; const postLoginPath = getPostLoginPath(window.location.search); if (navigationMode === 'soft') { window.history.replaceState({}, '', postLoginPath); window.dispatchEvent(new PopStateEvent('popstate')); } else { window.location.replace(postLoginPath) } } catch (signInError) { setError(signInError instanceof Error ? signInError.message : 'Unable to sign in') } }
-  async function handleSignOut() { await signOut(); setOrderMessage(''); setCustomerMessage(''); window.location.replace('/login') }
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    try {
+      const next = await signIn(email.trim(), password)
+      setPassword('')
+      if (next.profile?.role === 'admin') {
+        setSelectedWorkspace(null)
+        try { sessionStorage.removeItem(WORKSPACE_SESSION_KEY) } catch { /* storage may be unavailable */ }
+        return
+      }
+      const navigationMode = (import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-005' || import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null
+      const postLoginPath = getPostLoginPath(window.location.search)
+      if (navigationMode === 'soft') { window.history.replaceState({}, '', postLoginPath); window.dispatchEvent(new PopStateEvent('popstate')) } else { window.location.replace(postLoginPath) }
+    } catch (signInError) {
+      setError(signInError instanceof Error ? signInError.message : 'Unable to sign in')
+    }
+  }
+
+  async function handleSignOut() {
+    await signOut()
+    setSelectedWorkspace(null)
+    try { sessionStorage.removeItem(WORKSPACE_SESSION_KEY) } catch { /* storage may be unavailable */ }
+    setOrderMessage('')
+    setCustomerMessage('')
+    window.location.replace('/login')
+  }
+
+  function handleWorkspaceSelect(workspace: Workspace) {
+    setSelectedWorkspace(workspace)
+    try { sessionStorage.setItem(WORKSPACE_SESSION_KEY, workspace) } catch { /* storage may be unavailable */ }
+    setActiveWorkspace(workspace === 'admin' ? 'Admin Users' : 'Dashboard')
+  }
+
   function navigateTo(item: string) { setActiveWorkspace(item); setMobileMenuOpen(false) }
   async function lookupCustomer() { if (!auth.accessToken || !phone.trim()) return; setCustomerMessage('Looking up customer…'); try { const rows = await resolveCustomerByPhone(auth.accessToken, phone.trim()); const customer = rows[0]; if (!customer) { setCustomerMessage('No existing customer found. A new customer will be created with the order.'); return } setCustomerName(customer.name); setAddress(customer.address ?? ''); setCity(customer.city ?? ''); setCustomerMessage(`Existing customer found: ${customer.customer_code}`) } catch (lookupError) { setCustomerMessage(lookupError instanceof Error ? lookupError.message : 'Customer lookup failed') } }
   function updateItem(index: number, field: keyof OrderItem, value: string) { setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item)) }
@@ -77,6 +123,10 @@ function App() {
       : diagnosticWorkspace === 'admin' ? <AdminUserControls accessToken={auth.accessToken!} profile={auth.profile} />
       : null
     if (workspace) return <Suspense fallback={<WorkspaceLoading />}><main data-testid="t227-003-workspace-shell"><h1>T227-003 workspace control</h1>{workspace}</main></Suspense>
+  }
+
+  if (adminWorkspaceSelectionRequired) {
+    return <div className="operations-app"><header className="topbar"><div className="brand"><span className="brand-mark">EO</span><div><strong>E-Commerce Operations</strong><span>Operations workspace</span></div></div><div className="environment"><span className="status-dot" /><span>{environmentLabel}</span><button className="signout" onClick={handleSignOut}>Sign out</button></div></header><main className="content"><div className="page-heading"><div><span className="eyebrow">Authenticated</span><h1>Select workspace</h1><p>Your account has access to both operational and administrative functions.</p></div><span className="foundation-pill">Access controlled</span></div><WorkspaceSelector name={auth.profile?.name ?? 'User'} role={auth.profile?.role ?? 'admin'} onSelect={handleWorkspaceSelect} /></main></div>
   }
 
   return <div className="operations-app"><header className="topbar"><div className="brand"><button className="mobile-topbar-menu" type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open navigation menu">☰</button><span className="brand-mark">EO</span><div><strong>E-Commerce Operations</strong><span>Operations workspace</span></div></div><div className="environment"><span className="status-dot" /><span>{environmentLabel}</span>{authenticated && <button className="signout" onClick={handleSignOut}>Sign out</button>}</div></header><div className="app-body"><aside className="sidebar" aria-label="Primary navigation"><nav>{navigation.map((item) => <button className={item === activeWorkspace ? 'nav-item active' : 'nav-item'} disabled={!authenticated} key={item} onClick={() => navigateTo(item)}><span>{item}</span>{item === 'Dashboard' && <span className="nav-badge">Core</span>}</button>)}{canAdministerUsers(auth.profile) && <button className={activeWorkspace === 'Admin Users' ? 'nav-item active' : 'nav-item'} disabled={!authenticated} onClick={() => navigateTo('Admin Users')}><span>Admin Users</span><span className="nav-badge">Admin</span></button>}</nav><div className="sidebar-footer"><span className="eyebrow">Access</span><strong>{auth.profile?.role ?? 'Not signed in'}</strong></div></aside><main className="content"><div className="page-heading"><div><span className="eyebrow">Workspace</span><h1>{activeWorkspace === 'Dashboard' ? 'Operations Dashboard' : activeWorkspace}</h1><p>{activeWorkspace === 'Dashboard' ? 'Transactional order, parcel, delivery and financial operations.' : 'Operational workspace with existing application workflows.'}</p></div><div className="heading-actions"><span className="foundation-pill">Foundation protected</span>{authenticated && activeWorkspace !== 'Dashboard' && <button className="secondary-button heading-refresh" type="button" onClick={() => window.dispatchEvent(new Event('ui:workspace-refresh'))}>Refresh</button>}</div></div>{!authenticated && <section className="access-panel" aria-labelledby="access-title"><div className="access-icon">✓</div><div><span className="eyebrow">Authentication boundary</span><h2 id="access-title">Secure access is required</h2>{!configured ? <p>Authentication is not configured for this deployment yet. No demo account or business data is being fabricated.</p> : loading ? <p>Checking the current authenticated session…</p> : <form className="login-form" onSubmit={handleSignIn}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label><button className="login-button" type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>{error && <p className="form-error" role="alert">{error}</p>}</form>}</div><div className="access-state">Signed out</div></section>}{authenticated && <section className="access-panel signed-in-panel"><div className="access-icon">✓</div><div><span className="eyebrow">Authenticated</span><h2>{auth.profile?.name}</h2><p>{auth.profile?.email} · {auth.profile?.role}</p></div><div className="access-state">Active</div></section>}{authenticated && <Suspense fallback={<WorkspaceLoading />}>{activeWorkspace === 'Admin Users' && canAdministerUsers(auth.profile) && auth.accessToken && <AdminUserControls accessToken={auth.accessToken} profile={auth.profile} />}{activeWorkspace === 'Customers' && auth.accessToken && <CustomerHistoryWorkspace accessToken={auth.accessToken} />}{activeWorkspace === 'Parcels' && auth.accessToken && <ParcelAllocationWorkspace accessToken={auth.accessToken} />}{activeWorkspace === 'Dispatch' && auth.accessToken && <DispatchScanWorkspace accessToken={auth.accessToken} />}{activeWorkspace === 'Delivery / NDR' && auth.accessToken && <><DeliveryOutcomeWorkspace accessToken={auth.accessToken} /><RtoScanWorkspace accessToken={auth.accessToken} /></>}{activeWorkspace === 'COD & Finance' && auth.accessToken && <CodFinanceWorkspace accessToken={auth.accessToken} isAdmin={canAdministerUsers(auth.profile)} />}{activeWorkspace === 'Invoices' && auth.accessToken && <InvoicePrintWorkspace accessToken={auth.accessToken} />}{activeWorkspace === 'Orders' && auth.accessToken && <><OrdersWorkspace accessToken={auth.accessToken} onOrdersChange={handleOrdersChange} /><div className="report-export-integration"><OrderExport orders={exportOrders} selectedOrderIds={[]} /></div></>}{activeWorkspace === 'Reports' && auth.accessToken && <ReportWorkspace accessToken={auth.accessToken} />}{activeWorkspace === 'Dashboard' && <>{diagnosticOrdersEnabled && auth.accessToken && <OrdersWorkspace accessToken={auth.accessToken} onOrdersChange={handleOrdersChange} />}<section className="workspace-grid"><article className="card order-card"><div className="section-heading"><div><span className="eyebrow">Customer / Order Core</span><h2>Create Draft Order</h2><p>Creates the customer if the phone is new, then atomically creates the order and items.</p></div><span className="check">Transactional</span></div><form className="order-form" onSubmit={handleCreateOrder}><div className="form-row"><label>Customer phone<input value={phone} onChange={(event) => setPhone(event.target.value)} onBlur={lookupCustomer} placeholder="05xxxxxxxx" required /></label><button className="secondary-button" type="button" onClick={lookupCustomer} disabled={!phone.trim()}>Find customer</button></div>{customerMessage && <p className="form-note">{customerMessage}</p>}<div className="form-row"><label>Customer name<input value={customerName} onChange={(event) => setCustomerName(event.target.value)} required /></label><label>City<input value={city} onChange={(event) => setCity(event.target.value)} /></label></div><label>Address<input value={address} onChange={(event) => setAddress(event.target.value)} /></label><div className="items-heading"><strong>Order items</strong><button className="secondary-button" type="button" onClick={addItem}>+ Add item</button></div>{items.map((item, index) => <div className="item-row" key={index}><input aria-label={`Product description ${index + 1}`} placeholder="Product description" value={item.description} onChange={(event) => updateItem(index, 'description', event.target.value)} required /><input aria-label={`Quantity ${index + 1}`} type="number" min="1" step="1" value={item.quantity} onChange={(event) => updateItem(index, 'quantity', event.target.value)} required /><button className="remove-button" type="button" onClick={() => removeItem(index)} disabled={items.length === 1}>Remove</button></div>)}<div className="form-row"><label>Total Order Amount (AED)<input aria-label="Total Order Amount (AED)" type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} required /><span className="form-note">Enter the single order total. Up to 2 decimal places; no item prices, VAT, discount, or service fee.</span></label><label>Notes<input value={notes} onChange={(event) => setNotes(event.target.value)} /></label></div><button className="login-button" type="submit" disabled={orderLoading}>{orderLoading ? 'Creating order…' : 'Create Draft Order'}</button>{orderMessage && <p className={orderMessage.startsWith('Order ') ? 'form-success' : 'form-error'} role="status">{orderMessage}</p>}</form></article></section></>}{/* Dashboard diagnostic Orders mount is intentionally limited to T227 control mode; normal UI-004 startup remains lazy. */}</Suspense>}{authenticated && activeWorkspace === 'Dashboard' && auth.accessToken && <OperationalStatusIndicators accessToken={auth.accessToken} />}<section className="foundation-grid"><article className="card"><span className="eyebrow">Database</span><h2>Security foundation</h2><p>PostgreSQL constraints, RLS and transactional command boundaries are established before business data entry.</p><span className="check">✓ Verified in CI and staging</span></article><article className="card"><span className="eyebrow">Commands</span><h2>Idempotency foundation</h2><p>State-changing order commands use an authenticated actor and deterministic idempotency key boundary.</p><span className="check">✓ Structural + staging behavior verified</span></article><article className="card"><span className="eyebrow">Environment</span><h2>Staging isolation</h2><p>Business fixtures remain absent. The workspace cannot silently fall back to production data.</p><span className="check">✓ No production data touched</span></article></section></main><MobileNavigation activeWorkspace={activeWorkspace} authenticated={authenticated} canAdmin={canAdministerUsers(auth.profile)} menuOpen={mobileMenuOpen} onNavigate={navigateTo} onToggleMenu={() => setMobileMenuOpen((open) => !open)} onCloseMenu={() => setMobileMenuOpen(false)} signOut={handleSignOut} /></div></div>
