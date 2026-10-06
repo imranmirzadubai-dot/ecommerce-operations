@@ -65,9 +65,9 @@ function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(() => getStoredWorkspace())
   const configured = getAuthConfig() !== null
   const authenticated = hasOperationalAccess(auth.profile)
-  const adminWorkspaceSelectionRequired = authenticated && canAdministerUsers(auth.profile) && selectedWorkspace === null
   const diagnosticEnvironment = import.meta.env.VITE_E2E_DIAGNOSTIC
   const diagnosticGateEnabled = diagnosticEnvironment === 't227-003' || diagnosticEnvironment === 't227-004' || diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006'
+  const adminWorkspaceSelectionRequired = authenticated && canAdministerUsers(auth.profile) && selectedWorkspace === null && !diagnosticGateEnabled
   const diagnosticWorkspace = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('workspace') : null
   const ordersStartupControl = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' ? new URLSearchParams(window.location.search).get('orders') : null
   const diagnosticOrdersEnabled = diagnosticGateEnabled && new URLSearchParams(window.location.search).get('t227') === '003' && !diagnosticWorkspace && ordersStartupControl !== 'off'
@@ -78,13 +78,17 @@ function App() {
     try {
       const next = await signIn(email.trim(), password)
       setPassword('')
+      const postLoginPath = getPostLoginPath(window.location.search)
+      if (diagnosticGateEnabled) {
+        const navigationMode = (diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null
+        if (navigationMode === 'soft') { window.history.replaceState({}, '', postLoginPath); window.dispatchEvent(new PopStateEvent('popstate')) } else { window.location.replace(postLoginPath) }
+        return
+      }
       if (next.profile?.role === 'admin') {
         setSelectedWorkspace(null)
         try { sessionStorage.removeItem(WORKSPACE_SESSION_KEY) } catch { /* storage may be unavailable */ }
         return
       }
-      const navigationMode = (import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-005' || import.meta.env.VITE_E2E_DIAGNOSTIC === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null
-      const postLoginPath = getPostLoginPath(window.location.search)
       if (navigationMode === 'soft') { window.history.replaceState({}, '', postLoginPath); window.dispatchEvent(new PopStateEvent('popstate')) } else { window.location.replace(postLoginPath) }
     } catch (signInError) {
       setError(signInError instanceof Error ? signInError.message : 'Unable to sign in')
