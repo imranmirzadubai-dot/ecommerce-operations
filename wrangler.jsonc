@@ -14,6 +14,11 @@
     "enabled": true
   },
   "upload_source_maps": true,
+  "vars": {
+    "ENVIRONMENT": "production",
+    "SUPABASE_URL": "https://lltcviwgklwulicjtxnx.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_E64-TC99tGXssLpDpHMMEA_m3wQ03FV"
+  },
   "env": {
     "staging": {
       "name": "ecommerce-operations-staging",
