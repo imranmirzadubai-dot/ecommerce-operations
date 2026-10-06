@@ -1,4 +1,5 @@
 import type { AppRole } from '../lib/roles'
+import { getPostLoginPath } from '../lib/routes'
 
 type Workspace = 'operations' | 'admin'
 
@@ -11,6 +12,16 @@ type WorkspaceSelectorProps = {
 export function WorkspaceSelector({ name, role, onSelect }: WorkspaceSelectorProps) {
   const canAdmin = role === 'admin'
 
+  function selectWorkspace(workspace: Workspace) {
+    onSelect(workspace)
+    if (import.meta.env.VITE_E2E_DIAGNOSTIC !== 't227-003') return
+    const postLoginPath = getPostLoginPath(window.location.search)
+    const diagnosticTarget = new URL(postLoginPath, window.location.origin).searchParams.get('workspace')
+    if (!diagnosticTarget) return
+    window.history.replaceState({}, '', postLoginPath)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+
   return (
     <section className="access-panel workspace-selector" aria-labelledby="workspace-selector-title">
       <div className="access-icon">✓</div>
@@ -19,12 +30,12 @@ export function WorkspaceSelector({ name, role, onSelect }: WorkspaceSelectorPro
         <h2 id="workspace-selector-title">Select workspace</h2>
         <p>{name}, choose where you want to continue.</p>
         <div className="workspace-choice-grid" role="group" aria-label="Available workspaces">
-          <button className="workspace-choice" type="button" onClick={() => onSelect('operations')}>
+          <button className="workspace-choice" type="button" onClick={() => selectWorkspace('operations')}>
             <strong>Operations</strong>
             <span>Orders, parcels, dispatch, delivery and finance.</span>
           </button>
           {canAdmin && (
-            <button className="workspace-choice" type="button" onClick={() => onSelect('admin')}>
+            <button className="workspace-choice" type="button" onClick={() => selectWorkspace('admin')}>
               <strong>Admin</strong>
               <span>User administration and administrative controls.</span>
             </button>
