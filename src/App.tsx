@@ -79,8 +79,8 @@ function App() {
       const next = await signIn(email.trim(), password)
       setPassword('')
       const postLoginPath = getPostLoginPath(window.location.search)
+      const navigationMode = (diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null
       if (diagnosticGateEnabled) {
-        const navigationMode = (diagnosticEnvironment === 't227-005' || diagnosticEnvironment === 't227-006') ? new URLSearchParams(window.location.search).get('navigation') : null
         if (navigationMode === 'soft') { window.history.replaceState({}, '', postLoginPath); window.dispatchEvent(new PopStateEvent('popstate')) } else { window.location.replace(postLoginPath) }
         return
       }
