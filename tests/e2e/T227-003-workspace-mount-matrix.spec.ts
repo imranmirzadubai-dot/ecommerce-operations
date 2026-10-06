@@ -69,6 +69,11 @@ for (const [workspace, expectedTitle] of MATRIX) {
     await page.getByLabel('Password').fill('diagnostic-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
+    await expect(page.getByRole('heading', { name: 'Select workspace' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Operations/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Admin/ })).toBeVisible()
+    await page.getByRole('button', { name: workspace === 'admin' ? /Admin/ : /Operations/ }).click()
+
     await expect(page).toHaveURL(new RegExp(`\\?t227=003&workspace=${workspace}$`))
     await expect(page.getByTestId('t227-003-workspace-shell')).toBeVisible()
     await expect(page.getByText(expectedTitle, { exact: true })).toBeVisible()
