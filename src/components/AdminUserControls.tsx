@@ -54,14 +54,14 @@ export function AdminUserControls({ accessToken, profile }: { accessToken: strin
         credentials: 'include',
         body: JSON.stringify({ email: inviteEmail.trim().toLowerCase(), name: inviteName.trim(), role: inviteRole }),
       })
-      const payload = await response.json().catch(() => null) as { error?: string } | null
+      const payload = await response.json().catch(() => null) as { error?: string; invitation_created?: boolean; cleanup_failed?: boolean } | null
       if (!response.ok) {
         const messages: Record<string, string> = {
           invalid_email: 'Enter a valid email address.',
           invalid_name: 'Enter a valid user name.',
           invalid_role: 'Select a valid application role.',
           invite_failed: 'The invitation could not be sent. Check whether this email already has an Auth account.',
-          profile_provisioning_failed: 'The Auth invitation was created, but the application profile could not be created. Do not resend yet; this needs administrator review.',
+          profile_provisioning_failed: payload?.invitation_created === false ? 'User creation was rolled back because the application profile could not be created. No active invitation remains; verify the system before retrying.' : 'The Auth invitation was created, but the application profile could not be created and cleanup did not complete. Do not resend yet; this needs administrator review.',
           authentication_required: 'Your admin session has expired. Sign in again.',
           forbidden: 'Only an active Admin can create users.',
           server_not_configured: 'User invitation is not configured in this environment.',
