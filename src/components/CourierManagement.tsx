@@ -34,7 +34,7 @@ function toForm(courier: Courier): FormState {
 }
 
 function normalizeCommandCourier(row: CourierCommandResult): Courier {
-  return { ...row, id: row.id || row.courier_id || '' }
+  return { ...row, id: row.courier_id }
 }
 
 function errorMessage(error: unknown, fallback: string): string {
