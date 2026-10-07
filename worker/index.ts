@@ -105,6 +105,22 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
 }
 
 // P17-T282: admin invitation boundary
+async function cleanupInvitedAuthUser(config: { url: string; key: string }, secretKey: string, userId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+      headers: {
+        apikey: secretKey,
+        Authorization: `Bearer ${secretKey}`,
+        Accept: "application/json",
+      },
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: string): Promise<Response> {
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
   const accessToken = getBearerToken(request);
@@ -186,8 +202,22 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
     return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
   }
   if (!provisionResponse.ok) {
-    logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, result: "profile_provisioning_failed", status: provisionResponse.status });
-    return json({ error: "profile_provisioning_failed", invitation_created: true }, 502, { "X-Request-ID": requestId });
+    const provisionBody = await provisionResponse.text().catch(() => "");
+    const cleanupSucceeded = await cleanupInvitedAuthUser(config, env.SUPABASE_SECRET_KEY, invited.id);
+    logEvent("admin_invite", {
+      request_id: requestId,
+      actor_id: actor.id,
+      invited_user_id: invited.id,
+      result: "profile_provisioning_failed",
+      status: provisionResponse.status,
+      cleanup_succeeded: cleanupSucceeded,
+      upstream_error: provisionBody.slice(0, 500),
+    });
+    return json({
+      error: "profile_provisioning_failed",
+      invitation_created: !cleanupSucceeded,
+      cleanup_failed: !cleanupSucceeded,
+    }, 502, { "X-Request-ID": requestId });
   }
 
   logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, invited_user_id: invited.id, role, result: "success" });
