@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { canAdministerUsers, type Profile } from '../lib/auth'
-import { createCourier, listCouriers, setCourierActive, updateCourier, type Courier } from '../lib/commands'
+import { createCourier, listCouriers, setCourierActive, updateCourier, type Courier, type CourierCommandResult } from '../lib/commands'
 import '../styles/admin-responsive.css'
 
 type FormState = {
@@ -33,7 +33,7 @@ function toForm(courier: Courier): FormState {
   }
 }
 
-function normalizeCommandCourier(row: Courier & { courier_id?: string }): Courier {
+function normalizeCommandCourier(row: CourierCommandResult): Courier {
   return { ...row, id: row.id || row.courier_id || '' }
 }
 
