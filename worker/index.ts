@@ -104,6 +104,34 @@ async function handleAuth(request: Request, env: WorkerEnv, action: "sign-in" | 
   return json({ accessToken: token.access_token, userId: token.user.id }, 200, { "Set-Cookie": authCookie(token.refresh_token), "X-Request-ID": requestId });
 }
 
+async function handleInviteSession(request: Request, env: WorkerEnv, requestId: string): Promise<Response> {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { "X-Request-ID": requestId });
+  const config = getSupabaseConfig(env);
+  if (!config) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
+  let body: unknown;
+  try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
+  const refreshToken = typeof (body as { refreshToken?: unknown }).refreshToken === "string" ? (body as { refreshToken: string }).refreshToken.trim() : "";
+  if (!refreshToken || refreshToken.length > 2048) return json({ error: "invalid_refresh_token" }, 400, { "X-Request-ID": requestId });
+  let tokenResponse: Response;
+  try {
+    tokenResponse = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { apikey: config.key, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+  } catch {
+    return json({ error: "upstream_request_failed" }, 502, { "X-Request-ID": requestId });
+  }
+  if (!tokenResponse.ok) return json({ error: "invite_session_invalid" }, 401, { "X-Request-ID": requestId });
+  const token = await tokenResponse.json() as AuthTokenResponse;
+  if (!token.user?.id || !token.access_token || !token.refresh_token) return json({ error: "invalid_upstream_response" }, 502, { "X-Request-ID": requestId });
+  return json({ accessToken: token.access_token, userId: token.user.id }, 200, {
+    "Set-Cookie": authCookie(token.refresh_token),
+    "X-Request-ID": requestId,
+  });
+}
+
 // P17-T282: admin invitation boundary
 async function cleanupInvitedAuthUser(config: { url: string; key: string }, secretKey: string, userId: string): Promise<boolean> {
   try {
@@ -135,11 +163,10 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const role = typeof input.role === "string" ? input.role.trim().toLowerCase() : "";
-  const redirectTo = typeof input.redirectTo === "string" ? input.redirectTo.trim() : undefined;
+  const inviteRedirectTo = `${new URL(request.url).origin}/auth/callback`;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400, { "X-Request-ID": requestId });
   if (!name || name.length > 200) return json({ error: "invalid_name" }, 400, { "X-Request-ID": requestId });
   if (!["sales", "operations", "admin"].includes(role)) return json({ error: "invalid_role" }, 400, { "X-Request-ID": requestId });
-  if (redirectTo && !/^https?:\/\//i.test(redirectTo)) return json({ error: "invalid_redirect" }, 400, { "X-Request-ID": requestId });
 
   let authUserResponse: Response;
   try {
@@ -173,7 +200,7 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ email, data: { name, role }, ...(redirectTo ? { redirect_to: redirectTo } : {}) }),
+      body: JSON.stringify({ email, data: { name, role }, redirect_to: inviteRedirectTo }),
     });
   } catch {
     logEvent("admin_invite", { request_id: requestId, actor_id: actor.id, result: "upstream_request_failed", dependency: "supabase_auth" });
@@ -311,6 +338,7 @@ export default {
     const requestId = getRequestId(request);
     if (url.pathname === "/api/auth/sign-in") return handleAuth(request, env, "sign-in");
     if (url.pathname === "/api/auth/session") return handleAuth(request, env, "session");
+    if (url.pathname === "/api/auth/invite-session") return handleInviteSession(request, env, requestId);
     if (url.pathname === "/api/auth/sign-out") return handleAuth(request, env, "sign-out");
     if (url.pathname === "/api/admin/users/invite") return handleAdminInvite(request, env, requestId);
     if (url.pathname === "/api/admin/users/password-recovery") return handleAdminPasswordRecovery(request, env, requestId);
