@@ -222,7 +222,7 @@ export type SetCourierActiveInput = {
   p_idempotency_key: string
 }
 
-export type CourierCommandResult = Courier
+export type CourierCommandResult = Omit<Courier, 'id'> & { courier_id: string }
 
 export async function listCouriers(accessToken: string, signal?: AbortSignal): Promise<Courier[]> {
   const config = getAuthConfig()
