@@ -109,7 +109,7 @@ begin
     update public.shippers
     set active = p_active
     where id = p_courier_id
-    returning id, courier_code, name, active, created_at, updated_at
+    returning public.shippers.id, public.shippers.courier_code, public.shippers.name, public.shippers.active, public.shippers.created_at, public.shippers.updated_at
       into v_id, v_code, v_name, v_active, v_created_at, v_updated_at;
 
     insert into public.audit_logs(
