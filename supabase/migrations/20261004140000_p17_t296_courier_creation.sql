@@ -142,8 +142,8 @@ begin
     true
   )
   returning
-    id,
-    courier_code,
+    public.shippers.id,
+    public.shippers.courier_code,
     name,
     contact_name,
     contact_phone,
