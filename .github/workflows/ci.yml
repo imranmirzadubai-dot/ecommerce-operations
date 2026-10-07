@@ -71,6 +71,11 @@ jobs:
             supabase/tests/database/060_allocation_overage_rejection.sql \
             supabase/tests/database/061_post_dispatch_allocation_immutability.sql \
             supabase/tests/database/062_shipper_assignment.sql \
+            supabase/tests/database/117_p17_t295_courier_model.sql \
+            supabase/tests/database/118_p17_t296_courier_creation.sql \
+            supabase/tests/database/119_p17_t300_courier_edit.sql \
+            supabase/tests/database/120_p17_t302_courier_duplicate_business_rules.sql \
+            supabase/tests/database/121_p17_t304_courier_active_state.sql \
             supabase/tests/database/122_p17_t305_courier_assignment.sql \
             supabase/tests/database/063_tracking_id_validation.sql \
             supabase/tests/database/064_dispatch_parcel.sql \
