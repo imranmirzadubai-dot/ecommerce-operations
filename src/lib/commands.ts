@@ -1,3 +1,5 @@
+import { getAuthConfig } from './auth'
+
 export type CreateOrderInput = {
   p_customer_name: string
   p_phone: string
