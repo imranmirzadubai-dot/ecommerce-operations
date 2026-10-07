@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { restoreSession, signIn as authenticate, signOut as terminateSession, type AuthState } from './auth'
+import { acceptInviteSession, restoreSession, signIn as authenticate, signOut as terminateSession, type AuthState } from './auth'
 
 const signedOutState: AuthState = { authenticated: false, userId: null, profile: null, accessToken: null }
 const REFRESH_LEAD_MS = 60_000
@@ -15,6 +15,7 @@ type AuthContextValue = AuthState & {
   signIn: (email: string, password: string) => Promise<AuthState>
   signOut: () => Promise<void>
   refresh: () => Promise<AuthState>
+  authError: string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(signedOutState)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
   const refreshTimer = useRef<number | null>(null)
   const operationGeneration = useRef(0)
   const operationController = useRef<AbortController | null>(null)
@@ -91,11 +93,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { controller, generation } = beginOperation()
-    void restoreSession(controller.signal).then((next) => {
-      if (isCurrentOperation(generation, controller)) setAuth(next)
-    }).finally(() => {
-      finishOperation(generation, controller)
-    })
+    void (async () => {
+      try {
+        const invited = await acceptInviteSession(controller.signal)
+        if (isCurrentOperation(generation, controller)) {
+          setAuth(invited ?? await restoreSession(controller.signal))
+          setAuthError(null)
+        }
+      } catch (error) {
+        if (isCurrentOperation(generation, controller)) {
+          setAuth(signedOutState)
+          setAuthError(error instanceof Error ? error.message : 'Invitation could not be accepted')
+        }
+      } finally {
+        finishOperation(generation, controller)
+      }
+    })()
     return () => {
       controller.abort()
       if (operationController.current === controller) operationController.current = null
@@ -182,7 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     refresh,
-  }), [auth, loading, refresh, signIn, signOut])
+    authError,
+  }), [auth, authError, loading, refresh, signIn, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
