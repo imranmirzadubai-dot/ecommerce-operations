@@ -44,6 +44,35 @@ export function getAuthConfig(): AuthConfig | null {
 
 const LEGACY_SESSION_KEY = 'ecommerce-operations.auth.session'
 
+export async function acceptInviteSession(signal?: AbortSignal): Promise<AuthState | null> {
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : ""
+  if (!hash) return null
+  const params = new URLSearchParams(hash)
+  const errorCode = params.get('error_code')
+  const errorDescription = params.get('error_description')
+  if (errorCode || errorDescription) {
+    window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`)
+    throw new Error(errorDescription ?? errorCode ?? 'Invitation could not be accepted')
+  }
+  const refreshToken = params.get('refresh_token')
+  if (!refreshToken) return null
+  const session = await authEndpoint<AuthResponse>('/api/auth/invite-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  }, signal)
+  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`)
+  const config = getAuthConfig()
+  if (!config) throw new Error('Supabase authentication is not configured for this environment')
+  try {
+    const profile = await loadProfile(config, session.accessToken, session.userId, signal)
+    return { authenticated: true, userId: session.userId, profile, accessToken: session.accessToken }
+  } catch (error) {
+    await authEndpoint('/api/auth/sign-out', { method: 'POST' }).catch(() => undefined)
+    throw error
+  }
+}
+
 export function clearStoredSession(): void {
   try {
     localStorage.removeItem(LEGACY_SESSION_KEY)
