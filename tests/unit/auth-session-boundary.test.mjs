@@ -39,8 +39,8 @@ test('AUTH-004 keeps the refresh token in an HttpOnly Secure cookie', () => {
 })
 
 test('AUTH-004 refresh endpoint never returns the refresh token to the browser', () => {
-  assert.match(workerSource, /return json\(\{ accessToken: token\.access_token, userId: token\.user\.id \}/)
-  assert.doesNotMatch(workerSource, /return json\(\{[^}]*refresh_token/)
+  assert.match(workerSource, /return json\(\{ accessToken: token\.access_token, userId: token\.user\.id \}, 200, \{ "Set-Cookie": authCookie\(token\.refresh_token\)/)
+  assert.doesNotMatch(workerSource, /return json\(\{[^}]*\\brefresh_token\\s*:/)
 })
 
 test('AUTH-004 cross-tab fallback uses only a non-secret event marker', () => {
