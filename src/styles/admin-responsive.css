@@ -88,3 +88,13 @@
   .admin-users-card { padding:12px; }
   .admin-users-table-wrap .orders-table tbody tr { padding:12px; }
 }
+
+.admin-form-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.courier-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.admin-users-table-wrap .orders-table td:nth-child(1) span { display:block; }
+@media (max-width:560px) {
+  .admin-form-actions { flex-direction:column; align-items:stretch; }
+  .admin-form-actions > * { width:100%; }
+  .courier-actions { flex-direction:column; }
+  .courier-actions > * { width:100%; }
+}
