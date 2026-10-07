@@ -99,7 +99,8 @@ jobs:
             supabase/tests/database/087_order_cod_obligation.sql \
             supabase/tests/database/088_parcel_cod_allocation.sql \
             supabase/tests/database/096_financial_adjustment_command.sql \
-            supabase/tests/database/132_p15_t239_stage_import_regression.sql
+            supabase/tests/database/132_p15_t239_stage_import_regression.sql \\
+            supabase/tests/database/133_admin_invite_profile_provisioning.sql
 
   e2e:
     runs-on: ubuntu-latest
