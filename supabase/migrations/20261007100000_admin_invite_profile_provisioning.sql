@@ -1,8 +1,11 @@
--- Admin user invitation/profile provisioning boundary.
--- Supabase Auth creates the identity; this trusted command creates the application profile.
--- The command is idempotent for an already-provisioned matching profile.
+-- P17: harden the existing Auth invitation/profile provisioning command.
+-- The original P17-T282 migration created this function with a composite
+-- public.profiles return type. PostgreSQL cannot change that return type with
+-- CREATE OR REPLACE, so this migration replaces the same-signature function.
 
-create or replace function public.provision_invited_profile(
+drop function if exists public.provision_invited_profile(uuid, text, text);
+
+create function public.provision_invited_profile(
   p_user_id uuid,
   p_name text,
   p_role text
