@@ -10,7 +10,7 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname = 'set_courier_active'
-      and pg_get_function_identity_arguments(p.oid) = 'uuid, boolean, text'
+      and to_regprocedure('public.set_courier_active(uuid,boolean,text)') = p.oid
   ),
   'set_courier_active exists with the locked three-argument signature'
 );
