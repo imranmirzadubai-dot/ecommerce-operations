@@ -38,11 +38,14 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.105.0
       - run: supabase db start
       - run: |
           supabase db reset
-          supabase test db \
+          sudo apt-get update
+          sudo apt-get install -y libtap-parser-sourcehandler-pgtap-perl
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c 'create extension if not exists pgtap'
+          PGPASSWORD=postgres pg_prove -h 127.0.0.1 -p 54322 -U postgres \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/054_exact_integer_allocation_invariant.sql \
             supabase/tests/database/030_profile_active_lifecycle.sql \
@@ -71,6 +74,11 @@ jobs:
             supabase/tests/database/060_allocation_overage_rejection.sql \
             supabase/tests/database/061_post_dispatch_allocation_immutability.sql \
             supabase/tests/database/062_shipper_assignment.sql \
+            supabase/tests/database/117_p17_t295_courier_model.sql \
+            supabase/tests/database/118_p17_t296_courier_creation.sql \
+            supabase/tests/database/119_p17_t300_courier_edit.sql \
+            supabase/tests/database/120_p17_t302_courier_duplicate_business_rules.sql \
+            supabase/tests/database/121_p17_t304_courier_active_state.sql \
             supabase/tests/database/122_p17_t305_courier_assignment.sql \
             supabase/tests/database/063_tracking_id_validation.sql \
             supabase/tests/database/064_dispatch_parcel.sql \
@@ -99,7 +107,7 @@ jobs:
             supabase/tests/database/087_order_cod_obligation.sql \
             supabase/tests/database/088_parcel_cod_allocation.sql \
             supabase/tests/database/096_financial_adjustment_command.sql \
-            supabase/tests/database/132_p15_t239_stage_import_regression.sql \\
+            supabase/tests/database/132_p15_t239_stage_import_regression.sql \
             supabase/tests/database/133_admin_invite_profile_provisioning.sql
 
   e2e:

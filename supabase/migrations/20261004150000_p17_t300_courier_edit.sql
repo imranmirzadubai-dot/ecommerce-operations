@@ -181,17 +181,17 @@ begin
     notes = nullif(btrim(coalesce(p_notes, '')), '')
   where id = p_courier_id
   returning
-    id,
-    courier_code,
-    name,
-    contact_name,
-    contact_phone,
-    contact_email,
-    address,
-    notes,
-    active,
-    created_at,
-    updated_at
+    public.shippers.id,
+    public.shippers.courier_code,
+    public.shippers.name,
+    public.shippers.contact_name,
+    public.shippers.contact_phone,
+    public.shippers.contact_email,
+    public.shippers.address,
+    public.shippers.notes,
+    public.shippers.active,
+    public.shippers.created_at,
+    public.shippers.updated_at
   into
     v_id,
     v_code,

@@ -1,3 +1,5 @@
+import { getAuthConfig } from './auth'
+
 export type CreateOrderInput = {
   p_customer_name: string
   p_phone: string
@@ -176,6 +178,78 @@ export async function createCodObligation(accessToken: string, input: CreateCodO
 
 export async function allocateCodObligationToParcel(accessToken: string, input: AllocateCodObligationToParcelInput, signal?: AbortSignal): Promise<AllocateCodObligationToParcelResult[]> {
   return runCommand<AllocateCodObligationToParcelResult[]>('allocate_cod_obligation_to_parcel', accessToken, input as unknown as Record<string, unknown>, signal)
+}
+
+
+export type Courier = {
+  id: string
+  courier_code: string
+  name: string
+  contact_name: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  address: string | null
+  notes: string | null
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type CreateCourierInput = {
+  p_name: string
+  p_idempotency_key: string
+  p_contact_name?: string | null
+  p_contact_phone?: string | null
+  p_contact_email?: string | null
+  p_address?: string | null
+  p_notes?: string | null
+}
+
+export type UpdateCourierInput = {
+  p_courier_id: string
+  p_name: string
+  p_idempotency_key: string
+  p_contact_name?: string | null
+  p_contact_phone?: string | null
+  p_contact_email?: string | null
+  p_address?: string | null
+  p_notes?: string | null
+}
+
+export type SetCourierActiveInput = {
+  p_courier_id: string
+  p_active: boolean
+  p_idempotency_key: string
+}
+
+export type CourierCommandResult = Omit<Courier, 'id'> & { courier_id: string }
+
+export async function listCouriers(accessToken: string, signal?: AbortSignal): Promise<Courier[]> {
+  const config = getAuthConfig()
+  if (!config) throw new Error('Supabase authentication is not configured for this environment')
+  const response = await fetchCommand(
+    `${config.url}/rest/v1/shippers?select=id,courier_code,name,contact_name,contact_phone,contact_email,address,notes,active,created_at,updated_at&order=courier_code.asc&limit=500`,
+    { headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } },
+    signal,
+  )
+  const payload = (await response.json().catch(() => null)) as Courier[] | CommandError | null
+  if (!response.ok) {
+    const error = payload as CommandError | null
+    throw new Error(error?.message ?? error?.details ?? error?.error ?? `Courier list request failed (${response.status})`)
+  }
+  return Array.isArray(payload) ? payload : []
+}
+
+export async function createCourier(accessToken: string, input: CreateCourierInput, signal?: AbortSignal): Promise<CourierCommandResult[]> {
+  return runCommand<CourierCommandResult[]>('create_courier', accessToken, input as unknown as Record<string, unknown>, signal)
+}
+
+export async function updateCourier(accessToken: string, input: UpdateCourierInput, signal?: AbortSignal): Promise<CourierCommandResult[]> {
+  return runCommand<CourierCommandResult[]>('update_courier', accessToken, input as unknown as Record<string, unknown>, signal)
+}
+
+export async function setCourierActive(accessToken: string, input: SetCourierActiveInput, signal?: AbortSignal): Promise<CourierCommandResult[]> {
+  return runCommand<CourierCommandResult[]>('set_courier_active', accessToken, input as unknown as Record<string, unknown>, signal)
 }
 
 export async function listOrders(accessToken: string, options: ListOrdersOptions = {}): Promise<PaginatedOrders> {
