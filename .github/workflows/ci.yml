@@ -44,6 +44,7 @@ jobs:
           supabase db reset
           sudo apt-get update
           sudo apt-get install -y libtap-parser-sourcehandler-pgtap-perl
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c 'create extension if not exists pgtap'
           PGPASSWORD=postgres pg_prove -h 127.0.0.1 -p 54322 -U postgres \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/054_exact_integer_allocation_invariant.sql \
