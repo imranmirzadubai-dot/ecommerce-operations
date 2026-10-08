@@ -10,7 +10,7 @@ select ok(
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname = 'update_courier'
-      and pg_get_function_identity_arguments(p.oid) = 'uuid, text, text, text, text, text, text, text'
+      and to_regprocedure('public.update_courier(uuid,text,text,text,text,text,text,text)') = p.oid
   ),
   'update_courier exists with the locked eight-argument signature'
 );
