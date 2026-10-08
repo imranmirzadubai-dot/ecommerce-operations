@@ -3,6 +3,7 @@ const ALLOWED_COMMANDS = new Set([
   "create_parcel", "allocate_parcel_items", "correct_parcel_allocation", "cancel_parcel", "dispatch_parcel", "bulk_dispatch",
   "record_delivery_outcome", "retry_ndr_parcel", "process_rto", "bulk_rto", "create_cod_obligation", "allocate_cod_obligation_to_parcel", "record_cod_receipt", "resolve_cod_exception", "record_financial_adjustment",
   "generate_invoice", "print_invoice", "import_preview", "import_commit",
+  "create_courier", "update_courier", "set_courier_active",
 ]);
 
 type WorkerEnv = Env & { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string; SUPABASE_SECRET_KEY?: string };
