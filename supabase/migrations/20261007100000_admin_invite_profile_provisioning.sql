@@ -114,4 +114,5 @@ end;
 $$;
 
 revoke all on function public.provision_invited_profile(uuid, text, text) from public;
+revoke all on function public.provision_invited_profile(uuid, text, text) from anon;
 grant execute on function public.provision_invited_profile(uuid, text, text) to authenticated;
