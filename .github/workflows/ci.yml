@@ -45,6 +45,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libtap-parser-sourcehandler-pgtap-perl
           PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c 'create extension if not exists pgtap'
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -Atc "select n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname='public' and p.proname in ('create_courier','update_courier','set_courier_active') order by p.proname"
           PGPASSWORD=postgres pg_prove -h 127.0.0.1 -p 54322 -U postgres \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/054_exact_integer_allocation_invariant.sql \
