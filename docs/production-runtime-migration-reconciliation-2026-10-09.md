@@ -37,7 +37,7 @@ This record documents forward-only runtime contract repairs applied to productio
 | 20261009040859 | runtime_restore_delivery_outcome | 20260916093000_record_delivery_outcome.sql |
 | 20261009040904 | runtime_restore_retry_ndr | 20260916120000_retry_ndr_parcel.sql |
 | 20261009040908 | runtime_restore_process_rto | 20260918145000_process_rto_stored_shipper.sql |
-| 20261009041000 | runtime_restore_financial_adjustment_command | 20260918250000_financial_adjustment_command.sql |
+| 20261009175900 | runtime_restore_financial_adjustment_command | 20260918250000_financial_adjustment_command.sql |
 
 ## Required next actions
 
