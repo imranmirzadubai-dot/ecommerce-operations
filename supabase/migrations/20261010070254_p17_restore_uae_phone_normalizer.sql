@@ -27,15 +27,15 @@ begin
     v_national := v_digits;
   end if;
 
-  -- Accept local trunk-prefix notation, including the common +971 050 typo.
+  -- Accept local trunk-prefix notation.
   if v_national like '0%' then
     v_national := substring(v_national from 2);
   end if;
 
   -- UAE mobile numbers have 9 national digits starting with 5.
-  -- UAE fixed-line numbers have 8 national digits starting with 2-7 or 9.
+  -- UAE fixed-line numbers have 8 national digits; exclude 5 (mobile prefix).
   if v_national ~ '^5[0-9]{8}$'
-     or v_national ~ '^[2-79][0-9]{7}$' then
+     or v_national ~ '^[2-46-79][0-9]{7}$' then
     return '+971' || v_national;
   end if;
 
