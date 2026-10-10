@@ -108,7 +108,8 @@ jobs:
             supabase/tests/database/088_parcel_cod_allocation.sql \
             supabase/tests/database/096_financial_adjustment_command.sql \
             supabase/tests/database/132_p15_t239_stage_import_regression.sql \
-            supabase/tests/database/133_admin_invite_profile_provisioning.sql
+            supabase/tests/database/133_admin_invite_profile_provisioning.sql \
+            supabase/tests/database/134_p17_returns_table_ambiguity_regression.sql
 
   e2e:
     runs-on: ubuntu-latest
