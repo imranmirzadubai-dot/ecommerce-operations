@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(9);
 
 select has_function(
   'public',
@@ -41,6 +41,11 @@ select is(
   public.normalize_uae_phone('123'),
   null,
   'returns null for invalid UAE number length'
+);
+select is(
+  public.normalize_uae_phone('050123456'),
+  null,
+  'rejects short UAE mobile numbers rather than treating them as landlines'
 );
 
 select * from finish();
