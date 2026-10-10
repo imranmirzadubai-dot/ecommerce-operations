@@ -113,8 +113,8 @@ declare
   v_status text;
   v_result jsonb;
 begin
-  if auth.uid() is null or public.app_role() not in ('sales','operations','admin') then
-    raise exception using errcode='42501',message='Authenticated operational role required';
+  if auth.uid() is null or public.app_role() is null then
+    raise exception using errcode='42501',message='Authentication required';
   end if;
   if p_idempotency_key is null or btrim(p_idempotency_key)='' then
     raise exception using errcode='22023',message='Idempotency key is required';
