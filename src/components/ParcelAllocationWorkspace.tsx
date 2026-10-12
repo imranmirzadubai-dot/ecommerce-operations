@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listCouriers, listOrders, type Courier } from '../lib/commands'
+import { buildTrackingLookupUrl } from '../lib/trackingLookup.js'
 import {
   allocateParcelItem,
   allocateParcelItemsSplit,
@@ -70,6 +71,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
   const parcels = selectedOrder?.parcels ?? []
   const items = selectedOrder?.order_items ?? []
   const selectedParcel = parcels.find((parcel) => parcel.id === selectedParcelId)
+  const trackingLookupUrl = buildTrackingLookupUrl(selectedParcel?.tracking_id)
 
   const allocationReady = Boolean(selectedParcelId && selectedItemId && Number.isInteger(Number(quantity)) && Number(quantity) > 0)
   const canCorrect = Boolean(lastParcelItemId && correctionQuantity && Number.isInteger(Number(correctionQuantity)) && Number(correctionQuantity) >= 0)
@@ -232,7 +234,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
 
               <div className="parcel-summary">
                 <span><strong>State</strong>{selectedParcel?.state ?? '—'}</span>
-                <span><strong>Tracking</strong>{selectedParcel?.tracking_id ?? 'Not assigned'}</span>
+                <span><strong>Tracking</strong>{selectedParcel?.tracking_id ? <>{selectedParcel.tracking_id}{trackingLookupUrl && <a className="tracking-lookup-link" href={trackingLookupUrl} target="_blank" rel="noopener noreferrer">Track shipment ↗</a>}</> : 'Not assigned'}</span>
               </div>
 
               <div className="parcel-action-panel">
