@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { listOrders } from '../lib/commands'
+import { listCouriers, listOrders, type Courier } from '../lib/commands'
 import {
   allocateParcelItem,
   allocateParcelItemsSplit,
   cancelParcel,
   correctParcelAllocation,
   createParcel,
+  assignParcelShipper,
 } from '../lib/parcelCommands'
 
 type Props = { accessToken: string }
@@ -29,6 +30,8 @@ type Order = {
 
 export function ParcelAllocationWorkspace({ accessToken }: Props) {
   const [orders, setOrders] = useState<Order[]>([])
+  const [couriers, setCouriers] = useState<Courier[]>([])
+  const [selectedShipperId, setSelectedShipperId] = useState('')
   const [search, setSearch] = useState('')
   const [selectedOrderId, setSelectedOrderId] = useState('')
   const [selectedParcelId, setSelectedParcelId] = useState('')
@@ -53,6 +56,16 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
 
   useEffect(() => { const timer = window.setTimeout(() => { void load() }, 0); return () => window.clearTimeout(timer) }, [load])
 
+  useEffect(() => {
+    let cancelled = false
+    void listCouriers(accessToken).then((rows) => {
+      if (!cancelled) setCouriers(rows)
+    }).catch((e: unknown) => {
+      if (!cancelled) setError(e instanceof Error ? e.message : 'Unable to load couriers')
+    })
+    return () => { cancelled = true }
+  }, [accessToken])
+
   const selectedOrder = orders.find((order) => order.id === selectedOrderId)
   const parcels = selectedOrder?.parcels ?? []
   const items = selectedOrder?.order_items ?? []
@@ -65,6 +78,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
     setSelectedOrderId(id)
     const order = orders.find((row) => row.id === id)
     setSelectedParcelId(order?.parcels?.[0]?.id ?? '')
+    setSelectedShipperId(order?.parcels?.[0]?.shipper_id ?? '')
     setSelectedItemId(order?.order_items?.[0]?.id ?? '')
     setLastParcelItemId('')
     setMessage('')
@@ -82,6 +96,22 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function handleAssignCourier() {
+    if (!selectedParcelId || !selectedShipperId || selectedParcel?.state !== 'Prepared') return
+    await run(
+      () => assignParcelShipper(accessToken, {
+        p_parcel_id: selectedParcelId,
+        p_shipper_id: selectedShipperId,
+        p_idempotency_key: crypto.randomUUID(),
+      }),
+      'Courier assignment saved.',
+      () => setOrders((current) => current.map((order) => order.id !== selectedOrderId ? order : {
+        ...order,
+        parcels: (order.parcels ?? []).map((parcel) => parcel.id === selectedParcelId ? { ...parcel, shipper_id: selectedShipperId } : parcel),
+      })),
+    )
   }
 
   async function handleCreateParcel() {
@@ -183,7 +213,11 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
 
               <div className="parcel-control-grid">
                 <label>Parcel
-                  <select value={selectedParcelId} onChange={(e) => setSelectedParcelId(e.target.value)}>
+                  <select value={selectedParcelId} onChange={(e) => {
+                    const nextParcelId = e.target.value
+                    setSelectedParcelId(nextParcelId)
+                    setSelectedShipperId(parcels.find((parcel) => parcel.id === nextParcelId)?.shipper_id ?? '')
+                  }}>
                     <option value="">Select parcel</option>
                     {parcels.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.id.slice(0, 8)} · {parcel.state}</option>)}
                   </select>
@@ -199,6 +233,20 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
               <div className="parcel-summary">
                 <span><strong>State</strong>{selectedParcel?.state ?? '—'}</span>
                 <span><strong>Tracking</strong>{selectedParcel?.tracking_id ?? 'Not assigned'}</span>
+              </div>
+
+              <div className="parcel-action-panel">
+                <div><strong>Courier assignment</strong><p className="form-note">Assign or reassign a courier while the parcel is Prepared. The server validates permissions and courier status.</p></div>
+                <label>Courier
+                  <select value={selectedShipperId} onChange={(e) => setSelectedShipperId(e.target.value)} disabled={busy || selectedParcel?.state !== 'Prepared'}>
+                    <option value="">Select active courier</option>
+                    {couriers.filter((courier) => courier.active || courier.id === selectedParcel?.shipper_id).map((courier) => (
+                      <option key={courier.id} value={courier.id}>{courier.courier_code} · {courier.name}{courier.active ? '' : ' (inactive; current assignment)'}</option>
+                    ))}
+                  </select>
+                </label>
+                <button className="login-button" type="button" onClick={() => void handleAssignCourier()} disabled={busy || selectedParcel?.state !== 'Prepared' || !selectedShipperId || selectedShipperId === (selectedParcel?.shipper_id ?? '')}>Save courier assignment</button>
+                {selectedParcel?.state !== 'Prepared' && <p className="form-note">Courier assignment is locked after the parcel leaves Prepared.</p>}
               </div>
 
               <div className="parcel-action-panel">
