@@ -36,15 +36,15 @@ select ok((select pg_get_functiondef(p.oid) like '%auth.uid() is null%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='cancel_parcel'), 'cancel_parcel rejects unauthenticated callers');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS NULL OR public.app_role() NOT IN (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='create_order'), 'create_order rejects roles outside the approved application-role set, including NULL');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS NULL OR public.app_role() NOT IN (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'confirm_order rejects roles outside the approved application-role set, including NULL');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS NULL OR public.app_role() NOT IN (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='cancel_order'), 'cancel_order rejects roles outside the approved application-role set, including NULL');
 
