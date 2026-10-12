@@ -10,7 +10,7 @@ select ok((select count(*) = 1 from pg_proc p join pg_namespace n on n.oid=p.pro
 
 select ok(has_function_privilege('authenticated','public.resolve_or_create_customer(text,text,text,text)','execute'), 'authenticated role can execute resolve_or_create_customer');
 select ok(has_function_privilege('anon','public.resolve_or_create_customer(text,text,text,text)','execute') = false, 'anonymous callers cannot execute resolve_or_create_customer');
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() not in (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='resolve_or_create_customer'), 'resolve-or-create requires an approved active application role');
 select ok((select pg_get_functiondef(p.oid) like '%public.normalize_uae_phone(p_phone)%'
