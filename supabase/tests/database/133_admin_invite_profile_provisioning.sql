@@ -36,7 +36,7 @@ select ok(pg_get_functiondef((
   where n.nspname = 'public' and p.proname = 'provision_invited_profile'
     and pg_get_function_identity_arguments(p.oid) =
       'p_user_id uuid, p_name text, p_role text'
-)) like '%public.app_role() <> ''admin''%',
+)) like '%public.app_role() IS DISTINCT FROM ''admin''%',
   'provisioning requires an active Admin application role');
 
 select ok(pg_get_functiondef((
