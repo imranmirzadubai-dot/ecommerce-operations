@@ -18,7 +18,7 @@ select ok(
   'legacy non-idempotent confirm_order overload is removed'
 );
 
-select ok((select pg_get_functiondef(p.oid) like '%auth.uid() is null or public.app_role() not in (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%auth.uid() is null or COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='confirm_order'), 'confirm_order requires an authenticated operational role');
 

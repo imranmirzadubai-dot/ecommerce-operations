@@ -1,17 +1,16 @@
 begin;
 
 -- P4-T087: Admin permission boundary.
--- This task verifies the existing Admin-only administrative controls and the
--- shared operational command boundary without inventing additional permissions.
+-- Verify NULL-safe Admin-only controls and the shared operational command boundary.
 select plan(10);
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() <> ''admin''%'
+select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS DISTINCT FROM ''admin''%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='create_profile'), 'create_profile requires the Admin application role');
+  where n.nspname='public' and p.proname='create_profile'), 'create_profile requires the Admin application role and rejects NULL');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() <> ''admin''%'
+select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS DISTINCT FROM ''admin''%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='set_profile_active'), 'set_profile_active requires the Admin application role');
+  where n.nspname='public' and p.proname='set_profile_active'), 'set_profile_active requires the Admin application role and rejects NULL');
 
 select ok(has_function_privilege('authenticated','public.create_profile(uuid,text,text)','execute'), 'authenticated role can reach create_profile function boundary');
 select ok(has_function_privilege('anon','public.create_profile(uuid,text,text)','execute') = false, 'anonymous callers cannot execute create_profile');

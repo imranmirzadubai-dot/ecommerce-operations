@@ -1,0 +1,55 @@
+begin;
+
+-- P17: authorization guards must fail closed when app_role() resolves to NULL.
+select plan(5);
+
+select ok((
+  select count(*) = 0
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.prosecdef
+    and pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s*(<>|!=)\s*''admin'''
+), 'no SECURITY DEFINER function retains a NULL-sensitive admin comparison');
+
+select ok((
+  with definitions as (
+    select regexp_replace(
+      pg_get_functiondef(p.oid),
+      'COALESCE\(public\.app_role\(\)\s+NOT IN\s*\([^)]*\),\s*true\)',
+      '',
+      'gi'
+    ) as definition
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prosecdef
+  )
+  select count(*) = 0
+  from definitions
+  where definition ~* 'public\.app_role\(\)\s+not\s+in\s*\('
+), 'no SECURITY DEFINER function retains an unwrapped NULL-sensitive role allowlist');
+
+select ok((
+  select pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s+is\s+distinct\s+from\s+''admin'''
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'create_profile' and p.prosecdef
+), 'create_profile rejects NULL and non-admin roles');
+
+select ok((
+  select pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s+is\s+distinct\s+from\s+''admin'''
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'set_profile_active' and p.prosecdef
+), 'set_profile_active rejects NULL and non-admin roles');
+
+select ok((
+  select count(*) > 0
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.prosecdef
+    and pg_get_functiondef(p.oid) ~* 'coalesce\(public\.app_role\(\)\s+not\s+in\s*\('
+), 'operational role allowlists explicitly fail closed on a NULL role');
+
+select * from finish();
+rollback;
