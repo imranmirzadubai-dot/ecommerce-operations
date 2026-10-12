@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(12);
 
 select has_function('public','create_order',ARRAY['text','text','text','text','numeric','jsonb','text','text'],'create_order canonical command exists');
 select has_function('public','confirm_order',ARRAY['uuid','text'],'confirm_order canonical command exists');
