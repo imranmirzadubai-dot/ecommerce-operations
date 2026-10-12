@@ -29,10 +29,12 @@ begin
       'public.app_role() IS DISTINCT FROM ''admin''',
       'gi'
     );
+    -- COALESCE keeps the role predicate atomic in larger boolean expressions
+    -- and treats a missing/inactive profile as denied.
     v_updated := regexp_replace(
       v_updated,
-      'public\.app_role\(\)\s+not\s+in\s*\(',
-      'public.app_role() IS NULL OR public.app_role() NOT IN (',
+      'public\.app_role\(\)\s+not\s+in\s*\(([^)]*)\)',
+      'COALESCE(public.app_role() NOT IN (\1), true)',
       'gi'
     );
 
