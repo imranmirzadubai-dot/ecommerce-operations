@@ -39,8 +39,8 @@ select ok((
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
     and p.prosecdef
-    and pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s+is\s+null\s+or\s+public\.app_role\(\)\s+not\s+in\s*\('
-), 'operational role allowlists explicitly reject a NULL role');
+    and pg_get_functiondef(p.oid) ~* 'coalesce\(public\.app_role\(\)\s+not\s+in\s*\('
+), 'operational role allowlists explicitly fail closed on a NULL role');
 
 select * from finish();
 rollback;
