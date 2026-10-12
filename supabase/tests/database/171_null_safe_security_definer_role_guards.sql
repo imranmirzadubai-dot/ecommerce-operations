@@ -13,13 +13,22 @@ select ok((
 ), 'no SECURITY DEFINER function retains a NULL-sensitive admin comparison');
 
 select ok((
+  with definitions as (
+    select regexp_replace(
+      pg_get_functiondef(p.oid),
+      'COALESCE\(public\.app_role\(\)\s+NOT IN\s*\([^)]*\),\s*true\)',
+      '',
+      'gi'
+    ) as definition
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prosecdef
+  )
   select count(*) = 0
-  from pg_proc p
-  join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public'
-    and p.prosecdef
-    and pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s+not\s+in\s*\('
-), 'no SECURITY DEFINER function retains a NULL-sensitive role allowlist');
+  from definitions
+  where definition ~* 'public\.app_role\(\)\s+not\s+in\s*\('
+), 'no SECURITY DEFINER function retains an unwrapped NULL-sensitive role allowlist');
 
 select ok((
   select pg_get_functiondef(p.oid) ~* 'public\.app_role\(\)\s+is\s+distinct\s+from\s+''admin'''
