@@ -21,11 +21,11 @@ select ok((select count(*)=7 from pg_proc p join pg_namespace n on n.oid=p.prona
     and has_function_privilege('anon',p.oid,'EXECUTE')=false
     and has_function_privilege('authenticated',p.oid,'EXECUTE')), 'all protected commands are callable only by authenticated role at SQL grant boundary');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS NULL OR public.app_role() NOT IN (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='cancel_order' and p.proargnames=array['p_order_id','p_idempotency_key']), 'cancel_order enforces the approved role set and rejects NULL');
 
-select ok((select pg_get_functiondef(p.oid) like '%public.app_role() IS NULL OR public.app_role() NOT IN (''sales'',''operations'',''admin'')%'
+select ok((select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''sales'',''operations'',''admin''), true)%'
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname='cancel_parcel' and p.proargnames=array['p_parcel_id','p_idempotency_key']), 'cancel_parcel enforces the approved role set and rejects NULL');
 
