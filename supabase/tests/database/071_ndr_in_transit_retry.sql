@@ -22,7 +22,7 @@ select ok(
 );
 
 select ok(
-  (select pg_get_functiondef(p.oid) like '%app_role() not in (''operations'',''admin'')%'
+  (select pg_get_functiondef(p.oid) like '%COALESCE(public.app_role() NOT IN (''operations'',''admin''), true)%'
    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='retry_ndr_parcel'),
   'NDR retry requires operations/admin'
