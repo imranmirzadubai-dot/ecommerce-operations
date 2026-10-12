@@ -6,7 +6,7 @@ select ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.prona
 
 select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'dispatch command executes through controlled SECURITY DEFINER boundary');
 
-select ok((select pg_get_functiondef(p.oid) like '%auth.uid() is null or public.COALESCE(public.app_role() NOT IN (''operations'',''admin''), true)%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'unauthenticated and non-Operations/Admin callers are rejected');
+select ok((select pg_get_functiondef(p.oid) like '%auth.uid() is null or COALESCE(public.app_role() NOT IN (''operations'',''admin''), true)%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'unauthenticated and non-Operations/Admin callers are rejected');
 
 select ok((select pg_get_functiondef(p.oid) like '%Operations or admin role required%' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dispatch_parcel'),'unauthorized dispatch returns explicit permission error');
 
