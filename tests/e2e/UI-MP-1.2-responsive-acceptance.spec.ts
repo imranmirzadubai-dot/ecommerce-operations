@@ -57,11 +57,12 @@ for (const viewport of VIEWPORTS) {
         body: JSON.stringify([]),
       })
     })
-    await page.route('**/rest/v1/profiles*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([PROFILE]) })
-    })
+    // Register the broad fallback first; Playwright gives later routes precedence.
     await page.route('**/rest/v1/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+    })
+    await page.route('**/rest/v1/profiles*', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([PROFILE]) })
     })
 
     await page.goto('/login?returnTo=%2F%3FuiResponsiveAcceptance%3D1', { waitUntil: 'domcontentloaded' })
