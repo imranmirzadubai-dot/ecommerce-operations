@@ -170,7 +170,7 @@
   .mobile-topbar-menu { display:grid; place-items:center; }
   .operations-app { padding-bottom:72px; }
   .topbar { position:sticky; top:0; z-index:50; }
-  .content { padding-bottom:28px; }
+  .content { padding-bottom:calc(104px + env(safe-area-inset-bottom)); }
   .mobile-bottom-nav {
     display:grid;
     grid-template-columns:repeat(5,1fr);
