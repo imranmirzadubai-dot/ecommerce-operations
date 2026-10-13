@@ -53,3 +53,14 @@
   .bulk-dispatch-workspace .orders-table td:last-child { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .bulk-dispatch-workspace .orders-table td:last-child .remove-button { min-height: 44px; }
 }
+
+
+.tracking-lookup-link {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
