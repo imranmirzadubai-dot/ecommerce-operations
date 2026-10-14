@@ -34,8 +34,6 @@ test('orders date range currently overwrites the lower bound', () => {
   ]);
 });
 
-import assert from 'node:assert/strict';
-import test from 'node:test';
 import worker from '../../worker/index.ts';
 
 test('Worker orders handler currently drops date_from when date_to is also supplied', async () => {
