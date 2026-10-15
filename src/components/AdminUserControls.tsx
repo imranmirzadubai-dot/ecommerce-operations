@@ -3,8 +3,19 @@ import type { FormEvent } from 'react'
 import { canAdministerUsers, getAuthConfig, type Profile } from '../lib/auth'
 import '../styles/admin-responsive.css'
 
+type UserAuthState = {
+  invited_at: string | null
+  confirmation_sent_at: string | null
+  email_confirmed_at: string | null
+  confirmed_at: string | null
+  last_sign_in_at: string | null
+  email_verified: boolean
+  invitation_pending: boolean
+}
+
 export function AdminUserControls({ accessToken, profile }: { accessToken: string; profile: Profile | null }) {
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [authStates, setAuthStates] = useState<Record<string, UserAuthState | null>>({})
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -25,7 +36,19 @@ export function AdminUserControls({ accessToken, profile }: { accessToken: strin
     try {
       const response = await fetch(`${config.url}/rest/v1/profiles?select=id,name,email,role,active&order=name.asc`, { headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } })
       if (!response.ok) throw new Error('Unable to load administrator user profiles')
-      setProfiles((await response.json()) as Profile[])
+      const loadedProfiles = (await response.json()) as Profile[]
+      setProfiles(loadedProfiles)
+      setAuthStates({})
+      const authEntries = await Promise.all(loadedProfiles.map(async (item) => {
+        try {
+          const result = await rpc<UserAuthState[]>('admin_get_user_auth_state', { p_user_id: item.id })
+          return [item.id, result[0] ?? null] as const
+        } catch {
+          // Keep profile management usable if the Auth-state function is not yet deployed.
+          return [item.id, null] as const
+        }
+      }))
+      setAuthStates(Object.fromEntries(authEntries))
     } catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'Unable to load user profiles') }
     finally { setLoading(false) }
   }
@@ -116,6 +139,6 @@ export function AdminUserControls({ accessToken, profile }: { accessToken: strin
         <button className="secondary-button" type="submit">Link existing profile</button>
       </form>
     </details>
-    <div className="orders-table-wrap admin-users-table-wrap"><table className="orders-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Control</th></tr></thead><tbody>{loading ? <tr><td colSpan={5}>Loading profiles…</td></tr> : profiles.map((item) => <tr key={item.id}><td><strong>{item.name}</strong><small>{item.id}</small></td><td>{item.email}</td><td>{item.role}</td><td><span className="state-pill">{item.active ? 'Active' : 'Inactive'}</span></td><td><button className="secondary-button" type="button" onClick={() => void setActive(item)}>{item.active ? 'Deactivate' : 'Activate'}</button></td></tr>)}{!loading && profiles.length === 0 && <tr><td colSpan={5}>No application profiles found.</td></tr>}</tbody></table></div>
+    <div className="orders-table-wrap admin-users-table-wrap"><table className="orders-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Verification</th><th>Control</th></tr></thead><tbody>{loading ? <tr><td colSpan={6}>Loading profiles…</td></tr> : profiles.map((item) => <tr key={item.id}><td><strong>{item.name}</strong><small>{item.id}</small></td><td>{item.email}</td><td>{item.role}</td><td><span className="state-pill">{item.active ? 'Active' : 'Inactive'}</span></td><td>{authStates[item.id] ? <span className="state-pill" title={authStates[item.id]?.confirmation_sent_at ? `Last invitation/confirmation email: ${new Date(authStates[item.id]!.confirmation_sent_at!).toLocaleString()}` : undefined}>{authStates[item.id]!.email_verified ? 'Verified' : authStates[item.id]!.invitation_pending ? 'Verification pending' : authStates[item.id]!.invited_at ? 'Invited' : 'Unverified'}</span> : <span className="state-pill" title="Auth verification state could not be loaded">Unavailable</span>}</td><td><button className="secondary-button" type="button" onClick={() => void setActive(item)}>{item.active ? 'Deactivate' : 'Activate'}</button></td></tr>)}{!loading && profiles.length === 0 && <tr><td colSpan={6}>No application profiles found.</td></tr>}</tbody></table></div>
   </section>
 }

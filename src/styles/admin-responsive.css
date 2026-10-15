@@ -7,7 +7,7 @@
 .admin-user-form select { min-height:44px; box-sizing:border-box; }
 .admin-user-form .login-button { min-height:44px; white-space:nowrap; }
 .admin-users-table-wrap { margin-top:16px; }
-.admin-users-table-wrap .orders-table { min-width:760px; }
+.admin-users-table-wrap .orders-table { min-width:900px; }
 .admin-users-table-wrap .orders-table th,
 .admin-users-table-wrap .orders-table td { vertical-align:middle; }
 .admin-users-table-wrap .orders-table td:first-child strong { display:block; }
@@ -43,7 +43,8 @@
   .admin-users-table-wrap .orders-table td:nth-child(2)::before { content:'Email'; }
   .admin-users-table-wrap .orders-table td:nth-child(3)::before { content:'Role'; }
   .admin-users-table-wrap .orders-table td:nth-child(4)::before { content:'Status'; }
-  .admin-users-table-wrap .orders-table td:nth-child(5) {
+  .admin-users-table-wrap .orders-table td:nth-child(5)::before { content:'Email verification'; }
+  .admin-users-table-wrap .orders-table td:nth-child(6) {
     grid-column:1 / -1;
     padding-top:4px;
   }
@@ -54,7 +55,7 @@
     letter-spacing:.08em;
     font-weight:750;
   }
-  .admin-users-table-wrap .orders-table td:nth-child(5) .secondary-button {
+  .admin-users-table-wrap .orders-table td:nth-child(6) .secondary-button {
     width:100%;
     min-height:44px;
   }
@@ -76,10 +77,10 @@
     padding:14px;
   }
   .admin-users-table-wrap .orders-table td:first-child,
-  .admin-users-table-wrap .orders-table td:nth-child(5) {
+  .admin-users-table-wrap .orders-table td:nth-child(6) {
     grid-column:auto;
   }
-  .admin-users-table-wrap .orders-table td:nth-child(5) {
+  .admin-users-table-wrap .orders-table td:nth-child(6) {
     padding-top:3px;
   }
 }
