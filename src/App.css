@@ -381,3 +381,17 @@
 .parcel-danger-zone{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--border,#dfe4ea)}
 @media (max-width:900px){.parcel-grid{grid-template-columns:1fr}.parcel-orders{max-height:300px}}
 @media (max-width:640px){.parcel-control-grid,.parcel-summary{grid-template-columns:1fr}.parcel-order{grid-template-columns:1fr auto}.parcel-order span:last-child{grid-column:1/-1}.parcel-action-panel{grid-template-columns:1fr}.parcel-danger-zone{align-items:stretch;flex-direction:column}.parcel-danger-zone .remove-button{width:100%;min-height:44px}}
+
+
+/* UI-MP-1.2 accessibility gate: consistent 44px interactive target height. */
+.operations-app button,
+.operations-app input:not([type="checkbox"]):not([type="radio"]),
+.operations-app select,
+.operations-app textarea,
+.operations-app [role="button"],
+.operations-app a { min-height:44px; box-sizing:border-box; }
+.operations-app .brand a,
+.operations-app a.inline-link { min-height:0; }
+.operations-app .nav-item { min-height:44px; }
+.operations-app .signout { padding-block:10px; }
+.operations-app .mobile-topbar-menu { min-width:44px; min-height:44px; }
