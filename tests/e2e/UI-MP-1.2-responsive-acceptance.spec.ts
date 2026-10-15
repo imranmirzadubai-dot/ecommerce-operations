@@ -97,6 +97,7 @@ for (const viewport of VIEWPORTS) {
 
     expect(layout.document.scrollWidth, 'document must not overflow horizontally').toBeLessThanOrEqual(viewport.width)
     expect(layout.body.scrollWidth, 'body must not overflow horizontally').toBeLessThanOrEqual(viewport.width)
+    expect(layout.controlsBelow44px, 'visible interactive controls must meet the 44px minimum target').toBe(0)
     expect(pageErrors, 'no uncaught browser errors').toEqual([])
 
     await testInfo.attach(`ui-responsive-${viewport.name}.json`, {
