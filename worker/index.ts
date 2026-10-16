@@ -16,7 +16,7 @@ function getSupabaseConfig(env: WorkerEnv) { if (!env.SUPABASE_URL || !env.SUPAB
 function logEvent(event: string, fields: Record<string, unknown>) { console.log(JSON.stringify({ event, ...fields })); }
 function escapeSearchTerm(value: string) { return value.replace(/[(),.*]/g, " ").replace(/%/g, " ").replace(/\s+/g, " ").trim().slice(0, 100); }
 function validFilter(value: string | null, allowed: readonly string[]) { return value === null || allowed.includes(value); }
-function validDate(value: string | null) { return value === null || /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
+function validDate(value: string | null) { if (value === null) return true; if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false; const parsed = new Date(`${value}T00:00:00Z`); return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value; }
 
 const AUTH_COOKIE = "ecommerce_operations_refresh";
 const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
