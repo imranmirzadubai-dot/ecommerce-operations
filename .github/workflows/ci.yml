@@ -110,7 +110,8 @@ jobs:
             supabase/tests/database/132_p15_t239_stage_import_regression.sql \
             supabase/tests/database/133_admin_invite_profile_provisioning.sql \
             supabase/tests/database/134_p17_returns_table_ambiguity_regression.sql \
-            supabase/tests/database/171_null_safe_security_definer_role_guards.sql \\\n            supabase/tests/database/172_import_matched_customer_integrity.sql
+            supabase/tests/database/171_null_safe_security_definer_role_guards.sql \\
+            supabase/tests/database/172_import_matched_customer_integrity.sql
 
   e2e:
     runs-on: ubuntu-latest
