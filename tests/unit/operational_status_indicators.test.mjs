@@ -20,8 +20,8 @@ test('P6-T109 surfaces the indicators in the Orders workspace', () => {
 })
 
 test('P6-T109 reads the authoritative parcel and COD states exposed by the Orders API', () => {
-  assert.match(worker, /parcels\(id,state,shipper_id,tracking_id\)/)
-  assert.match(worker, /cod_obligations\(state\)/)
-  assert.match(worker, /parcels\.state/)
-  assert.match(worker, /cod_obligations\.state/)
+  assert.match(worker, /parcels\\(id,parcel_number,state,shipper_id,tracking_id\\)/)
+  assert.match(worker, /cod_obligations\\(state\\)/)
+  assert.match(worker, /parcels\\.state/)
+  assert.match(worker, /cod_obligations\\.state/)
 })
