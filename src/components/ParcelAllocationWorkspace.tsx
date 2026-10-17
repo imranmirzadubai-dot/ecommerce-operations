@@ -14,6 +14,7 @@ type Props = { accessToken: string }
 
 type Parcel = {
   id: string
+  parcel_number?: string | null
   state: string
   shipper_id?: string | null
   tracking_id?: string | null
@@ -221,7 +222,7 @@ export function ParcelAllocationWorkspace({ accessToken }: Props) {
                     setSelectedShipperId(parcels.find((parcel) => parcel.id === nextParcelId)?.shipper_id ?? '')
                   }}>
                     <option value="">Select parcel</option>
-                    {parcels.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.id.slice(0, 8)} · {parcel.state}</option>)}
+                    {parcels.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.parcel_number?.trim() || "Parcel reference unavailable"} · {parcel.state}</option>)}
                   </select>
                 </label>
                 <label>Order item
