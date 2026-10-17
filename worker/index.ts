@@ -165,7 +165,7 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const role = typeof input.role === "string" ? input.role.trim().toLowerCase() : "";
   const inviteRedirectTo = `${new URL(request.url).origin}/auth/callback`;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400, { "X-Request-ID": requestId });
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400, { "X-Request-ID": requestId });
   if (!name || name.length > 200) return json({ error: "invalid_name" }, 400, { "X-Request-ID": requestId });
   if (!["sales", "operations", "admin"].includes(role)) return json({ error: "invalid_role" }, 400, { "X-Request-ID": requestId });
 
