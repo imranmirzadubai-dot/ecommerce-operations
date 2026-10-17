@@ -20,7 +20,7 @@ for (const scenario of [
 ]) {
   test(`Orders search reports too-broad ${scenario.name} instead of silently truncating results`, async () => {
     const originalFetch = globalThis.fetch;
-    const requested: string[] = [];
+    const requested = [];
     globalThis.fetch = async (input) => {
       const url = String(input);
       requested.push(url);
