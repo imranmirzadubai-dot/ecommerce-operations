@@ -312,8 +312,8 @@ async function handleAdminPasswordRecovery(request: Request, env: WorkerEnv, req
   const config = getSupabaseConfig(env);
   if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
 
-  let body: unknown;
-  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId); body = parsedBody.value;
+  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId);
+  const body: unknown = parsedBody.value;
   if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
   const input = body as { userId?: unknown };
   const userId = typeof input.userId === "string" ? input.userId.trim() : "";
