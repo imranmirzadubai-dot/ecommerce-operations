@@ -208,7 +208,7 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
   if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
 
   let body: unknown;
-  try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
+  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId); body = parsedBody.value;
   if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
   const input = body as { email?: unknown; name?: unknown; role?: unknown; redirectTo?: unknown };
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
@@ -313,7 +313,7 @@ async function handleAdminPasswordRecovery(request: Request, env: WorkerEnv, req
   if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
 
   let body: unknown;
-  try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400, { "X-Request-ID": requestId }); }
+  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId); body = parsedBody.value;
   if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
   const input = body as { userId?: unknown };
   const userId = typeof input.userId === "string" ? input.userId.trim() : "";
