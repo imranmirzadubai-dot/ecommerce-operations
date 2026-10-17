@@ -20,7 +20,7 @@ type JsonBodyResult = { ok: true; value: unknown } | { ok: false; error: "body_t
 
 async function readJsonBody(request: Request): Promise<JsonBodyResult> {
   const declaredLength = request.headers.get("Content-Length");
-  if (declaredLength && /^\\d+$/.test(declaredLength) && Number(declaredLength) > MAX_REQUEST_BODY_BYTES) {
+  if (declaredLength && /^\d+$/.test(declaredLength) && Number(declaredLength) > MAX_REQUEST_BODY_BYTES) {
     return { ok: false, error: "body_too_large" };
   }
   if (!request.body) return { ok: false, error: "invalid_json" };
