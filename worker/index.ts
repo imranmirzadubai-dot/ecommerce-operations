@@ -207,8 +207,8 @@ async function handleAdminInvite(request: Request, env: WorkerEnv, requestId: st
   const config = getSupabaseConfig(env);
   if (!config || !env.SUPABASE_SECRET_KEY) return json({ error: "server_not_configured" }, 503, { "X-Request-ID": requestId });
 
-  let body: unknown;
-  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId); body = parsedBody.value;
+  const parsedBody = await readJsonBody(request); if (!parsedBody.ok) return bodyReadError(parsedBody, requestId);
+  const body: unknown = parsedBody.value;
   if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "request_body_must_be_object" }, 400, { "X-Request-ID": requestId });
   const input = body as { email?: unknown; name?: unknown; role?: unknown; redirectTo?: unknown };
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
