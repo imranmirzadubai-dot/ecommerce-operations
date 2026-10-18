@@ -1,0 +1,62 @@
+name: T227-001 Browser Reproduction
+
+on:
+  push:
+    branches:
+      - fix/T227-001-browser-diagnostics
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed clean-main URL to reproduce against'
+        required: false
+        type: string
+
+jobs:
+  browser-reproduction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout diagnostic harness
+        uses: actions/checkout@v4
+        with:
+          ref: fix/T227-001-browser-diagnostics
+          fetch-depth: 0
+
+      - name: Verify app baseline is clean-main
+        run: |
+          git fetch origin main --depth=1
+          git diff --exit-code origin/main...HEAD -- src package.json package-lock.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright package
+        run: npm install --no-save --package-lock=false playwright
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare evidence directory
+        run: mkdir -p artifacts
+
+      - name: Run T227-001 reproduction
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url || 'https://ecommerce-operations-staging.imranmirzadubai.workers.dev' }}
+        run: node tests/e2e/T227-001-clean-main-browser-reproduction.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T227-001-browser-evidence
+          path: artifacts/
+          if-no-files-found: ignore
