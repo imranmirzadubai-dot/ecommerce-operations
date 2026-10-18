@@ -100,6 +100,42 @@ for (const viewport of VIEWPORTS) {
     expect(layout.controlsBelow44px, 'visible interactive controls must meet the 44px minimum target').toBe(0)
     expect(pageErrors, 'no uncaught browser errors').toEqual([])
 
+    // On mobile, prove the final visible content control can be brought fully
+    // above the fixed bottom navigation instead of merely checking page height.
+    if (viewport.width <= 430) {
+      const bottomNavCheck = await page.evaluate(() => {
+        const nav = document.querySelector<HTMLElement>('.mobile-bottom-nav')
+        const content = document.querySelector<HTMLElement>('.operations-app .content')
+        if (!nav || !content) return { error: 'mobile navigation or content container not found' }
+
+        const navStyle = getComputedStyle(nav)
+        if (navStyle.display === 'none' || navStyle.visibility === 'hidden') {
+          return { error: 'mobile bottom navigation is not visible' }
+        }
+
+        const controls = Array.from(content.querySelectorAll<HTMLElement>(
+          'button, input:not([type="checkbox"]):not([type="radio"]), select, textarea, [role="button"], a',
+        )).filter((element) => {
+          const rect = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+        })
+        const lastControl = controls.at(-1)
+        if (!lastControl) return { error: 'no visible content controls found' }
+
+        lastControl.scrollIntoView({ block: 'end' })
+        const controlRect = lastControl.getBoundingClientRect()
+        const navRect = nav.getBoundingClientRect()
+        return {
+          controlBottom: controlRect.bottom,
+          navTop: navRect.top,
+          unobscured: controlRect.bottom <= navRect.top,
+        }
+      })
+      expect(bottomNavCheck, 'last visible content control must scroll fully above mobile bottom navigation')
+        .toMatchObject({ unobscured: true })
+    }
+
     await testInfo.attach(`ui-responsive-${viewport.name}.json`, {
       body: JSON.stringify({ task: 'UI-MP-1.2', viewport: viewport.name, layout, pageErrors }, null, 2),
       contentType: 'application/json',
