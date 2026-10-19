@@ -26,7 +26,7 @@ select ok((
 
 select ok((
   select p.prosecdef
-    and pg_get_functiondef(p.oid) ilike '%set search_path = pg_catalog, public%'
+    and coalesce(p.proconfig, array[]::text[]) @> array['search_path=pg_catalog, public']::text[]
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
