@@ -37,3 +37,10 @@ To close AUD-P0-001, capture those three command outputs in the intended develop
 - No application code, database schema, migrations, or production data were changed.
 - No database reset, migration push, deployment, or application test command was run.
 - The audit branch was created from the verified `main` SHA above.
+
+
+## Additional controlled CI evidence (2026-10-19)
+
+A successful GitHub Actions CI run (run ID `39319087121`) was inspected read-only. It ran on GitHub-hosted `ubuntu-24.04`, Ubuntu `24.04.5 LTS`, runner image version `20261012.334.1`, runner version `2.337.0`. The run checked out commit `55df5c4bad1d2028c4d6bec276287e27f1e15c13` (the AUD-P0-002 report commit), not the exact `main` SHA recorded above.
+
+The CI workflow configuration confirms Node.js major version 24 and Supabase CLI version 2.105.0 are requested. The captured job logs did not print the actual `node --version`, `npm --version`, or `supabase --version` outputs, so these exact runtime outputs remain unverified. The run's successful status does not fill that evidence gap. No new workflow was triggered and no shell command was run by this assistant.
