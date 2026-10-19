@@ -383,6 +383,13 @@
 @media (max-width:640px){.parcel-control-grid,.parcel-summary{grid-template-columns:1fr}.parcel-order{grid-template-columns:1fr auto}.parcel-order span:last-child{grid-column:1/-1}.parcel-action-panel{grid-template-columns:1fr}.parcel-danger-zone{align-items:stretch;flex-direction:column}.parcel-danger-zone .remove-button{width:100%;min-height:44px}}
 
 
+/* UI-MP-1.2: reserve scroll space for the fixed mobile navigation. */
+@media (max-width: 560px) {
+  .operations-app .content {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
 /* UI-MP-1.2 accessibility gate: consistent 44px interactive target height. */
 .operations-app button,
 .operations-app input:not([type="checkbox"]):not([type="radio"]),
