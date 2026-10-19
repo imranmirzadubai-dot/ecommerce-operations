@@ -24,3 +24,12 @@ Add a database-level defense-in-depth control preventing an authenticated user f
 ## Production safety
 
 No production database mutation is part of T291 implementation. Migration deployment and production verification remain later P17 tasks.
+
+
+## Implementation record
+
+- Migration: `20261020100000_p17_t291_self_escalation_protection.sql`.
+- Trigger: `profiles_prevent_self_escalation`, before updates of `role` or `active`.
+- Trigger function: `public.prevent_profile_self_escalation()`, SECURITY DEFINER with pinned `search_path`; direct execution revoked from API roles.
+- Regression contract: `supabase/tests/database/172_p17_t291_self_escalation_protection.sql`.
+- Work is isolated on branch `fix/p17-t291-self-escalation-protection`. Migration has not been deployed to production. CI and review remain required before merge.
