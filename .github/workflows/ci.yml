@@ -22,6 +22,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Record exact Node.js and npm versions
+        run: |
+          node --version
+          npm --version
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -39,6 +43,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.105.0
+      - name: Record exact Supabase CLI version
+        run: supabase --version
       - run: supabase db start
       - run: |
           supabase db reset
