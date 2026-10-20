@@ -152,7 +152,23 @@ jobs:
             test-results/
           if-no-files-found: ignore
 
-  security-audit:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+
+  secret-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -162,14 +178,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci
-      - name: Dependency vulnerability audit
-        run: npm audit --audit-level=high
       - name: Scan complete Git history for secrets
         uses: gitleaks/gitleaks-action@v2
         env:
