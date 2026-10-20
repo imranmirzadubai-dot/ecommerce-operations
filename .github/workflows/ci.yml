@@ -51,6 +51,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libtap-parser-sourcehandler-pgtap-perl
           PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c 'create extension if not exists pgtap'
+          test -f supabase/tests/database/172_p17_t291_self_escalation_protection.sql
+          test -f supabase/tests/database/172_import_matched_customer_integrity.sql
           PGPASSWORD=postgres pg_prove -h 127.0.0.1 -p 54322 -U postgres \
             supabase/tests/database/028_rebuild_smoke.sql \
             supabase/tests/database/054_exact_integer_allocation_invariant.sql \
